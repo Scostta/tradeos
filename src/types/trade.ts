@@ -10,8 +10,8 @@ export const tradeSchema = z.object({
   contracts:   z.number().int().positive(),
   entryPrice:  z.number(),
   exitPrice:   z.number(),
-  entryTime:   z.string().datetime(),
-  exitTime:    z.string().datetime(),
+  entryTime:   z.string().datetime({ offset: true }),
+  exitTime:    z.string().datetime({ offset: true }),
   pnl:         z.number(),
   commission:  z.number(),
   netPnl:      z.number(),
@@ -21,7 +21,7 @@ export const tradeSchema = z.object({
   session:     z.enum(["RTH", "ETH", "overnight"]).nullable(),
   notes:       z.string().nullable(),
   tags:        z.array(z.string()).nullable(),
-  createdAt:   z.string().datetime(),
+  createdAt:   z.string().datetime({ offset: true }),
 })
 
 export type Trade = z.infer<typeof tradeSchema>

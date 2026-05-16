@@ -1,4 +1,47 @@
 export const ACCOUNTS = {
   TITLE:    "Accounts",
   SUBTITLE: "Real · funded · demo · paper",
-} as const;
+  CARD: {
+    NO_BROKER:       "No broker set",
+    BALANCE_LABEL:   "Initial balance",
+    BALANCE_NOT_SET: "Not set",
+    TRADES_LABEL:    "Trades",
+    NET_PNL_LABEL:   "Net P&L",
+    STATUS_ACTIVE:   "ACTIVE",
+    STATUS_ARCHIVED: "ARCHIVED",
+  },
+  EDITOR: {
+    EDIT_CTA:        "Edit",
+    NAME_CAPTION:    "From CSV · read-only",
+    BROKER_LABEL:    "Broker",
+    TYPE_LABEL:      "Account type",
+    BALANCE_LABEL:   "Initial balance",
+    COLOR_LABEL:     "Color",
+    NOTES_LABEL:     "Notes",
+    SAVE:            "Save changes",
+    CANCEL:          "Cancel",
+    ARCHIVE:         "Archive account",
+    ARCHIVE_CONFIRM: "Click again to archive",
+    RESTORE:         "Restore account",
+  },
+  EMPTY: {
+    HEADLINE: "No accounts yet",
+    BODY:     "Accounts are created automatically when you import a NinjaTrader CSV. Import a file to get started.",
+    CTA:      "Go to import",
+  },
+  TOAST: {
+    SAVE_SUCCESS: "Account updated.",
+    ARCHIVED:     "Account archived.",
+    RESTORED:     "Account restored.",
+    ERROR:        "Could not save changes. Please try again.",
+  },
+  TYPE_LABELS: {
+    real:   "Real",
+    funded: "Funded",
+    demo:   "Demo",
+    paper:  "Paper",
+  },
+  ERROR: {
+    LOAD_FAILED: "Could not load accounts.",
+  },
+} as const
