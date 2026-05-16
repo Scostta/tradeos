@@ -14,6 +14,7 @@ import { LayersIcon } from "~/lib/ui/icons/layers-icon";
 import { ListIcon } from "~/lib/ui/icons/list-icon";
 import { LogOutIcon } from "~/lib/ui/icons/log-out-icon";
 import { UploadIcon } from "~/lib/ui/icons/upload-icon";
+import { WalletIcon } from "~/lib/ui/icons/wallet-icon";
 
 interface NavItem {
   id: string;
@@ -28,12 +29,22 @@ const NAV_ITEMS: NavItem[] = [
   { id: "import", label: COMMON.NAV_LABELS.IMPORT, path: APP_URLS.IMPORT, Icon: UploadIcon },
   { id: "reports", label: COMMON.NAV_LABELS.REPORTS, path: APP_URLS.REPORTS, Icon: BarIcon },
   { id: "strategies", label: COMMON.NAV_LABELS.STRATEGIES, path: APP_URLS.STRATEGIES, Icon: LayersIcon },
-  { id: "journal", label: COMMON.NAV_LABELS.JOURNAL, path: APP_URLS.JOURNAL, Icon: CalendarIcon },
+  { id: "journal",    label: COMMON.NAV_LABELS.JOURNAL,    path: APP_URLS.JOURNAL,    Icon: CalendarIcon },
+  { id: "accounts",  label: COMMON.NAV_LABELS.ACCOUNTS,   path: APP_URLS.ACCOUNTS,   Icon: WalletIcon },
 ];
 
-export function Sidebar() {
+function getInitials(email?: string): string {
+  if (!email) return "—";
+  const local = email.split("@")[0] ?? "";
+  const parts = local.split(/[._-]/).filter(Boolean);
+  if (parts.length >= 2) return (parts[0][0] + parts[1][0]).toUpperCase();
+  return local.slice(0, 2).toUpperCase();
+}
+
+export function Sidebar({ userEmail }: { userEmail?: string }) {
   const pathname = usePathname();
   const [pending, startSignOut] = useTransition();
+  const initials = getInitials(userEmail);
 
   function isActive(path: string): boolean {
     if (path === "/dashboard") return pathname === "/dashboard";
@@ -92,36 +103,18 @@ export function Sidebar() {
         })}
       </nav>
 
-      {/* Session stats */}
-      <div className="mt-4.5 pt-2.5 border-t border-border">
-        <div className="label-caps mb-1.5">{COMMON.SESSION.LABEL}</div>
-        <div className="flex justify-between text-sm mb-0.75">
-          <span className="text-text-mute">{COMMON.SESSION.NET_PNL}</span>
-          <span className="mono text-text-dim">—</span>
-        </div>
-        <div className="flex justify-between text-sm mb-0.75">
-          <span className="text-text-mute">{COMMON.SESSION.TRADES}</span>
-          <span className="mono text-text-dim">0</span>
-        </div>
-        <div className="flex justify-between text-sm">
-          <span className="text-text-mute">{COMMON.SESSION.WIN_RATE}</span>
-          <span className="mono" style={{ color: "var(--color-accent)" }}>—</span>
-        </div>
-      </div>
-
       <div className="flex-1" />
 
       {/* User footer */}
       <div className="flex items-center gap-2.5 px-2 pt-2.5 mt-3 border-t border-border">
         <div
-          className="flex items-center justify-center w-7 h-7 rounded-full text-sm font-semibold text-text shrink-0"
+          className="flex items-center justify-center w-7 h-7 rounded-full text-xs font-semibold text-text shrink-0"
           style={{ background: "linear-gradient(135deg, #475569, #1e293b)" }}
         >
-          —
+          {initials}
         </div>
         <div className="flex-1 min-w-0">
-          <div className="text-base text-text font-medium truncate">{COMMON.USER_FOOTER.ACCOUNT}</div>
-          <div className="mono text-xs text-text-mute">{COMMON.USER_FOOTER.INSTRUMENT}</div>
+          <div className="text-base text-text font-medium truncate">{userEmail ?? COMMON.USER_FOOTER.ACCOUNT}</div>
         </div>
         <button
           type="button"

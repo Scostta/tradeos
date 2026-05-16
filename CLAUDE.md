@@ -331,6 +331,11 @@ SUPABASE_SERVICE_ROLE_KEY=   # solo para API routes
 - **Tipos**: definidos en `types/index.ts`, no usar `any`
 - **Errores**: siempre manejar errores de Supabase y mostrar toast al usuario
 - **Fechas**: usar `date-fns` para formateo, siempre UTC internamente
+- **Tailwind — sin valores arbitrarios `[Xpx]`**: nunca usar clases como `w-[480px]`, `min-h-[200px]`, `mt-[18px]`. Usar siempre la escala de Tailwind (`w-48`, `min-h-48`, `mt-4.5`…). Para tamaños fijos sin equivalente en la escala (ej. ancho exacto de un modal), usar `style={{ width: 480 }}`. Para sombras complejas sin utilidad Tailwind equivalente, usar `style={{ boxShadow: "..." }}`.
+- **Carpetas de código**:
+  - `src/actions/` — Server Actions (`"use server"`), mutaciones llamadas desde componentes cliente
+  - `src/services/queries/` — funciones de fetch para Server Components (sin `"use server"`)
+  - `src/services/mappers/` — funciones puras que convierten filas de BD (snake_case) al tipo de dominio (camelCase); usan `schema.parse()` para validar
 
 ---
 

@@ -1,7 +1,11 @@
-import { COMMON } from "~/constants/copies/common";
+import type { ReactElement } from "react";
 import { ACCOUNTS } from "~/constants/copies/accounts";
+import { getAccountsWithStats } from "~/services/queries/accounts";
+import { AccountsGrid } from "./components/accounts-grid";
 
-export default function AccountsPage() {
+export default async function AccountsPage(): Promise<ReactElement> {
+  const result = await getAccountsWithStats();
+
   return (
     <div className="flex flex-col h-full">
       <header className="flex items-center gap-4 px-7 py-3 border-b border-border bg-bg shrink-0">
@@ -10,8 +14,15 @@ export default function AccountsPage() {
           <div className="mono text-sm text-text-mute mt-0.5">{ACCOUNTS.SUBTITLE}</div>
         </div>
       </header>
-      <div className="flex-1 flex items-center justify-center text-text-mute text-md">
-        {COMMON.COMING_SOON}
+
+      <div className="flex-1 overflow-auto">
+        {result.success ? (
+          <AccountsGrid accounts={result.data} />
+        ) : (
+          <div className="p-7">
+            <div className="card p-4 text-sm text-loss">{ACCOUNTS.ERROR.LOAD_FAILED}</div>
+          </div>
+        )}
       </div>
     </div>
   );
