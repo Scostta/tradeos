@@ -1,26 +1,162 @@
 @import "tailwindcss";
 
+/* ── Design Tokens ──────────────────────────────────────────── */
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  /* Colors */
+  --color-bg:        #0a0a0f;
+  --color-surface:   #111118;
+  --color-surface-2: #15151f;
+  --color-border:    #1e1e2e;
+  --color-border-hi: #2a2a3d;
+  --color-text:      #e5e7eb;
+  --color-text-dim:  #9ca3af;
+  --color-text-mute: #6b7280;
+  --color-accent:    #a3e635;
+  --color-profit:    #22c55e;
+  --color-loss:      #ef4444;
+  --color-long:      #3b82f6;
+  --color-short:     #f59e0b;
+
+  --accent-glow: rgba(163, 230, 53, 0.35);
+  --mono:        var(--font-jetbrains-mono), ui-monospace, "Cascadia Code", monospace;
+
+  /* Typography scale */
+  --size-xxs:  0.5625rem;   /* 9px  — axis labels, th */
+  --size-xs:   0.625rem;    /* 10px — meta, version, badges */
+  --size-sm:   0.6875rem;   /* 11px — table cells, sub-labels */
+  --size-base: 0.75rem;     /* 12px — inputs, secondary content */
+  --size-md:   0.8125rem;   /* 13px — body, nav items */
+  --size-lg:   0.875rem;    /* 14px — mono values, spec grids */
+  --size-xl:   1.125rem;    /* 18px — page titles, pnl-lg */
+  --size-2xl:  1.375rem;    /* 22px — instrument names, drawer dates */
+  --size-3xl:  1.75rem;     /* 28px — metric card values */
+  --size-4xl:  2rem;        /* 32px — trade hero P&L */
+  --size-5xl:  2.5rem;      /* 40px — reserved */
+
+  /* Border-radius scale */
+  --radius-xs: 0.0625rem;  /* 1px  — hairline indicators */
+  --radius-sm: 0.25rem;    /* 4px  — buttons, inputs */
+  --radius-md: 0.375rem;   /* 6px  — cards, badges */
+  --radius-lg: 0.5rem;     /* 8px  — panels, modals */
 }
 
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
+  /* Colors */
+  --color-bg:        var(--color-bg);
+  --color-surface:   var(--color-surface);
+  --color-surface-2: var(--color-surface-2);
+  --color-border:    var(--color-border);
+  --color-border-hi: var(--color-border-hi);
+  --color-text:      var(--color-text);
+  --color-text-dim:  var(--color-text-dim);
+  --color-text-mute: var(--color-text-mute);
+  --color-accent:    var(--color-accent);
+  --color-profit:    var(--color-profit);
+  --color-loss:      var(--color-loss);
+  --color-long:      var(--color-long);
+  --color-short:     var(--color-short);
+
+  /* Fonts */
   --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --font-mono: var(--mono);
+
+  /* Typography scale — overrides Tailwind defaults */
+  --text-xxs:  var(--size-xxs);
+  --text-xs:   var(--size-xs);
+  --text-sm:   var(--size-sm);
+  --text-base: var(--size-base);
+  --text-md:   var(--size-md);
+  --text-lg:   var(--size-lg);
+  --text-xl:   var(--size-xl);
+  --text-2xl:  var(--size-2xl);
+  --text-3xl:  var(--size-3xl);
+  --text-4xl:  var(--size-4xl);
+  --text-5xl:  var(--size-5xl);
+
+  /* Border-radius scale */
+  --radius-xs: var(--radius-xs);
+  --radius-sm: var(--radius-sm);
+  --radius-md: var(--radius-md);
+  --radius-lg: var(--radius-lg);
+
+  /* Tracking scale — overrides + additions */
+  --tracking-tight:   -0.02em;   /* large numbers (text-3xl+) */
+  --tracking-mono:    -0.01em;   /* monospace values */
+  --tracking-normal:   0em;
+  --tracking-wide:     0.04em;   /* version strings, metadata */
+  --tracking-wider:    0.08em;   /* direction badges */
+  --tracking-caps:     0.1em;    /* uppercase section headers */
+  --tracking-widest:   0.12em;   /* smallest label caps */
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
-}
-
+/* ── Base ───────────────────────────────────────────────────── */
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background: var(--color-bg);
+  color: var(--color-text);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* ── Scrollbar ──────────────────────────────────────────────── */
+::-webkit-scrollbar        { width: 4px; height: 4px; }
+::-webkit-scrollbar-track  { background: var(--color-bg); }
+::-webkit-scrollbar-thumb  { background: var(--color-border); border-radius: 2px; }
+::-webkit-scrollbar-thumb:hover { background: var(--color-border-hi); }
+
+/* ── Utilities ──────────────────────────────────────────────── */
+@utility card {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+}
+
+@utility label-caps {
+  font-size: var(--size-xxs);
+  font-weight: 500;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--color-text-mute);
+}
+
+@utility mono {
+  font-family: var(--mono);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.01em;
+}
+
+@utility page-pad {
+  padding: 1.75rem;
+}
+
+@utility icon-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  border: 1px solid var(--color-border);
+  color: var(--color-text-dim);
+  cursor: pointer;
+}
+
+@utility btn-accent {
+  background: var(--color-accent);
+  color: #0a0a0f;
+  font-weight: 600;
+  border-radius: var(--radius-sm);
+  border: none;
+  cursor: pointer;
+  font-family: inherit;
+  box-shadow: 0 0 16px var(--accent-glow);
+}
+
+@utility btn-ghost {
+  background: transparent;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  color: var(--color-text-dim);
+  cursor: pointer;
+  font-family: inherit;
 }
