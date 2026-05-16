@@ -4,7 +4,7 @@
 
 Aplicación web de diario y tracking de trading estilo Tradezella, orientada a traders de futuros (NQ/ES). Permite importar trades desde NinjaTrader vía CSV, visualizar métricas de rendimiento y gestionar estrategias y journal diario.
 
-Un usuario puede tener **múltiples cuentas de trading** (ej. cuenta real, cuenta funded, cuenta demo, distintos brokers). Toda la app filtra por la cuenta activa seleccionada en el selector global del sidebar. Las métricas, trades, journal y reports son siempre por cuenta.
+Un usuario puede tener **múltiples cuentas de trading**. Las cuentas se crean automáticamente al importar un CSV de NinjaTrader — el parser detecta la columna `Account` y hace upsert de la cuenta si no existe. No hay paso de creación manual obligatorio. Toda la app filtra por la cuenta activa seleccionada en el selector global del sidebar.
 
 ---
 
@@ -39,7 +39,7 @@ Un usuario puede tener **múltiples cuentas de trading** (ej. cuenta real, cuent
 │   │   ├── reports/page.tsx
 │   │   ├── strategies/page.tsx
 │   │   ├── journal/page.tsx
-│   │   └── accounts/page.tsx   # CRUD de cuentas de trading
+│   │   └── accounts/page.tsx   # Ajustes de cuentas (editar nombre, color, tipo, balance)
 │   └── api/
 │       └── import/route.ts     # Parseo CSV → Supabase
 ├── components/
@@ -65,23 +65,24 @@ Un usuario puede tener **múltiples cuentas de trading** (ej. cuenta real, cuent
 
 ## Schema de base de datos (Supabase)
 
-### Tabla `accounts` ⬅️ NUEVA
+### Tabla `accounts`
 
-Cada usuario puede tener múltiples cuentas de trading (real, funded, demo, distintos brokers).
+Las cuentas se crean automáticamente desde el parser al importar un CSV. El usuario puede editarlas después desde `/accounts` para enriquecerlas (color, tipo, balance inicial). No hay creación manual en el onboarding.
 
 ```sql
 create table accounts (
   id uuid primary key default gen_random_uuid(),
   user_id uuid references auth.users not null,
-  name text not null,                -- ej. "Cuenta Real FTMO", "Demo NinjaTrader"
-  broker text,                       -- ej. "Tradovate", "Rithmic", "TopStep"
-  account_type text check (account_type in ('real', 'funded', 'demo', 'paper')) not null default 'real',
+  name text not null,                -- viene directo del campo "Account" del CSV de NinjaTrader
+  broker text,                       -- editable por el usuario después del import
+  account_type text check (account_type in ('real', 'funded', 'demo', 'paper')) default 'real',
   currency text default 'USD',
-  initial_balance numeric(12,2),     -- balance inicial para calcular DD sobre cuenta
+  initial_balance numeric(12,2),     -- editable por el usuario; usado para calcular DD sobre cuenta
   active boolean default true,
-  color text default '#3b82f6',      -- color identificador en la UI (hex)
+  color text default '#3b82f6',      -- color identificador en la UI (hex), editable
   notes text,
-  created_at timestamptz default now()
+  created_at timestamptz default now(),
+  unique(user_id, name)              -- ⬅️ constraint para el upsert del parser
 );
 
 alter table accounts enable row level security;
@@ -187,18 +188,37 @@ auth.users
 El CSV de NinjaTrader (exportado desde Trade Performance → Export) tiene este formato:
 
 ```
-Trade #,Instrument,Market pos.,Quantity,Entry price,Exit price,Entry time,Exit time,Profit,Commission,MAE,MFE
-1,NQ 03-25,Long,1,19850.00,19875.00,3/10/2025 9:32:01 AM,3/10/2025 9:45:22 AM,500.00,8.50,-120.00,620.00
+Trade #,Account,Instrument,Market pos.,Quantity,Entry price,Exit price,Entry time,Exit time,Profit,Commission,MAE,MFE
+1,Sim101,NQ 03-25,Long,1,19850.00,19875.00,3/10/2025 9:32:01 AM,3/10/2025 9:45:22 AM,500.00,8.50,-120.00,620.00
 ```
 
 El parser vive en `lib/parsers/ninjatrader.ts` y debe:
 1. Parsear las columnas arriba indicadas
-2. Normalizar `Market pos.` → `long | short`
-3. Extraer el símbolo limpio del instrumento (`NQ 03-25` → `NQ`)
-4. Calcular `net_pnl = profit - commission`
-5. Convertir fechas al formato ISO 8601
-6. Recibir `account_id` como parámetro (seleccionado por el usuario en `/import` antes de subir el CSV)
-7. Hacer upsert en Supabase (evitar duplicados por `account_id + instrument + entry_time`)
+2. **Detectar automáticamente las cuentas** — extraer los valores únicos de la columna `Account`
+3. Para cada cuenta detectada: hacer **upsert** en la tabla `accounts` usando `(user_id, name)` como constraint. Si ya existe, no sobreescribir campos que el usuario haya editado (color, tipo, balance inicial). Si es nueva, crearla con valores por defecto.
+4. Normalizar `Market pos.` → `long | short`
+5. Extraer el símbolo limpio del instrumento (`NQ 03-25` → `NQ`)
+6. Calcular `net_pnl = profit - commission`
+7. Convertir fechas al formato ISO 8601
+8. Hacer upsert de trades en Supabase evitando duplicados por `(account_id, instrument, entry_time)`
+9. Ignorar filas sin `Exit time` (trades parcialmente cerrados)
+
+### Lógica de upsert de cuentas en el parser
+
+```typescript
+// Para cada account_name único encontrado en el CSV:
+const { data: account } = await supabase
+  .from('accounts')
+  .upsert(
+    { user_id, name: account_name },
+    { onConflict: 'user_id,name', ignoreDuplicates: true }
+  )
+  .select('id')
+  .single()
+
+// ignoreDuplicates: true → si ya existe, NO sobreescribe color/tipo/balance_inicial
+// que el usuario haya configurado manualmente
+```
 
 ---
 
@@ -233,15 +253,15 @@ pnlByAccount(trades, accounts)         // { accountName: X, ... }  ⬅️ para v
 - Opción especial **"Todas las cuentas"** que agrega métricas de todas.
 - La cuenta seleccionada se guarda en `AccountContext` (React Context) y en `localStorage` para persistir entre sesiones.
 - Cada cuenta muestra su color identificador como dot de color.
-- Acceso rápido a "Gestionar cuentas" → `/accounts`.
+- Acceso rápido a "Ajustes de cuentas" → `/accounts`.
 
-### `/accounts`
-- Grid de cards, una por cuenta.
-- Cada card: nombre, broker, tipo (badge: Real / Funded / Demo / Paper), balance inicial, color, estado (activa/inactiva).
+### `/accounts` — Ajustes de cuentas *(no es CRUD, es enriquecimiento)*
+- Grid de cards, una por cuenta. Las cuentas existen porque se importaron — no se crean aquí.
+- Cada card: nombre (read-only, viene del CSV), broker, tipo (badge: Real / Funded / Demo / Paper), balance inicial, color, estado (activa/inactiva).
 - Stats rápidas en cada card: total trades, net P&L acumulado.
-- Botón "Nueva cuenta" → modal con campos: nombre, broker, tipo, balance inicial, color (color picker), notas.
-- CRUD completo: editar, archivar (soft delete: `active = false`).
-- **No se permite eliminar** una cuenta con trades asociados; solo archivar.
+- Edición inline o modal: broker, tipo, balance inicial, color (color picker), notas.
+- Archivar cuenta (soft delete: `active = false`). **No se permite eliminar** si tiene trades.
+- **No hay botón "Nueva cuenta"** — las cuentas solo se crean vía import.
 
 ### `/dashboard`
 - Selector de cuenta visible en el header de la página (refleja el global del sidebar).
@@ -262,11 +282,11 @@ pnlByAccount(trades, accounts)         // { accountName: X, ... }  ⬅️ para v
 - Asignar estrategia.
 
 ### `/import`
-- **Selector de cuenta obligatorio** antes de poder subir el CSV — si no hay cuentas creadas, redirige a `/accounts`.
-- Drag & drop de CSV.
-- Preview de los trades parseados antes de confirmar.
-- Indicador de duplicados detectados (para esa cuenta).
-- Botón "Importar X trades a [nombre cuenta]".
+- Drag & drop del CSV de NinjaTrader. No requiere selección previa de cuenta.
+- Tras parsear el CSV, se muestra un **resumen de cuentas detectadas** en el archivo (ej. "Se encontraron 2 cuentas: Sim101, Live42"). Cuentas nuevas marcadas como "Nueva ✦", existentes como "Existente".
+- Preview de los trades parseados en tabla (agrupados o filtrables por cuenta).
+- Indicador de duplicados detectados por cuenta.
+- Botón "Importar X trades" — ejecuta el upsert de cuentas y trades en una sola operación.
 
 ### `/reports`
 - P&L por día de la semana (BarChart).
@@ -295,28 +315,22 @@ SUPABASE_SERVICE_ROLE_KEY=   # solo para API routes
 
 ---
 
+## Estructura de componentes
+
+- **`src/components/`** — solo componentes verdaderamente compartidos entre **más de una página** (ej. `Sidebar`, `TopBar`, futuros `TradeRow`, `MetricCard`).
+- **`src/app/(dashboard)/[ruta]/components/`** — componentes exclusivos de esa ruta. Si un componente solo se usa en `/import`, vive en `src/app/(dashboard)/import/components/`, no en `src/components/`.
+- La regla es: si solo hay un consumidor, el componente va junto a su página. Si hay más de uno, se promueve a `src/components/`.
+
+---
+
 ## Convenciones de código
 
-- **Copies** (`constants/copies/`): cada archivo exporta un único objeto en SCREAMING_SNAKE_CASE. Tanto el objeto raíz como todas sus claves (a cualquier nivel) deben ir en MAYÚSCULAS_CON_GUIÓN. Ejemplo: `COMMON.NAV_LABELS.DASHBOARD`, `AUTH.LOGIN.EMAIL_LABEL`. Nunca usar camelCase ni PascalCase en estos objetos.
-- **Componentes UI generales**: viven en `src/lib/ui/` (ej. `button.tsx`). Solo componentes verdaderamente reutilizables en toda la app (botones, inputs, badges…). Named export siempre.
-- **Iconos**: viven en `src/lib/ui/icons/`, un archivo por icono en kebab-case (ej. `log-out-icon.tsx`). Named export con el nombre del componente en PascalCase (ej. `export function LogOutIcon()`). Nunca definir iconos inline en componentes.
-- **Componentes**: PascalCase (nombre del componente), pero **nombre de archivo en minúsculas** kebab-case (ej. `sidebar.client.tsx`, `metric-card.tsx`, `trade-row.tsx`)
+- **Componentes**: PascalCase, un componente por archivo
 - **Hooks**: `use` prefix, en `/hooks/`
 - **Server Components** por defecto; `"use client"` solo cuando haya estado o interactividad
 - **Tipos**: definidos en `types/index.ts`, no usar `any`
 - **Errores**: siempre manejar errores de Supabase y mostrar toast al usuario
 - **Fechas**: usar `date-fns` para formateo, siempre UTC internamente
-
-### Tipografía — reglas estrictas
-
-El sistema tipográfico está definido en `DESIGN.md` y en las variables CSS de `globals.css`.
-
-- **Prohibido** `text-[Xpx]` — usar siempre la escala: `text-xxs` `text-xs` `text-sm` `text-base` `text-md` `text-lg` `text-xl` `text-2xl` `text-3xl` `text-4xl` `text-5xl`
-- **Prohibido** `tracking-[Xem]` — usar siempre: `tracking-tight` `tracking-mono` `tracking-normal` `tracking-wide` `tracking-wider` `tracking-caps` `tracking-widest`
-- **Prohibido** `rounded-[Xpx]` — usar siempre la escala: `rounded-xs` (1px) · `rounded-sm` (4px) · `rounded` (4px) · `rounded-md` (6px) · `rounded-lg` (8px) · `rounded-full`
-- **Prohibido** `text-[color]` arbitrario — usar los tokens de color definidos (`text-text`, `text-text-dim`, `text-text-mute`, `text-accent`, `text-profit`, `text-loss`, etc.)
-- Todos los valores numéricos mostrados al usuario (P&L, precios, cantidades, timestamps) deben ir con `font-mono` o la utility `mono`
-- Los headers de sección uppercase deben usar la utility `label-caps` (no replicar los estilos manualmente)
 
 ---
 
@@ -326,41 +340,15 @@ El sistema tipográfico está definido en `DESIGN.md` y en las variables CSS de 
 2. Setup Next.js + Supabase clients (browser + server)
 3. Auth pages (login/registro) con Supabase Auth
 4. Layout con sidebar + `AccountContext` + selector de cuenta
-5. `/accounts` — CRUD de cuentas (necesario antes que import)
-6. Parser NinjaTrader + página `/import` (requiere selección de cuenta)
-7. `lib/calculations/metrics.ts`
-8. Dashboard con métricas y equity curve
-9. Página `/trades` con tabla y filtros
-10. Trade View `/trades/[id]`
-11. Reports `/reports`
-12. Strategies CRUD
-13. Journal con calendario
-
----
-
-## Patrones React 19 — warnings conocidos
-
-### No almacenar JSX en constantes de módulo
-Guardar `<Component />` en un array o constante fuera del render crea elementos sin contexto de render y genera warnings en React 19.
-
-```typescript
-// MAL — genera warning
-const NAV_ITEMS = [{ icon: <GridIcon /> }];
-// BIEN — almacenar la referencia al componente
-const NAV_ITEMS = [{ Icon: GridIcon }];
-// Luego en JSX: <item.Icon />
-```
-
-### setState sincrónico dentro de useEffect
-Llamar `setState` directamente en el cuerpo de un `useEffect` puede generar el warning *"Calling setState synchronously within an effect can trigger cascading renders"* en React 19. Envolver en `startTransition`:
-
-```typescript
-useEffect(() => {
-  startTransition(() => {
-    setState(value);
-  });
-}, [value]);
-```
+5. Parser NinjaTrader + página `/import` (auto-crea cuentas desde el CSV)
+6. `lib/calculations/metrics.ts`
+7. Dashboard con métricas y equity curve
+8. Página `/trades` con tabla y filtros
+9. Trade View `/trades/[id]`
+10. Reports `/reports`
+11. Strategies CRUD
+12. Journal con calendario
+13. `/accounts` — página de ajustes de cuentas (último, no es bloqueante)
 
 ---
 
@@ -370,7 +358,7 @@ useEffect(() => {
 - El CSV de NinjaTrader puede tener trades parcialmente cerrados — ignorar filas sin `Exit time`.
 - Los contratos de NQ tienen valor de tick $5 (0.25 pts). El CSV ya exporta el P&L en USD, no recalcular.
 - Para futuros el `commission` es crítico (suele ser $8-10 por contrato RT). Siempre mostrar net_pnl.
-- **Cuentas**: el `account_id` debe estar presente en cada query a `trades` y `daily_journal`. Nunca hacer queries sin filtrar por cuenta (salvo la vista "Todas las cuentas" que hace un `in (account_ids_del_usuario)`).
+- **Cuentas auto-creadas**: el parser es la única fuente de creación de cuentas. Usar `upsert` con `ignoreDuplicates: true` para no sobreescribir configuración manual del usuario (color, tipo, balance).
 - **AccountContext**: crear en `contexts/AccountContext.tsx`. Provee `activeAccount: Account | null` y `setActiveAccount`. Persiste en `localStorage` con la key `"active_account_id"`. El layout del dashboard lo wrappea.
 - **Vista "Todas las cuentas"**: cuando `activeAccount === null`, las queries usan `.in('account_id', userAccountIds)` en lugar de `.eq('account_id', id)`.
-- **No borrar cuentas con trades**: la FK `on delete cascade` está en el schema pero la UI debe impedir el borrado si hay trades asociados. Mostrar conteo de trades en el modal de confirmación y ofrecer solo "Archivar".
+- **Primera vez sin trades**: si el usuario entra al dashboard sin haber importado nada, mostrar un estado vacío con CTA directo a `/import`. No redirigir a `/accounts`.

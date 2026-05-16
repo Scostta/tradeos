@@ -1,5 +1,5 @@
-import { COMMON } from "~/constants/copies/common";
 import { IMPORT } from "~/constants/copies/import";
+import { ImportFlow } from "~/app/(dashboard)/import/components/import-flow.client";
 
 export default function ImportPage() {
   return (
@@ -10,8 +10,8 @@ export default function ImportPage() {
           <div className="mono text-sm text-text-mute mt-0.5">{IMPORT.SUBTITLE}</div>
         </div>
       </header>
-      <div className="flex-1 flex items-center justify-center text-text-mute text-md">
-        {COMMON.COMING_SOON}
+      <div className="flex-1 overflow-auto">
+        <ImportFlow />
       </div>
     </div>
   );
