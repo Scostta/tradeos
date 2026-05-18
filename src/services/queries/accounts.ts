@@ -1,8 +1,28 @@
 import { createClient } from "~/utils/supabase/server"
 import { mapAccountFromDb } from "~/services/mappers/accounts"
-import type { AccountWithStats } from "~/types/account"
+import type { Account, AccountWithStats } from "~/types/account"
 import { createDataResult, createErrorResult } from "~/helpers/result"
 import type { ResultType } from "~/helpers/result"
+
+export async function getAccounts(): Promise<ResultType<Account[], string>> {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return createErrorResult("UNAUTHENTICATED")
+
+  const { data, error } = await supabase
+    .from("accounts")
+    .select("*")
+    .eq("user_id", user.id)
+    .eq("active", true)
+    .order("created_at", { ascending: true })
+
+  if (error) {
+    console.error(error)
+    return createErrorResult(error.message)
+  }
+
+  return createDataResult((data ?? []).map(mapAccountFromDb))
+}
 
 export async function getAccountsWithStats(): Promise<ResultType<AccountWithStats[], string>> {
   const supabase = await createClient()
