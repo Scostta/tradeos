@@ -1,6 +1,6 @@
 import type { ReactElement } from "react";
 import type { AccountWithStats } from "~/types/account";
-import { AccountCard } from "./account-card";
+import { AccountCard } from "./account-card.client";
 import { AccountsEmptyState } from "./accounts-empty-state";
 
 type Props = { accounts: AccountWithStats[] };

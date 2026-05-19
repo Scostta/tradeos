@@ -25,9 +25,12 @@ const ACCOUNT_TYPES: AccountType[] = ["real", "funded", "demo", "paper"];
 
 type ToastState = { message: string; variant: ToastVariant };
 
-type Props = { account: AccountWithStats };
+type Props = {
+  account:        AccountWithStats;
+  renderTrigger?: (open: () => void) => ReactElement;
+};
 
-export function AccountEditor({ account }: Props): ReactElement {
+export function AccountEditor({ account, renderTrigger }: Props): ReactElement {
   const [isOpen, setIsOpen]               = useState(false);
   const [broker, setBroker]               = useState(account.broker ?? "");
   const [accountType, setAccountType]     = useState<AccountType>(account.accountType);
@@ -116,9 +119,11 @@ export function AccountEditor({ account }: Props): ReactElement {
         </div>
       )}
 
-      <Button variant="ghost" onClick={openModal}>
-        {ACCOUNTS.EDITOR.EDIT_CTA}
-      </Button>
+      {renderTrigger ? renderTrigger(openModal) : (
+        <Button variant="ghost" onClick={openModal}>
+          {ACCOUNTS.EDITOR.EDIT_CTA}
+        </Button>
+      )}
 
       {isOpen && createPortal(
         <div
