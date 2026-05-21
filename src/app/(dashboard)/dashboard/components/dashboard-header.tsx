@@ -20,10 +20,10 @@ export function DashboardHeader({ range, accounts, accountId }: Props): ReactEle
       </div>
       <div className="flex-1" />
       <div className="flex items-center gap-2">
-        {accounts.length > 1 && (
+        <RangeSelector value={range} />
+        {accounts.length > 0 && (
           <AccountSelector accounts={accounts} value={accountId} />
         )}
-        <RangeSelector value={range} />
       </div>
     </header>
   )

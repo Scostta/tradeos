@@ -85,14 +85,13 @@ create policy "Users see own trades" on trades
 create table if not exists daily_journal (
   id                 uuid primary key default gen_random_uuid(),
   user_id            uuid references auth.users not null,
-  account_id         uuid references accounts(id) on delete cascade not null,
   date               date not null,
   pre_market_notes   text,
   post_market_notes  text,
   mood               integer check (mood between 1 and 5),
   followed_plan      boolean,
   created_at         timestamptz default now(),
-  unique(account_id, date)
+  unique(user_id, date)
 );
 
 alter table daily_journal enable row level security;

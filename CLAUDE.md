@@ -357,6 +357,12 @@ SUPABASE_SERVICE_ROLE_KEY=   # solo para API routes
 
 ---
 
+## Reglas de React
+
+- **No hacer `setState` dentro de `useEffect` para sincronizar con props** — causa dobles renders en cascada. En su lugar, usar el **key reset pattern**: pasar `key={valorQueIdentificaElEstado}` al componente hijo para que React lo desmonte/monte automáticamente, reseteando el estado sin efectos. Ejemplo: `<DayDrawer key={selectedDate} ... />` en lugar de `useEffect(() => { setDraft(initDraft(day)) }, [day.date])`.
+
+---
+
 ## Notas importantes
 
 - Siempre usar **Row Level Security** en Supabase. Nunca exponer datos de otros usuarios.

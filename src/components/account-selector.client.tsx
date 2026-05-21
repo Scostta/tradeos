@@ -53,6 +53,8 @@ export function AccountSelector({ accounts, value }: Props): ReactElement {
           cursor:      "pointer",
           whiteSpace:  "nowrap",
           transition:  "border-color 0.15s",
+          maxWidth:    110,
+          minWidth:    0,
         }}
       >
         {selected ? (
@@ -65,7 +67,9 @@ export function AccountSelector({ accounts, value }: Props): ReactElement {
                 flexShrink: 0,
               }}
             />
-            {selected.name}
+            <span style={{ overflow: "hidden", textOverflow: "ellipsis", minWidth: 0 }}>
+              {selected.name}
+            </span>
           </>
         ) : (
           <span style={{ color: "var(--color-text-mute)" }}>All accounts</span>
