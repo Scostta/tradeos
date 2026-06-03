@@ -1,36 +1,85 @@
 import type { ReactElement } from "react"
-import { COMMON } from "~/constants/copies/common"
 import { TRADES } from "~/constants/copies/trades"
 import { getAccounts } from "~/services/queries/accounts"
-import { AccountSelector } from "~/components/account-selector.client"
+import { getStrategiesWithStats } from "~/services/queries/strategies"
+import { getTradesPage } from "~/services/queries/trades"
+import { parseTradeFilters } from "~/types/trade-filters"
+import { TradesHeader } from "./components/trades-header"
+import { TradesFilterBar } from "./components/trades-filter-bar"
+import { TradesTable } from "./components/trades-table"
+import { TradesPagination } from "./components/trades-pagination.client"
 
 export default async function TradesPage({
   searchParams,
 }: {
-  searchParams: Promise<{ account?: string }>
+  searchParams: Promise<{
+    account?:    string
+    instrument?: string
+    direction?:  string
+    strategy?:   string
+    range?:      string
+    page?:       string
+  }>
 }): Promise<ReactElement> {
-  const params    = await searchParams
-  const accountId = params.account ?? null
+  const params  = await searchParams
+  const filters = parseTradeFilters(params)
 
-  const accountsResult = await getAccounts()
-  const accounts = accountsResult.success ? accountsResult.data : []
+  const [tradesResult, accountsResult, strategiesResult] = await Promise.all([
+    getTradesPage(filters),
+    getAccounts(),
+    getStrategiesWithStats(),
+  ])
+
+  const accounts   = accountsResult.success   ? accountsResult.data   : []
+  const strategies = strategiesResult.success ? strategiesResult.data : []
+
+  if (!tradesResult.success) {
+    return (
+      <div className="flex flex-col h-full">
+        <TradesHeader
+          totalCount={0}
+          totalNet={0}
+          accounts={accounts}
+          accountId={filters.accountId}
+        />
+        <TradesFilterBar
+          filters={filters}
+          instruments={[]}
+          strategies={strategies}
+        />
+        <div className="flex-1 flex items-center justify-center text-text-mute text-sm">
+          {TRADES.LIST.ERROR}
+        </div>
+      </div>
+    )
+  }
+
+  const { trades, totalCount, totalNet, page, pageCount, instruments } = tradesResult.data
 
   return (
     <div className="flex flex-col h-full">
-      <header className="flex items-center gap-4 px-7 py-3 border-b border-border bg-bg shrink-0">
-        <div>
-          <h1 className="text-xl font-semibold tracking-tight text-text">{TRADES.LIST.TITLE}</h1>
-          <div className="mono text-sm text-text-mute mt-0.5">{TRADES.LIST.SUBTITLE}</div>
-        </div>
-        <div className="ml-auto">
-          {accounts.length > 0 && (
-            <AccountSelector accounts={accounts} value={accountId} />
-          )}
-        </div>
-      </header>
-      <div className="flex-1 flex items-center justify-center text-text-mute text-md">
-        {COMMON.COMING_SOON}
+      <TradesHeader
+        totalCount={totalCount}
+        totalNet={totalNet}
+        accounts={accounts}
+        accountId={filters.accountId}
+      />
+      <TradesFilterBar
+        filters={filters}
+        instruments={instruments}
+        strategies={strategies}
+      />
+      <div className="flex-1 overflow-auto px-4 md:px-7 py-5">
+        <TradesTable
+          trades={trades}
+          strategies={strategies}
+        />
       </div>
+      <TradesPagination
+        page={page}
+        pageCount={pageCount}
+        totalCount={totalCount}
+      />
     </div>
   )
 }

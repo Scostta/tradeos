@@ -53,7 +53,7 @@ export function AccountSelector({ accounts, value }: Props): ReactElement {
           cursor:      "pointer",
           whiteSpace:  "nowrap",
           transition:  "border-color 0.15s",
-          maxWidth:    110,
+          maxWidth:    160,
           minWidth:    0,
         }}
       >

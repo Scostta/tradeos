@@ -1,57 +1,66 @@
 "use client"
 
-import type { ReactElement } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
-import type { RangeKey } from "~/types/metrics"
-import { DASHBOARD } from "~/constants/copies/dashboard"
+import type { ReactElement } from "react"
 
-type Props = { value: RangeKey }
+export type RangeOption = {
+  id:    string
+  label: string
+}
 
-const OPTIONS: { id: RangeKey; label: string }[] = [
-  { id: "today", label: DASHBOARD.RANGE.TODAY },
-  { id: "week",  label: DASHBOARD.RANGE.WEEK  },
-  { id: "month", label: DASHBOARD.RANGE.MONTH },
-  { id: "ytd",   label: DASHBOARD.RANGE.YTD   },
-]
+type Props = {
+  value:   string
+  options: readonly RangeOption[]
+}
 
-export function RangeSelector({ value }: Props): ReactElement {
-  const router     = useRouter()
+export function RangeSelector({ value, options }: Props): ReactElement {
+  const router       = useRouter()
   const searchParams = useSearchParams()
 
-  function onChange(id: RangeKey) {
+  function select(id: string) {
     const params = new URLSearchParams(searchParams.toString())
-    params.set("range", id)
+    if (id === "all") {
+      params.delete("range")
+    } else {
+      params.set("range", id)
+    }
+    params.delete("page")
     router.push(`?${params.toString()}`)
   }
 
   return (
     <div
-      className="inline-flex items-stretch border border-border rounded overflow-hidden bg-surface"
+      style={{
+        display:      "inline-flex",
+        alignItems:   "center",
+        background:   "var(--color-surface)",
+        border:       "1px solid var(--color-border)",
+        borderRadius: 6,
+        overflow:     "hidden",
+      }}
     >
-      {OPTIONS.map((o, i) => {
-        const active = o.id === value
+      {options.map((opt, i) => {
+        const isActive = opt.id === value
         return (
           <button
-            key={o.id}
-            onClick={() => onChange(o.id)}
-            className="relative px-3 py-1.5 text-base transition-colors whitespace-nowrap"
+            key={opt.id}
+            onClick={() => select(opt.id)}
             style={{
-              background:  active ? "var(--color-surface-2)" : "transparent",
-              color:       active ? "var(--color-text)"      : "var(--color-text-dim)",
+              height:      30,
+              padding:     "0 10px",
+              background:  isActive ? "var(--color-surface-2)" : "transparent",
               border:      "none",
-              borderLeft:  i > 0 ? "1px solid var(--color-border)" : "none",
+              borderLeft:  i === 0 ? "none" : "1px solid var(--color-border)",
+              borderTop:   isActive ? "1px solid var(--color-accent)" : "1px solid transparent",
+              color:       isActive ? "var(--color-text)" : "var(--color-text-mute)",
               fontFamily:  "inherit",
-              fontWeight:  active ? 500 : 400,
+              fontSize:    12,
               cursor:      "pointer",
+              whiteSpace:  "nowrap",
+              transition:  "background 0.15s, color 0.15s",
             }}
           >
-            {active && (
-              <span
-                className="absolute inset-x-0 top-0 h-0.5"
-                style={{ background: "var(--color-accent)" }}
-              />
-            )}
-            {o.label}
+            {opt.label}
           </button>
         )
       })}

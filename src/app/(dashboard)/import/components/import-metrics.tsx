@@ -36,7 +36,7 @@ export function ImportMetrics(props: Props): ReactElement {
   ] as const;
 
   return (
-    <div className="grid grid-cols-4 gap-3">
+    <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
       {metrics.map((metric) => (
         <div key={metric.label} className="card p-4">
           <div className="label-caps mb-1">{metric.label}</div>

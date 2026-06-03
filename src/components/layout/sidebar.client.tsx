@@ -7,6 +7,7 @@ import type { ComponentType } from "react";
 import { signOut } from "~/actions/auth";
 import { COMMON } from "~/constants/copies/common";
 import { APP_URLS } from "~/constants/app-urls";
+import { cn } from "~/utils/cn";
 import { BarIcon } from "~/lib/ui/icons/bar-icon";
 import { CalendarIcon } from "~/lib/ui/icons/calendar-icon";
 import { GridIcon } from "~/lib/ui/icons/grid-icon";
@@ -15,6 +16,7 @@ import { ListIcon } from "~/lib/ui/icons/list-icon";
 import { LogOutIcon } from "~/lib/ui/icons/log-out-icon";
 import { UploadIcon } from "~/lib/ui/icons/upload-icon";
 import { WalletIcon } from "~/lib/ui/icons/wallet-icon";
+import { XIcon } from "~/lib/ui/icons/x-icon";
 
 interface NavItem {
   id: string;
@@ -41,7 +43,15 @@ function getInitials(email?: string): string {
   return local.slice(0, 2).toUpperCase();
 }
 
-export function Sidebar({ userEmail }: { userEmail?: string }) {
+export function Sidebar({
+  userEmail,
+  isOpen,
+  onClose,
+}: {
+  userEmail?: string
+  isOpen?: boolean
+  onClose?: () => void
+}) {
   const pathname = usePathname();
   const [pending, startSignOut] = useTransition();
   const initials = getInitials(userEmail);
@@ -53,9 +63,23 @@ export function Sidebar({ userEmail }: { userEmail?: string }) {
 
   return (
     <aside
-      className="flex flex-col bg-surface border-r border-border py-5 px-3 shrink-0"
+      className={cn(
+        "fixed inset-y-0 left-0 z-50 flex flex-col bg-surface border-r border-border py-5 px-3 shrink-0 transition-transform duration-200",
+        "md:relative md:translate-x-0",
+        isOpen ? "translate-x-0" : "-translate-x-full md:translate-x-0"
+      )}
       style={{ width: 224 }}
     >
+      {/* Mobile close button */}
+      <button
+        type="button"
+        onClick={onClose}
+        className="absolute top-3 right-3 p-1.5 rounded text-text-mute hover:text-text transition-colors md:hidden"
+        aria-label="Close menu"
+      >
+        <XIcon />
+      </button>
+
       {/* Brand */}
       <div className="flex items-center gap-2.5 px-2 pb-4">
         <div

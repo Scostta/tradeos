@@ -1,5 +1,5 @@
 import { createClient } from "~/utils/supabase/server";
-import { Sidebar } from "~/components/layout/sidebar.client";
+import { DashboardShell } from "~/components/layout/dashboard-shell.client";
 
 export default async function DashboardLayout({
   children,
@@ -10,11 +10,8 @@ export default async function DashboardLayout({
   const { data: { user } } = await supabase.auth.getUser();
 
   return (
-    <div className="flex h-screen overflow-hidden bg-bg">
-      <Sidebar userEmail={user?.email} />
-      <main className="flex-1 overflow-hidden flex flex-col">
-        {children}
-      </main>
-    </div>
+    <DashboardShell userEmail={user?.email}>
+      {children}
+    </DashboardShell>
   );
 }

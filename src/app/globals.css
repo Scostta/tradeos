@@ -125,7 +125,10 @@ body {
 }
 
 @utility page-pad {
-  padding: 1.75rem;
+  padding: 1rem;
+  @media (min-width: 768px) {
+    padding: 1.75rem;
+  }
 }
 
 @utility icon-btn {

@@ -75,7 +75,7 @@ export function JournalCalendar({
   return (
     <>
       {/* TopBar */}
-      <header className="flex items-center gap-4 px-7 py-3 border-b border-border bg-bg shrink-0">
+      <header className="flex flex-col md:flex-row md:items-center gap-3 px-4 md:px-7 py-3 border-b border-border bg-bg shrink-0">
         <div>
           <h1 className="text-xl font-semibold tracking-tight text-text">{JOURNAL.TITLE}</h1>
           <div className="mono text-sm text-text-mute mt-0.5">
@@ -83,7 +83,7 @@ export function JournalCalendar({
           </div>
         </div>
 
-        <div className="ml-auto flex items-center gap-3">
+        <div className="flex flex-wrap items-center gap-3 md:ml-auto">
           {/* Month net */}
           <div className="flex items-center gap-2">
             <span className="text-sm text-text-mute">{JOURNAL.MONTH_NET}</span>
@@ -132,26 +132,33 @@ export function JournalCalendar({
 
       {/* Body — calendar takes full width; drawer overlays */}
       <div className="flex-1 overflow-hidden page-pad">
+        <style>{`
+          @media (max-width: 767px) {
+            .jcal-grid { grid-template-columns: repeat(7, 1fr) !important; }
+            .jcal-week-col { display: none !important; }
+            .jcal-day-cell { min-height: 58px !important; }
+          }
+        `}</style>
         {/* Day-of-week header */}
         <div
-          className="grid mb-2"
+          className="grid mb-2 jcal-grid"
           style={{ gridTemplateColumns: "repeat(7, 1fr) 88px", gap: 6 }}
         >
           {DOW_HEADERS.map((d) => (
             <div key={d} className="label-caps px-2">{d}</div>
           ))}
-          <div className="label-caps text-center">WEEK</div>
+          <div className="label-caps text-center jcal-week-col">WEEK</div>
         </div>
 
         {/* Weeks grid */}
-        <div className="flex flex-col gap-1.5 overflow-auto min-h-0" style={{ height: "calc(100% - 28px)" }}>
+        <div className="flex flex-col gap-1.5 min-h-0" style={{ height: "calc(100% - 28px)", overflowY: "auto" }}>
           {weeks.map((week, wi) => {
             const wNet   = week.reduce((s, d) => s + (d?.net ?? 0), 0)
             const wCount = week.reduce((s, d) => s + (d?.tradeCount ?? 0), 0)
             return (
               <div
                 key={wi}
-                className="grid min-h-0"
+                className="grid min-h-0 jcal-grid"
                 style={{ gridTemplateColumns: "repeat(7, 1fr) 88px", gap: 6, flex: "1 1 0" }}
               >
                 {week.map((day, di) => {
@@ -159,7 +166,7 @@ export function JournalCalendar({
                     return (
                       <div
                         key={di}
-                        className="bg-bg border border-border rounded-sm opacity-40"
+                        className="bg-bg border border-border rounded-sm opacity-40 jcal-day-cell"
                       />
                     )
                   }
@@ -172,7 +179,7 @@ export function JournalCalendar({
                       <div
                         key={di}
                         className={cn(
-                          "card text-left p-2 flex flex-col gap-1.5 relative",
+                          "card text-left p-2 flex flex-col gap-1.5 relative jcal-day-cell",
                           day.isWeekend && "opacity-55"
                         )}
                         style={{ minHeight: 92 }}
@@ -193,7 +200,7 @@ export function JournalCalendar({
                       key={di}
                       onClick={() => setSelectedDate(isSelected ? null : day.date)}
                       className={cn(
-                        "card text-left p-2 flex flex-col gap-1.5 relative transition-colors cursor-pointer",
+                        "card text-left p-2 flex flex-col gap-1.5 relative transition-colors cursor-pointer jcal-day-cell",
                         isSelected  && "border-accent",
                         !isSelected && "hover:border-border-hi",
                         day.isWeekend && "opacity-55"
@@ -255,7 +262,7 @@ export function JournalCalendar({
                 })}
 
                 {/* Week total */}
-                <div className="bg-bg border border-border rounded-sm p-2 flex flex-col justify-between">
+                <div className="bg-bg border border-border rounded-sm p-2 flex flex-col justify-between jcal-week-col">
                   <div className="mono text-xxs text-text-mute tracking-widest">
                     W{wi + 1}
                   </div>

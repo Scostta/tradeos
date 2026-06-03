@@ -16,7 +16,7 @@ function pfSub(pf: number): string {
 export function MetricsRow({ metrics }: Props): ReactElement {
   const { netPnl, winRate, profitFactor, maxDrawdown, avgWin, avgLoss, winners, losers } = metrics
   return (
-    <div className="grid grid-cols-6 gap-3">
+    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
       <MetricCard
         label={DASHBOARD.METRICS.NET_PNL}
         value={formatCurrency(netPnl, { sign: false, decimals: 0 })}

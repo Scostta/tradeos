@@ -85,7 +85,7 @@ export function DropZone(props: Props): ReactElement {
       className={cn(
         "relative overflow-hidden cursor-pointer",
         "border-2 border-dashed rounded-lg",
-        "py-12 px-8",
+        "py-8 md:py-12 px-4 md:px-8",
         "flex flex-col items-center justify-center gap-4",
         "transition-all duration-200",
         isDragging

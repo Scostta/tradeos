@@ -77,7 +77,11 @@ export function DayDrawer({ day, accounts, onClose }: Props): ReactElement {
 
   return (
     <>
-      <style>{`@keyframes drawerSlideIn { from { transform: translateX(100%); } to { transform: translateX(0); } }`}</style>
+      <style>{`
+        @keyframes drawerSlideIn { from { transform: translateX(100%); } to { transform: translateX(0); } }
+        .day-drawer { width: 100%; }
+        @media (min-width: 768px) { .day-drawer { width: 460px; } }
+      `}</style>
 
       {/* Backdrop */}
       <div className="fixed inset-0 z-30" onClick={onClose} />
@@ -89,9 +93,8 @@ export function DayDrawer({ day, accounts, onClose }: Props): ReactElement {
       )}
 
       <aside
-        className="fixed top-0 right-0 h-full z-40 flex flex-col bg-surface overflow-hidden"
+        className="day-drawer fixed top-0 right-0 h-full z-40 flex flex-col bg-surface overflow-hidden"
         style={{
-          width: 460,
           borderLeft: "1px solid var(--color-border)",
           boxShadow: "-8px 0 32px rgba(0,0,0,0.4)",
           animation: "drawerSlideIn .25s cubic-bezier(.2,.7,.3,1)",

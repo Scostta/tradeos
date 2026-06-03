@@ -45,7 +45,8 @@ export function RecentTradesCard({ trades }: Props): ReactElement {
         </Link>
       </div>
 
-      <table style={{ width: "100%", borderCollapse: "collapse" }}>
+      <div className="overflow-x-auto">
+      <table style={{ width: "100%", minWidth: 480, borderCollapse: "collapse" }}>
         <thead>
           <tr>
             {[
@@ -117,6 +118,7 @@ export function RecentTradesCard({ trades }: Props): ReactElement {
           })}
         </tbody>
       </table>
+      </div>
     </div>
   )
 }

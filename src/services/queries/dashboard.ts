@@ -4,27 +4,27 @@ import { computeDashboardMetrics, equityCurve, pnlByDayOfWeek } from "~/lib/calc
 import { resolveDateRange } from "~/helpers/date-range"
 import { createDataResult, createErrorResult } from "~/helpers/result"
 import type { ResultType } from "~/helpers/result"
-import type { DashboardData, RangeKey } from "~/types/metrics"
+import type { DashboardData } from "~/types/metrics"
+import type { TradesRange } from "~/types/trade-filters"
 
 export async function getDashboardData(
-  range:     RangeKey,
+  range:     TradesRange,
   accountId: string | null = null,
 ): Promise<ResultType<DashboardData, string>> {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return createErrorResult("UNAUTHENTICATED")
 
-  const { from, to } = resolveDateRange(range)
+  const dateRange = range !== "all" ? resolveDateRange(range) : null
 
   let query = supabase
     .from("trades")
     .select("*")
     .eq("user_id", user.id)
-    .gte("entry_time", from)
-    .lte("entry_time", to)
     .order("entry_time", { ascending: true })
 
-  if (accountId) query = query.eq("account_id", accountId)
+  if (dateRange)  query = query.gte("entry_time", dateRange.from).lte("entry_time", dateRange.to)
+  if (accountId)  query = query.eq("account_id", accountId)
 
   const { data, error } = await query
 

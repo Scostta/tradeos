@@ -43,8 +43,10 @@ export type RowStatus = "new" | "dup"
 export type PreviewRow = ParsedRow & { status: RowStatus }
 
 export type ParseError = {
-  line: number
-  reason: string
+  line:         number
+  reason:       string
+  accountName?: string
+  instrument?:  string
 }
 
 export type ParseResult = {

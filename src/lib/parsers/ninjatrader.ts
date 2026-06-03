@@ -134,72 +134,73 @@ export function parseNinjaTraderCsv(csvText: string): ParseResult {
     const exitTimeRaw = cells[idx["Exit time"]!]?.trim() ?? ""
     if (exitTimeRaw === "") continue
 
-    const marketPos     = cells[idx["Market pos."]!]?.trim() ?? ""
+    const rawInstrument = cells[idx["Instrument"]!]?.trim() ?? ""
+    const instrument    = extractSymbol(rawInstrument)
+    const accountName   = cells[idx["Account"]!]?.trim() ?? ""
+    const errorCtx      = { accountName: accountName || undefined, instrument: instrument || undefined }
+
+    const marketPos      = cells[idx["Market pos."]!]?.trim() ?? ""
     const directionLower = marketPos.toLowerCase()
     let direction: "long" | "short"
     if (directionLower === "long")       direction = "long"
     else if (directionLower === "short") direction = "short"
     else {
-      errors.push({ line: lineNumber, reason: `Unknown market position: "${marketPos}"` })
+      errors.push({ line: lineNumber, reason: `Unknown market position: "${marketPos}"`, ...errorCtx })
       continue
     }
 
     const tradeNumberRaw = cells[idx["Trade #"]!]?.trim() ?? ""
     const tradeNumber    = parseInt(tradeNumberRaw, 10)
     if (isNaN(tradeNumber)) {
-      errors.push({ line: lineNumber, reason: `Invalid trade number: "${tradeNumberRaw}"` })
+      errors.push({ line: lineNumber, reason: `Invalid trade number: "${tradeNumberRaw}"`, ...errorCtx })
       continue
     }
-
-    const rawInstrument = cells[idx["Instrument"]!]?.trim() ?? ""
-    const instrument    = extractSymbol(rawInstrument)
-    const accountName   = cells[idx["Account"]!]?.trim() ?? ""
 
     const quantityRaw = cells[idx["Quantity"]!]?.trim() ?? ""
     const contracts   = parseInt(quantityRaw, 10)
     if (isNaN(contracts)) {
-      errors.push({ line: lineNumber, reason: `Invalid quantity: "${quantityRaw}"` })
+      errors.push({ line: lineNumber, reason: `Invalid quantity: "${quantityRaw}"`, ...errorCtx })
       continue
     }
 
     const entryPriceRaw = cells[idx["Entry price"]!]?.trim() ?? ""
     const entryPrice    = parseNumber(entryPriceRaw)
     if (isNaN(entryPrice)) {
-      errors.push({ line: lineNumber, reason: `Invalid entry price: "${entryPriceRaw}"` })
+      errors.push({ line: lineNumber, reason: `Invalid entry price: "${entryPriceRaw}"`, ...errorCtx })
       continue
     }
 
     const exitPriceRaw = cells[idx["Exit price"]!]?.trim() ?? ""
     const exitPrice    = parseNumber(exitPriceRaw)
     if (isNaN(exitPrice)) {
-      errors.push({ line: lineNumber, reason: `Invalid exit price: "${exitPriceRaw}"` })
+      errors.push({ line: lineNumber, reason: `Invalid exit price: "${exitPriceRaw}"`, ...errorCtx })
       continue
     }
 
     const entryTimeRaw = cells[idx["Entry time"]!]?.trim() ?? ""
     const entryTime    = parseDate(entryTimeRaw)
     if (entryTime === null) {
-      errors.push({ line: lineNumber, reason: `Invalid entry time: "${entryTimeRaw}"` })
+      errors.push({ line: lineNumber, reason: `Invalid entry time: "${entryTimeRaw}"`, ...errorCtx })
       continue
     }
 
     const exitTime = parseDate(exitTimeRaw)
     if (exitTime === null) {
-      errors.push({ line: lineNumber, reason: `Invalid exit time: "${exitTimeRaw}"` })
+      errors.push({ line: lineNumber, reason: `Invalid exit time: "${exitTimeRaw}"`, ...errorCtx })
       continue
     }
 
     const profitRaw = cells[idx["Profit"]!]?.trim() ?? ""
     const pnl       = parseNumber(profitRaw)
     if (isNaN(pnl)) {
-      errors.push({ line: lineNumber, reason: `Invalid profit: "${profitRaw}"` })
+      errors.push({ line: lineNumber, reason: `Invalid profit: "${profitRaw}"`, ...errorCtx })
       continue
     }
 
     const commissionRaw = cells[idx["Commission"]!]?.trim() ?? ""
     const commission    = commissionRaw === "" ? 0 : parseNumber(commissionRaw)
     if (isNaN(commission)) {
-      errors.push({ line: lineNumber, reason: `Invalid commission: "${commissionRaw}"` })
+      errors.push({ line: lineNumber, reason: `Invalid commission: "${commissionRaw}"`, ...errorCtx })
       continue
     }
 
@@ -237,7 +238,7 @@ export function parseNinjaTraderCsv(csvText: string): ParseResult {
     const parsed = parsedRowSchema.safeParse(candidate)
     if (!parsed.success) {
       const reason = parsed.error.issues[0]?.message ?? "Validation failed"
-      errors.push({ line: lineNumber, reason })
+      errors.push({ line: lineNumber, reason, ...errorCtx })
       continue
     }
 

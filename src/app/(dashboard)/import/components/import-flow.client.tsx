@@ -10,6 +10,7 @@ import { cn } from "~/utils/cn";
 import { DropZone } from "./drop-zone.client";
 import { ImportMetrics } from "./import-metrics";
 import { PreviewTable } from "./preview-table";
+import { ImportErrorsTable } from "./import-errors-table";
 import { Button } from "~/lib/ui/button";
 import { Toast } from "~/lib/ui/toast";
 import type { ToastVariant } from "~/lib/ui/toast";
@@ -128,7 +129,7 @@ export function ImportFlow(): ReactElement {
     .replace("{dup}", String(dupCount));
 
   return (
-    <div className="flex flex-col gap-4 p-7 overflow-auto">
+    <div className="flex flex-col gap-4 p-4 md:p-7 overflow-auto">
       {/* Toast */}
       {toast && (
         <div className="fixed top-4 right-4 z-50">
@@ -168,8 +169,13 @@ export function ImportFlow(): ReactElement {
             <PreviewTable rows={previewRows} />
           </div>
 
+          {/* Errors detail */}
+          {parseResult && parseResult.errors.length > 0 && (
+            <ImportErrorsTable errors={parseResult.errors} />
+          )}
+
           {/* Footer */}
-          <div className="flex items-center justify-between gap-4 py-2">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 py-2">
             <p className="text-sm text-text-mute">{footerSummary}</p>
             <div className="flex items-center gap-3">
               <Button
