@@ -19,6 +19,7 @@ export function mapTradeFromDb(row: Record<string, unknown>): Trade {
     netPnl:      row["net_pnl"],
     mae:         row["mae"],
     mfe:         row["mfe"],
+    stopPrice:   row["stop_price"],
     strategyId:  row["strategy_id"],
     session:     row["session"],
     notes:       row["notes"],

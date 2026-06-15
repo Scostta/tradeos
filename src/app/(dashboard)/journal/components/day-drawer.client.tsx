@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useTransition } from "react"
+import Link from "next/link"
 import { useRouter } from "next/navigation"
 import type { ReactElement, ReactNode } from "react"
 import type { JournalDay } from "~/types/journal"
@@ -258,8 +259,9 @@ export function DayDrawer({ day, accounts, onClose }: Props): ReactElement {
                     hour12: false,
                   })
                   return (
-                    <div
+                    <Link
                       key={t.id}
+                      href={`/trades/${t.id}`}
                       className="grid items-center bg-surface-2 rounded-sm px-2 py-1.5 border border-transparent hover:border-border transition-colors"
                       style={{ gridTemplateColumns: "44px auto 1fr auto auto", gap: 8 }}
                     >
@@ -315,7 +317,7 @@ export function DayDrawer({ day, accounts, onClose }: Props): ReactElement {
                       >
                         {formatCurrency(t.netPnl, { decimals: 0 })}
                       </span>
-                    </div>
+                    </Link>
                   )
                 })}
               </div>

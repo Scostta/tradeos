@@ -20,10 +20,17 @@ const COLUMN_ALIASES: Record<string, string[]> = {
 
 const CANONICAL_COLUMNS = Object.keys(COLUMN_ALIASES) as Array<keyof typeof COLUMN_ALIASES>
 
-// "3/10/2025 9:32:01 AM" → ISO 8601 UTC
+// NinjaTrader exports timestamps in the PC's LOCAL timezone (not UTC).
+// We must convert to UTC using the JS Date constructor, which interprets
+// a local-time string via the local timezone of the runtime environment.
+// On the server (Next.js), process.env.TZ controls this — it should match
+// the timezone the NinjaTrader PC was in when the CSV was exported.
+// Default assumption: the server timezone matches the CSV timezone.
+
+// "3/10/2025 9:32:01 AM" (MM/DD/YYYY AM/PM — US NinjaTrader export)
 const DATE_AMPM_REGEX = /^(\d{1,2})\/(\d{1,2})\/(\d{4})\s+(\d{1,2}):(\d{2}):(\d{2})\s+(AM|PM)$/i
 
-// "11/05/2026 15:31:05" → ISO 8601 UTC (DD/MM/YYYY HH:MM:SS)
+// "11/05/2026 15:31:05" (DD/MM/YYYY 24h — European NinjaTrader Grid export)
 const DATE_24H_REGEX = /^(\d{1,2})\/(\d{1,2})\/(\d{4})\s+(\d{2}):(\d{2}):(\d{2})$/
 
 function parseAmPmDate(raw: string): string | null {
@@ -43,10 +50,13 @@ function parseAmPmDate(raw: string): string | null {
 
   if (month < 1 || month > 12 || day < 1 || day > 31 || h > 23 || min > 59 || sec > 59) return null
 
-  return `${year}-${pad(month)}-${pad(day)}T${pad(h)}:${pad(min)}:${pad(sec)}.000Z`
+  // Build a local-time Date and convert to UTC ISO string
+  const d = new Date(year, month - 1, day, h, min, sec)
+  if (isNaN(d.getTime())) return null
+  return d.toISOString()
 }
 
-// Grid export uses DD/MM/YYYY 24h
+// Grid export uses DD/MM/YYYY 24h (European format)
 function parse24hDate(raw: string): string | null {
   const m = raw.trim().match(DATE_24H_REGEX)
   if (!m) return null
@@ -60,7 +70,9 @@ function parse24hDate(raw: string): string | null {
 
   if (month < 1 || month > 12 || day < 1 || day > 31 || h > 23 || min > 59 || sec > 59) return null
 
-  return `${year}-${pad(month)}-${pad(day)}T${pad(h)}:${pad(min)}:${pad(sec)}.000Z`
+  const d = new Date(year, month - 1, day, h, min, sec)
+  if (isNaN(d.getTime())) return null
+  return d.toISOString()
 }
 
 function parseDate(raw: string): string | null {

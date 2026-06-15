@@ -4,7 +4,30 @@ import { resolveDateRange } from "~/helpers/date-range"
 import { createDataResult, createErrorResult } from "~/helpers/result"
 import { PAGE_SIZE } from "~/types/trade-filters"
 import type { ResultType } from "~/helpers/result"
+import type { Trade } from "~/types/trade"
 import type { TradeFilters, TradesPageData } from "~/types/trade-filters"
+
+export async function getTradeById(
+  id: string,
+): Promise<ResultType<Trade, string>> {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return createErrorResult("UNAUTHENTICATED")
+
+  const { data, error } = await supabase
+    .from("trades")
+    .select("*")
+    .eq("id", id)
+    .eq("user_id", user.id)
+    .single()
+
+  if (error) {
+    console.error(error)
+    return createErrorResult(error.message)
+  }
+
+  return createDataResult(mapTradeFromDb(data as Record<string, unknown>))
+}
 
 export async function getTradesPage(
   filters: TradeFilters,

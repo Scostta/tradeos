@@ -1,4 +1,161 @@
 export const REPORTS = {
   TITLE:    "Reports",
-  SUBTITLE: "P&L by day · by hour · by strategy",
-} as const;
+  SUBTITLE: "Performance & analytics",
+
+  TABS: {
+    PERFORMANCE: "Performance",
+    OVERVIEW:    "Overview",
+    REPORTS:     "Reports",
+    COMPARE:     "Compare",
+  },
+
+  REPORT_MENU: {
+    DAY_TIME:    "Day & Time",
+    SYMBOLS:     "Symbols",
+    STRATEGIES:  "Strategies",
+    WINS_LOSSES: "Wins vs Losses",
+  },
+
+  PERFORMANCE: {
+    CHART_NET_PNL:     "Net P&L · cumulative",
+    CHART_AVG_WIN_LOSS:"Avg daily win / loss",
+    SUMMARY_LABEL:     "Summary",
+    LEGEND_NET_PNL:    "Net P&L",
+    LEGEND_AVG:        "Avg daily win/loss",
+
+    STATS: {
+      NET_PNL:            "Net P&L",
+      PROFIT_FACTOR:      "Profit factor",
+      WIN_RATE:           "Win %",
+      AVG_NET_TRADE_PNL:  "Avg net trade P&L",
+      AVG_DAILY_VOLUME:   "Avg daily volume",
+      AVG_DAILY_NET_PNL:  "Avg daily net P&L",
+      LOGGED_DAYS:        "Logged days",
+      TRADE_EXPECTANCY:   "Trade expectancy",
+      AVG_DAILY_WIN_LOSS: "Avg daily win/loss",
+      AVG_TRADE_WIN_LOSS: "Avg trade win/loss",
+      MAX_DAILY_DRAWDOWN: "Max daily net drawdown",
+      AVG_DAILY_DRAWDOWN: "Avg daily net drawdown",
+      AVG_HOLD_TIME:      "Avg hold time",
+      AVG_DAILY_WIN_PCT:  "Avg daily win %",
+    },
+  },
+
+  REPORT_DETAIL: {
+    INSIGHT_BEST:       "Best performing",
+    INSIGHT_WORST:      "Least performing",
+    INSIGHT_MOST_ACTIVE:"Most active",
+    INSIGHT_WIN_RATE:   "Best win rate",
+
+    CHART_NET_PNL:    "Net P&L",
+    CHART_TRADE_COUNT:"Trade count",
+    CHART_AVG_WIN:    "Avg win",
+    CHART_WIN_PCT:    "Win %",
+
+    LEGEND_NET_PNL:    "Net P&L",
+    LEGEND_TRADE_COUNT:"Trade count",
+    LEGEND_AVG_WIN:    "Avg win",
+    LEGEND_WIN_PCT:    "Win %",
+
+    SUMMARY_LABEL:  "Summary",
+    CROSS_LABEL:    "Cross analysis",
+    CROSS_MENU:     "Top 10 symbols",
+
+    TABLE: {
+      WIN_RATE:    "Win %",
+      NET_PNL:     "Net P&L",
+      TRADE_COUNT: "Trade count",
+      AVG_VOLUME:  "Avg volume",
+      AVG_WIN:     "Avg win",
+      AVG_LOSS:    "Avg loss",
+    },
+
+    SUBTABS: {
+      DAYS:        "Days",
+      MONTHS:      "Months",
+      SYMBOLS:     "Symbols",
+      STRATEGIES:  "Playbooks",
+      WINS_LOSSES: "Wins vs Losses",
+    },
+
+    NO_DATA: "No data for this period",
+  },
+
+  OVERVIEW: {
+    YOUR_STATS:       "Your stats",
+    BEST_MONTH:       "Best month",
+    LOWEST_MONTH:     "Lowest month",
+    AVERAGE:          "Average",
+    CHART_CUM:        "Daily net cumulative P&L",
+    CHART_NET_DAILY:  "Net daily P&L",
+    NO_DATA:          "No data for this period",
+
+    STATS: {
+      TOTAL_PNL:            "Total P&L",
+      AVG_DAILY_VOLUME:     "Average daily volume",
+      AVG_WINNING_TRADE:    "Average winning trade",
+      AVG_LOSING_TRADE:     "Average losing trade",
+      TOTAL_TRADES:         "Total number of trades",
+      WINNING_TRADES:       "Number of winning trades",
+      LOSING_TRADES:        "Number of losing trades",
+      MAX_CONSEC_WINS:      "Max consecutive wins",
+      MAX_CONSEC_LOSSES:    "Max consecutive losses",
+      TOTAL_COMMISSIONS:    "Total commissions",
+      LARGEST_PROFIT:       "Largest profit",
+      LARGEST_LOSS:         "Largest loss",
+      AVG_HOLD_ALL:         "Average hold time (All)",
+      AVG_HOLD_WIN:         "Average hold time (Winning)",
+      AVG_HOLD_LOSS:        "Average hold time (Losing)",
+      AVG_TRADE_PNL:        "Average trade P&L",
+      PROFIT_FACTOR:        "Profit factor",
+      TRADING_DAYS:         "Total trading days",
+      WINNING_DAYS:         "Winning days",
+      LOSING_DAYS:          "Losing days",
+      MAX_CONSEC_WIN_DAYS:  "Max consecutive winning days",
+      MAX_CONSEC_LOSS_DAYS: "Max consecutive losing days",
+      AVG_DAILY_PNL:        "Average daily P&L",
+      AVG_WINNING_DAY:      "Average winning day P&L",
+      AVG_LOSING_DAY:       "Average losing day P&L",
+      LARGEST_PROFIT_DAY:   "Largest profitable day",
+      LARGEST_LOSING_DAY:   "Largest losing day",
+      TRADE_EXPECTANCY:     "Trade expectancy",
+      MAX_DRAWDOWN:         "Max drawdown",
+      AVG_DRAWDOWN:         "Average drawdown",
+    },
+  },
+
+  COMPARE: {
+    HEAD_TO_HEAD: "Head to head",
+    LOADING:      "Updating…",
+    COL_METRIC:   "Metric",
+    COL_DELTA:    "Δ",
+
+    CARD: {
+      TRADES:   "Trades",
+      WIN_RATE: "Win rate",
+      PF:       "PF",
+    },
+
+    METRICS: {
+      NET_PNL:          "Net P&L",
+      TRADES:           "Trades",
+      WIN_RATE:         "Win rate",
+      PROFIT_FACTOR:    "Profit factor",
+      AVG_DAILY_PNL:    "Avg daily P&L",
+      MAX_DRAWDOWN:     "Max drawdown",
+      TRADE_EXPECTANCY: "Trade expectancy",
+      AVG_HOLD_TIME:    "Avg hold time",
+    },
+  },
+
+  EMPTY: {
+    TITLE:   "No trades yet",
+    MESSAGE: "Import a NinjaTrader CSV to see your reports and analytics.",
+    CTA:     "Go to Import",
+  },
+
+  ERROR: {
+    TITLE:   "Could not load reports",
+    MESSAGE: "Something went wrong fetching your trade data. Try again.",
+  },
+} as const

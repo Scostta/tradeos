@@ -17,6 +17,7 @@ export const tradeSchema = z.object({
   netPnl:      z.number(),
   mae:         z.number().nullable(),
   mfe:         z.number().nullable(),
+  stopPrice:   z.number().nullable(),
   strategyId:  z.string().uuid().nullable(),
   session:     z.enum(["RTH", "ETH", "overnight"]).nullable(),
   notes:       z.string().nullable(),

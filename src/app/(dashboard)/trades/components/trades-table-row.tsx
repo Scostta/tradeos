@@ -1,4 +1,7 @@
+"use client"
+
 import type { ReactElement } from "react"
+import { useRouter } from "next/navigation"
 import { formatCurrency, formatDateTime } from "~/helpers/format"
 import { formatDuration } from "~/helpers/duration"
 import { TRADES } from "~/constants/copies/trades"
@@ -17,6 +20,7 @@ type Props = {
 
 export function TradesTableRow(props: Props): ReactElement {
   const { trade, strategies } = props
+  const router = useRouter()
 
   const strategyName = trade.strategyId
     ? (strategies.find(s => s.id === trade.strategyId)?.name ?? "—")
@@ -27,7 +31,10 @@ export function TradesTableRow(props: Props): ReactElement {
   const isLong     = trade.direction === "long"
 
   return (
-    <tr className="border-b border-border transition-colors hover:bg-surface-2">
+    <tr
+      className="border-b border-border transition-colors hover:bg-surface-2 cursor-pointer"
+      onClick={() => router.push(`/trades/${trade.id}`)}
+    >
       <td className="px-3 py-2.5 mono text-text-mute text-xs">
         {trade.tradeNumber !== null
           ? trade.tradeNumber.toString().padStart(4, "0")
@@ -42,16 +49,16 @@ export function TradesTableRow(props: Props): ReactElement {
       <td className="px-3 py-2.5">
         <span
           style={{
-            display:      "inline-flex",
-            alignItems:   "center",
-            padding:      "2px 6px",
-            borderRadius: 4,
-            fontSize:     10,
-            fontWeight:   600,
+            display:       "inline-flex",
+            alignItems:    "center",
+            padding:       "2px 6px",
+            borderRadius:  4,
+            fontSize:      10,
+            fontWeight:    600,
             letterSpacing: "0.06em",
-            background:   isLong ? "rgba(59,130,246,.15)" : "rgba(245,158,11,.15)",
-            border:       `1px solid ${isLong ? "rgba(59,130,246,.35)" : "rgba(245,158,11,.35)"}`,
-            color:        isLong ? "var(--color-long)" : "var(--color-short)",
+            background:    isLong ? "rgba(59,130,246,.15)" : "rgba(245,158,11,.15)",
+            border:        `1px solid ${isLong ? "rgba(59,130,246,.35)" : "rgba(245,158,11,.35)"}`,
+            color:         isLong ? "var(--color-long)" : "var(--color-short)",
           }}
         >
           {isLong ? TRADES.LIST.DIR_BADGE.LONG : TRADES.LIST.DIR_BADGE.SHORT}
