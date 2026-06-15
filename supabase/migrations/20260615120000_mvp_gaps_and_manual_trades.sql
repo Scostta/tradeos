@@ -40,7 +40,7 @@ create policy "Users see own attachments" on trade_attachments
 -- 4 ── Storage: bucket privado + policies por carpeta {user_id}/… ──
 insert into storage.buckets (id, name, public)
 values ('trade-attachments', 'trade-attachments', false)
-on conflict (id) do nothing;
+on conflict (id) do update set public = false;  -- fuerza privado aunque ya exista
 
 drop policy if exists "Users read own trade attachments"   on storage.objects;
 drop policy if exists "Users upload own trade attachments"  on storage.objects;

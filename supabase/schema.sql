@@ -131,7 +131,7 @@ create policy "Users see own attachments" on trade_attachments
 -- ------------------------------------------------------------
 insert into storage.buckets (id, name, public)
 values ('trade-attachments', 'trade-attachments', false)
-on conflict (id) do nothing;
+on conflict (id) do update set public = false;
 
 create policy "Users read own trade attachments"
   on storage.objects for select
