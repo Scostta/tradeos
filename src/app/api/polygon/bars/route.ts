@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server"
+import { createClient } from "~/utils/supabase/server"
 
 // ── Yahoo Finance ticker mapping (NinjaTrader symbol → Yahoo Finance) ─────────
 // Yahoo uses continuous front-month contracts (=F suffix)
@@ -30,6 +31,12 @@ export type PolygonBarsResponse =
   | { ok: false; error: string }
 
 export async function GET(req: NextRequest): Promise<NextResponse<PolygonBarsResponse>> {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) {
+    return NextResponse.json({ ok: false, error: "UNAUTHENTICATED" }, { status: 401 })
+  }
+
   const { searchParams } = req.nextUrl
   const instrument = searchParams.get("instrument") ?? ""
   const from       = searchParams.get("from")       ?? ""

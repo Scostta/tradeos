@@ -55,7 +55,12 @@ export function LoginForm() {
             />
           </div>
           <div className="flex flex-col gap-1.5">
-            <label className="label-caps">{AUTH.LOGIN.PASSWORD_LABEL}</label>
+            <div className="flex items-center justify-between">
+              <label className="label-caps">{AUTH.LOGIN.PASSWORD_LABEL}</label>
+              <Link href={APP_URLS.FORGOT_PASSWORD} className="text-xs text-text-mute hover:text-text-dim transition-colors">
+                {AUTH.LOGIN.FORGOT}
+              </Link>
+            </div>
             <input
               name="password"
               type="password"

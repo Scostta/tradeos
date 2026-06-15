@@ -30,6 +30,8 @@ export async function middleware(request: NextRequest) {
   const isPublic =
     pathname === APP_URLS.LOGIN ||
     pathname === APP_URLS.REGISTER ||
+    pathname === APP_URLS.FORGOT_PASSWORD ||
+    pathname === APP_URLS.RESET_PASSWORD ||
     pathname.startsWith(APP_URLS.AUTH_PREFIX);
 
   if (!user && !isPublic) {

@@ -99,6 +99,40 @@ export async function updateTradeTags(
   return createDataResult({ id })
 }
 
+const deleteTradeSchema = z.object({
+  id: z.string().uuid(),
+})
+
+export async function deleteTrade(
+  input: unknown,
+): Promise<ResultType<{ id: string }, string>> {
+  const parsed = deleteTradeSchema.safeParse(input)
+  if (!parsed.success) return createErrorResult("INVALID_INPUT")
+
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return createErrorResult("UNAUTHENTICATED")
+
+  const { id } = parsed.data
+  // trade_attachments rows cascade on delete; storage objects are namespaced
+  // per user/trade and cleaned up separately if needed.
+  const { error } = await supabase
+    .from("trades")
+    .delete()
+    .eq("id", id)
+    .eq("user_id", user.id)
+
+  if (error) {
+    console.error(error)
+    return createErrorResult(error.message)
+  }
+
+  revalidatePath("/trades")
+  revalidatePath("/dashboard")
+  revalidatePath("/reports")
+  return createDataResult({ id })
+}
+
 const updateStopPriceSchema = z.object({
   id:        z.string().uuid(),
   stopPrice: z.number().positive().nullable(),

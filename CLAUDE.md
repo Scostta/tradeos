@@ -147,18 +147,20 @@ create policy "Users see own strategies" on strategies
 
 ### Tabla `daily_journal`
 
+El journal es **global por usuario**, no por cuenta. Una entrada por día agrupa el estado mental y el plan del trader independientemente de en qué cuenta haya operado. El calendario del journal **no** se filtra por la cuenta activa.
+
 ```sql
 create table daily_journal (
   id uuid primary key default gen_random_uuid(),
   user_id uuid references auth.users not null,
-  account_id uuid references accounts(id) on delete cascade not null,  -- ⬅️ FK a accounts
+  -- Sin account_id: el journal es por usuario, no por cuenta
   date date not null,
   pre_market_notes text,
   post_market_notes text,
   mood integer check (mood between 1 and 5),
   followed_plan boolean,
   created_at timestamptz default now(),
-  unique(account_id, date)   -- ⬅️ unicidad por cuenta + día, no por usuario + día
+  unique(user_id, date)   -- ⬅️ unicidad por usuario + día
 );
 
 alter table daily_journal enable row level security;
@@ -173,12 +175,12 @@ auth.users
     │
     ├──< accounts (user_id)
     │        │
-    │        ├──< trades (account_id)
-    │        │        └──> strategies (strategy_id)  [opcional]
-    │        │
-    │        └──< daily_journal (account_id)
+    │        └──< trades (account_id)
+    │                 └──> strategies (strategy_id)  [opcional]
     │
-    └──< strategies (user_id)   [globales, sin cuenta]
+    ├──< daily_journal (user_id)   [global por usuario, sin cuenta]
+    │
+    └──< strategies (user_id)      [globales, sin cuenta]
 ```
 
 ---
@@ -300,7 +302,7 @@ pnlByAccount(trades, accounts)         // { accountName: X, ... }  ⬅️ para v
 - CRUD: crear / editar / archivar.
 
 ### `/journal`
-- Calendario mensual con color por P&L del día (verde/rojo/gris) — filtrado por cuenta activa.
+- Calendario mensual con color por P&L del día (verde/rojo/gris). El journal es global por usuario: el P&L del día agrega los trades de **todas** las cuentas, no se filtra por la cuenta activa.
 - Click en día → abre drawer con notas pre/post mercado, mood, trades del día.
 
 ---

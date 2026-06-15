@@ -33,5 +33,5 @@ export async function GET(request: NextRequest) {
     }
   }
 
-  return NextResponse.redirect(`${origin}${APP_URLS.LOGIN}`);
+  return NextResponse.redirect(`${origin}${APP_URLS.AUTH_ERROR}`);
 }

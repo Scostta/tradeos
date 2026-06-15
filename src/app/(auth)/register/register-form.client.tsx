@@ -1,8 +1,8 @@
 "use client";
 
-import { useActionState, useTransition } from "react";
+import { useActionState, useState, useTransition } from "react";
 import Link from "next/link";
-import { signUpWithEmail, signInWithGoogle } from "~/actions/auth";
+import { signUpWithEmail, signInWithGoogle, resendConfirmation } from "~/actions/auth";
 import type { AuthActionState } from "~/actions/auth";
 import { COMMON } from "~/constants/copies/common";
 import { AUTH } from "~/constants/copies/auth";
@@ -14,8 +14,12 @@ import { useToast } from "~/hooks/use-toast";
 
 export function RegisterForm() {
   const [state, formAction, pending] = useActionState<AuthActionState, FormData>(signUpWithEmail, null);
+  const [resendState, resendAction, resendPending] = useActionState<AuthActionState, FormData>(resendConfirmation, null);
   const [googlePending, startGoogle] = useTransition();
+  const [email, setEmail] = useState("");
   const toast = useToast(state);
+
+  const awaitingConfirmation = state?.code === "CHECK_EMAIL";
 
   return (
     <>
@@ -51,6 +55,8 @@ export function RegisterForm() {
               placeholder={AUTH.REGISTER.EMAIL_PLACEHOLDER}
               required
               autoComplete="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
               className="w-full px-3 py-2 rounded bg-surface-2 border border-border text-text text-md placeholder:text-text-mute outline-none focus:border-border-hi transition-colors"
             />
           </div>
@@ -75,6 +81,27 @@ export function RegisterForm() {
             {pending ? AUTH.REGISTER.LOADING : AUTH.REGISTER.SUBMIT}
           </Button>
         </form>
+
+        {/* Resend confirmation — only after a successful sign-up that needs email verification */}
+        {awaitingConfirmation && (
+          <form action={resendAction} className="text-center">
+            <input type="hidden" name="email" value={email} />
+            {resendState?.code === "CONFIRMATION_SENT" ? (
+              <p className="text-base text-text-mute">{resendState.message}</p>
+            ) : (
+              <p className="text-base text-text-mute">
+                Didn&apos;t get the email?{" "}
+                <button
+                  type="submit"
+                  disabled={resendPending}
+                  className="text-text-dim hover:text-text transition-colors disabled:opacity-60"
+                >
+                  {resendPending ? "Sending…" : "Resend"}
+                </button>
+              </p>
+            )}
+          </form>
+        )}
 
         {/* Divider */}
         <div className="flex items-center gap-3">

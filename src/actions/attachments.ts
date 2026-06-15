@@ -7,13 +7,17 @@ import type { ResultType } from "~/helpers/result"
 
 const BUCKET = "trade-attachments"
 
+// The bucket is private; images are served via short-lived signed URLs.
+// The card re-fetches attachments on every mount, so a 1h TTL is plenty.
+const SIGNED_URL_TTL = 60 * 60
+
 export type TradeAttachment = {
   id:          string
   storagePath: string
   fileName:    string
   mimeType:    string
   sizeBytes:   number
-  publicUrl:   string
+  publicUrl:   string  // signed URL (private bucket), valid for SIGNED_URL_TTL seconds
   createdAt:   string
 }
 
@@ -37,21 +41,28 @@ export async function getTradeAttachments(
     return createErrorResult(error.message)
   }
 
+  const rows = data ?? []
+  if (rows.length === 0) return createDataResult([])
+
   const service = createServerClient()
-  const attachments: TradeAttachment[] = (data ?? []).map((row) => {
-    const { data: urlData } = service.storage
-      .from(BUCKET)
-      .getPublicUrl(row.storage_path)
-    return {
-      id:          row.id,
-      storagePath: row.storage_path,
-      fileName:    row.file_name,
-      mimeType:    row.mime_type,
-      sizeBytes:   row.size_bytes,
-      publicUrl:   urlData.publicUrl,
-      createdAt:   row.created_at,
-    }
-  })
+
+  const { data: signed } = await service.storage
+    .from(BUCKET)
+    .createSignedUrls(rows.map((row) => row.storage_path), SIGNED_URL_TTL)
+
+  const urlByPath = new Map(
+    (signed ?? []).map((s) => [s.path, s.signedUrl] as const)
+  )
+
+  const attachments: TradeAttachment[] = rows.map((row) => ({
+    id:          row.id,
+    storagePath: row.storage_path,
+    fileName:    row.file_name,
+    mimeType:    row.mime_type,
+    sizeBytes:   row.size_bytes,
+    publicUrl:   urlByPath.get(row.storage_path) ?? "",
+    createdAt:   row.created_at,
+  }))
 
   return createDataResult(attachments)
 }
@@ -106,7 +117,9 @@ export async function uploadTradeAttachment(
     return createErrorResult(dbError.message)
   }
 
-  const { data: urlData } = service.storage.from(BUCKET).getPublicUrl(storagePath)
+  const { data: urlData } = await service.storage
+    .from(BUCKET)
+    .createSignedUrl(storagePath, SIGNED_URL_TTL)
 
   return createDataResult({
     id:          row.id,
@@ -114,7 +127,7 @@ export async function uploadTradeAttachment(
     fileName:    row.file_name,
     mimeType:    row.mime_type,
     sizeBytes:   row.size_bytes,
-    publicUrl:   urlData.publicUrl,
+    publicUrl:   urlData?.signedUrl ?? "",
     createdAt:   row.created_at,
   })
 }
