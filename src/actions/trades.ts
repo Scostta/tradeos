@@ -4,10 +4,122 @@ import { z } from "zod"
 import { revalidatePath } from "next/cache"
 import { createClient } from "~/utils/supabase/server"
 import { createServerClient } from "~/utils/supabase/service"
+import { createTradeSchema, updateTradeSchema } from "~/types/trade"
 import { createDataResult, createErrorResult } from "~/helpers/result"
 import type { ResultType } from "~/helpers/result"
 
 const ATTACHMENTS_BUCKET = "trade-attachments"
+
+const round2 = (n: number): number => Math.round(n * 100) / 100
+
+export async function createTrade(
+  input: unknown,
+): Promise<ResultType<{ id: string }, string>> {
+  const parsed = createTradeSchema.safeParse(input)
+  if (!parsed.success) return createErrorResult("INVALID_INPUT")
+
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return createErrorResult("UNAUTHENTICATED")
+
+  const t = parsed.data
+
+  const { data: account } = await supabase
+    .from("accounts")
+    .select("id")
+    .eq("id", t.accountId)
+    .eq("user_id", user.id)
+    .single()
+  if (!account) return createErrorResult("ACCOUNT_NOT_FOUND")
+
+  const { data: row, error } = await supabase
+    .from("trades")
+    .insert({
+      user_id:      user.id,
+      account_id:   t.accountId,
+      trade_number: null,
+      source:       "manual",
+      instrument:   t.instrument.trim(),
+      direction:    t.direction,
+      contracts:    t.contracts,
+      entry_price:  t.entryPrice,
+      exit_price:   t.exitPrice,
+      entry_time:   t.entryTime,
+      exit_time:    t.exitTime,
+      pnl:          t.pnl,
+      commission:   t.commission,
+      net_pnl:      round2(t.pnl - t.commission),
+      strategy_id:  t.strategyId,
+      session:      t.session,
+      notes:        t.notes,
+    })
+    .select("id")
+    .single()
+
+  if (error) {
+    console.error(error)
+    return createErrorResult(error.message)
+  }
+
+  revalidatePath("/trades")
+  revalidatePath("/dashboard")
+  revalidatePath("/reports")
+  return createDataResult({ id: row.id })
+}
+
+export async function updateTrade(
+  input: unknown,
+): Promise<ResultType<{ id: string }, string>> {
+  const parsed = updateTradeSchema.safeParse(input)
+  if (!parsed.success) return createErrorResult("INVALID_INPUT")
+
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return createErrorResult("UNAUTHENTICATED")
+
+  const t = parsed.data
+
+  const { data: account } = await supabase
+    .from("accounts")
+    .select("id")
+    .eq("id", t.accountId)
+    .eq("user_id", user.id)
+    .single()
+  if (!account) return createErrorResult("ACCOUNT_NOT_FOUND")
+
+  // Only the form fields are updated; mae/mfe/stop_price/tags are preserved.
+  const { error } = await supabase
+    .from("trades")
+    .update({
+      account_id:  t.accountId,
+      instrument:  t.instrument.trim(),
+      direction:   t.direction,
+      contracts:   t.contracts,
+      entry_price: t.entryPrice,
+      exit_price:  t.exitPrice,
+      entry_time:  t.entryTime,
+      exit_time:   t.exitTime,
+      pnl:         t.pnl,
+      commission:  t.commission,
+      net_pnl:     round2(t.pnl - t.commission),
+      strategy_id: t.strategyId,
+      session:     t.session,
+      notes:       t.notes,
+    })
+    .eq("id", t.id)
+    .eq("user_id", user.id)
+
+  if (error) {
+    console.error(error)
+    return createErrorResult(error.message)
+  }
+
+  revalidatePath("/trades")
+  revalidatePath("/dashboard")
+  revalidatePath("/reports")
+  revalidatePath(`/trades/${t.id}`)
+  return createDataResult({ id: t.id })
+}
 
 const updateNotesSchema = z.object({
   id:    z.string().uuid(),

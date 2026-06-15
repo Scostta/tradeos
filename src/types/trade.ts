@@ -26,3 +26,34 @@ export const tradeSchema = z.object({
 })
 
 export type Trade = z.infer<typeof tradeSchema>
+
+// ── Manual create / edit ──────────────────────────────────────────────────────
+// User-editable fields only. net_pnl is derived server-side (pnl - commission);
+// mae/mfe/stop_price/tags are import- or sidebar-managed and left untouched here.
+const tradeFormFields = tradeSchema.pick({
+  accountId:  true,
+  instrument: true,
+  direction:  true,
+  contracts:  true,
+  entryPrice: true,
+  exitPrice:  true,
+  entryTime:  true,
+  exitTime:   true,
+  pnl:        true,
+  commission: true,
+  session:    true,
+  strategyId: true,
+  notes:      true,
+})
+
+const exitAfterEntry = (v: { entryTime: string; exitTime: string }): boolean =>
+  new Date(v.exitTime).getTime() > new Date(v.entryTime).getTime()
+const exitAfterEntryError = { message: "EXIT_BEFORE_ENTRY", path: ["exitTime"] }
+
+export const createTradeSchema = tradeFormFields.refine(exitAfterEntry, exitAfterEntryError)
+export const updateTradeSchema = tradeFormFields
+  .extend({ id: z.string().uuid() })
+  .refine(exitAfterEntry, exitAfterEntryError)
+
+export type CreateTradeInput = z.infer<typeof createTradeSchema>
+export type UpdateTradeInput = z.infer<typeof updateTradeSchema>

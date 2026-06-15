@@ -1,19 +1,21 @@
 import type { ReactElement } from "react"
 import { TRADES } from "~/constants/copies/trades"
 import { formatCurrency } from "~/helpers/format"
-import { PlusIcon } from "~/lib/ui/icons/plus-icon"
 import { AccountSelector } from "~/components/account-selector.client"
+import { TradeFormModal } from "~/components/trades/trade-form-modal.client"
 import type { Account } from "~/types/account"
+import type { Strategy } from "~/types/strategy"
 
 type Props = {
   totalCount: number
   totalNet:   number
   accounts:   Account[]
   accountId:  string | null
+  strategies: Strategy[]
 }
 
 export function TradesHeader(props: Props): ReactElement {
-  const { totalCount, totalNet, accounts, accountId } = props
+  const { totalCount, totalNet, accounts, accountId, strategies } = props
 
   return (
     <header className="flex flex-wrap items-center gap-3 px-4 md:px-7 py-3 border-b border-border bg-bg shrink-0">
@@ -26,14 +28,14 @@ export function TradesHeader(props: Props): ReactElement {
         </div>
       </div>
       <div className="ml-auto flex items-center gap-2">
-        <button
-          className="btn-accent inline-flex items-center gap-1.5 opacity-50 cursor-not-allowed"
-          disabled
-          title="Coming soon"
-        >
-          <PlusIcon />
-          {TRADES.LIST.NEW_TRADE}
-        </button>
+        {accounts.length > 0 && (
+          <TradeFormModal
+            mode="create"
+            accounts={accounts}
+            strategies={strategies}
+            defaultAccountId={accountId}
+          />
+        )}
         {accounts.length > 0 && (
           <AccountSelector accounts={accounts} value={accountId} />
         )}

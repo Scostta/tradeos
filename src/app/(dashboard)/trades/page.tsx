@@ -41,6 +41,7 @@ export default async function TradesPage({
           totalNet={0}
           accounts={accounts}
           accountId={filters.accountId}
+          strategies={strategies}
         />
         <TradesFilterBar
           filters={filters}
@@ -63,6 +64,7 @@ export default async function TradesPage({
         totalNet={totalNet}
         accounts={accounts}
         accountId={filters.accountId}
+        strategies={strategies}
       />
       <TradesFilterBar
         filters={filters}

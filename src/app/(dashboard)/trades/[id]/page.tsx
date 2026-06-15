@@ -34,7 +34,7 @@ export default async function TradeViewPage({
 
   return (
     <div className="flex flex-col h-full">
-      <TradeViewHeader trade={trade} />
+      <TradeViewHeader trade={trade} accounts={accounts} strategies={strategies} />
 
       <StopPriceProvider initial={trade.stopPrice ?? null}>
         <div className="flex-1 overflow-auto px-4 md:px-7 py-5">

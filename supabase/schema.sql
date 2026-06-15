@@ -69,6 +69,7 @@ create table if not exists trades (
   session      text check (session in ('RTH', 'ETH', 'overnight')),
   notes        text,
   tags         text[],
+  source       text not null default 'import',  -- 'import' | 'manual'
   created_at   timestamptz default now()
 );
 
