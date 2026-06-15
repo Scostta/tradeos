@@ -2,7 +2,8 @@ import type { ReactElement } from "react"
 import { tradesRangeSchema } from "~/types/trade-filters"
 import type { TradesRange } from "~/types/trade-filters"
 import { getDashboardData } from "~/services/queries/dashboard"
-import { getAccounts } from "~/services/queries/accounts"
+import { getAccounts, getPropFirmStatus } from "~/services/queries/accounts"
+import { PropFirmStatusCard } from "~/components/prop-firm/prop-firm-status-card"
 import { DASHBOARD } from "~/constants/copies/dashboard"
 import { TRADES } from "~/constants/copies/trades"
 import { FilterBar } from "~/components/filter-bar"
@@ -37,6 +38,10 @@ export default async function DashboardPage({
   ])
   const accounts = accountsResult.success ? accountsResult.data : []
 
+  // Prop-firm status only when a single account is active and has rules set.
+  const propResult = accountId ? await getPropFirmStatus(accountId) : null
+  const prop = propResult && propResult.success ? propResult.data : null
+
   const filterBar = (
     <FilterBar
       actions={<RangeSelector value={range} options={RANGE_OPTIONS} />}
@@ -65,6 +70,9 @@ export default async function DashboardPage({
       <DashboardHeader accounts={accounts} accountId={accountId} />
       {filterBar}
       <div className="flex-1 overflow-auto page-pad flex flex-col gap-4">
+        {prop?.status && (
+          <PropFirmStatusCard status={prop.status} phase={prop.account.propPhase} />
+        )}
         <MetricsRow metrics={metrics} />
 
         <div className="flex flex-col lg:flex-row gap-3">

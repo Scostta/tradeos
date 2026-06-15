@@ -17,6 +17,14 @@ create table if not exists accounts (
   active          boolean default true,
   color           text default '#3b82f6',
   notes           text,
+  -- Prop-firm rules (nullable; null = no regla)
+  prop_phase        text check (prop_phase in ('evaluation', 'funded', 'payout')),
+  drawdown_type     text check (drawdown_type in ('trailing_intraday', 'trailing_eod', 'static')),
+  drawdown_amount   numeric(12,2),
+  drawdown_lock_at  numeric(12,2),
+  daily_loss_limit  numeric(12,2),
+  profit_target     numeric(12,2),
+  min_trading_days  integer,
   created_at      timestamptz default now(),
   unique(user_id, name)
 );

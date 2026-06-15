@@ -2,6 +2,12 @@ import { z } from "zod"
 
 export const accountTypeSchema = z.enum(["real", "funded", "demo", "paper"])
 
+// ── Prop-firm enums ───────────────────────────────────────────────────────────
+export const propPhaseSchema    = z.enum(["evaluation", "funded", "payout"])
+export const drawdownTypeSchema = z.enum(["trailing_intraday", "trailing_eod", "static"])
+export type PropPhase    = z.infer<typeof propPhaseSchema>
+export type DrawdownType = z.infer<typeof drawdownTypeSchema>
+
 export const accountSchema = z.object({
   id:             z.string().uuid(),
   userId:         z.string().uuid(),
@@ -13,6 +19,14 @@ export const accountSchema = z.object({
   active:         z.boolean(),
   color:          z.string(),
   notes:          z.string().nullable(),
+  // Prop-firm rules (all nullable; null = not tracked for that rule)
+  propPhase:      propPhaseSchema.nullable(),
+  drawdownType:   drawdownTypeSchema.nullable(),
+  drawdownAmount: z.number().nullable(),
+  drawdownLockAt: z.number().nullable(),
+  dailyLossLimit: z.number().nullable(),
+  profitTarget:   z.number().nullable(),
+  minTradingDays: z.number().int().nullable(),
   createdAt:      z.string().datetime({ offset: true }),
 })
 
@@ -31,6 +45,13 @@ export const updateAccountInputSchema = z.object({
   initialBalance: z.number().nonnegative().nullable(),
   color:          z.string().regex(/^#[0-9a-fA-F]{6}$/, "INVALID_COLOR"),
   notes:          z.string().nullable(),
+  propPhase:      propPhaseSchema.nullable(),
+  drawdownType:   drawdownTypeSchema.nullable(),
+  drawdownAmount: z.number().nonnegative().nullable(),
+  drawdownLockAt: z.number().nonnegative().nullable(),
+  dailyLossLimit: z.number().nonnegative().nullable(),
+  profitTarget:   z.number().nonnegative().nullable(),
+  minTradingDays: z.number().int().nonnegative().nullable(),
 })
 
 export type UpdateAccountInput = z.infer<typeof updateAccountInputSchema>

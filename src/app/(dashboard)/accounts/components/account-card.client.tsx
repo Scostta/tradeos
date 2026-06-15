@@ -1,18 +1,27 @@
 "use client"
 
 import type { ReactElement } from "react"
-import type { AccountWithStats, AccountType } from "~/types/account"
+import type { AccountType } from "~/types/account"
+import type { AccountWithPropStatus, AlertLevel } from "~/types/prop-firm"
 import { ACCOUNTS } from "~/constants/copies/accounts"
+import { PROP_FIRM } from "~/constants/copies/prop-firm"
 import { cn } from "~/utils/cn"
 import { AccountEditor } from "./account-editor.client"
 
-type Props = { account: AccountWithStats }
+type Props = { account: AccountWithPropStatus }
 
 const TYPE_COLORS: Record<AccountType, string> = {
   real:   "text-text-dim",
   funded: "text-accent",
   demo:   "text-long",
   paper:  "text-text-mute",
+}
+
+const ALERT_COLOR: Record<AlertLevel, string> = {
+  safe:     "var(--color-profit)",
+  warning:  "#f59e0b",
+  danger:   "#f97316",
+  breached: "var(--color-loss)",
 }
 
 function formatNetPnl(value: number): string {
@@ -102,6 +111,34 @@ export function AccountCard({ account }: Props): ReactElement {
                 : ACCOUNTS.CARD.BALANCE_NOT_SET}
             </span>
           </div>
+
+          {/* Prop-firm status (compact) */}
+          {account.propStatus && (
+            <div className="flex items-center justify-between pt-3 border-t border-border">
+              <span className="flex items-center gap-2">
+                <span
+                  className="w-2 h-2 rounded-full shrink-0"
+                  style={{ background: ALERT_COLOR[account.propStatus.alertLevel] }}
+                />
+                <span className="label-caps">
+                  {account.propPhase ? PROP_FIRM.PHASE_LABELS[account.propPhase] : PROP_FIRM.STATUS_TITLE}
+                </span>
+              </span>
+              {account.propStatus.drawdown ? (
+                <span className="mono text-sm" style={{ color: ALERT_COLOR[account.propStatus.alertLevel] }}>
+                  {PROP_FIRM.ROOM_LEFT} {formatBalance(account.propStatus.drawdown.distance)}
+                </span>
+              ) : account.propStatus.dailyLoss ? (
+                <span className="mono text-sm" style={{ color: ALERT_COLOR[account.propStatus.alertLevel] }}>
+                  {formatBalance(account.propStatus.dailyLoss.remaining)} {PROP_FIRM.REMAINING}
+                </span>
+              ) : account.propStatus.profit ? (
+                <span className="mono text-sm text-text-dim">
+                  {(account.propStatus.profit.pct * 100).toFixed(0)}% {PROP_FIRM.TARGET.toLowerCase()}
+                </span>
+              ) : null}
+            </div>
+          )}
         </div>
       )}
     />

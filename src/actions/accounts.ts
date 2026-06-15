@@ -19,16 +19,27 @@ export async function updateAccount(
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return createErrorResult("UNAUTHENTICATED")
 
-  const { id, broker, accountType, initialBalance, color, notes } = parsed.data
+  const {
+    id, broker, accountType, initialBalance, color, notes,
+    propPhase, drawdownType, drawdownAmount, drawdownLockAt,
+    dailyLossLimit, profitTarget, minTradingDays,
+  } = parsed.data
 
   const { data, error } = await supabase
     .from("accounts")
     .update({
       broker,
-      account_type:    accountType,
-      initial_balance: initialBalance,
+      account_type:      accountType,
+      initial_balance:   initialBalance,
       color,
       notes,
+      prop_phase:        propPhase,
+      drawdown_type:     drawdownType,
+      drawdown_amount:   drawdownAmount,
+      drawdown_lock_at:  drawdownLockAt,
+      daily_loss_limit:  dailyLossLimit,
+      profit_target:     profitTarget,
+      min_trading_days:  minTradingDays,
     })
     .eq("id", id)
     .eq("user_id", user.id)
@@ -41,6 +52,7 @@ export async function updateAccount(
   }
 
   revalidatePath("/accounts")
+  revalidatePath("/dashboard")
   return createDataResult(mapAccountFromDb(data))
 }
 

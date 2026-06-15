@@ -1,9 +1,9 @@
 import type { ReactElement } from "react";
-import type { AccountWithStats } from "~/types/account";
+import type { AccountWithPropStatus } from "~/types/prop-firm";
 import { AccountCard } from "./account-card.client";
 import { AccountsEmptyState } from "./accounts-empty-state";
 
-type Props = { accounts: AccountWithStats[] };
+type Props = { accounts: AccountWithPropStatus[] };
 
 export function AccountsGrid({ accounts }: Props): ReactElement {
   if (accounts.length === 0) {

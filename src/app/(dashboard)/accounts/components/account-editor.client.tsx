@@ -3,9 +3,10 @@
 import { useState, useTransition } from "react";
 import { createPortal } from "react-dom";
 import type { ReactElement } from "react";
-import type { AccountWithStats, AccountType } from "~/types/account";
+import type { AccountWithStats, AccountType, PropPhase, DrawdownType } from "~/types/account";
 import { updateAccount, setAccountActive } from "~/actions/accounts";
 import { ACCOUNTS } from "~/constants/copies/accounts";
+import { PROP_FIRM } from "~/constants/copies/prop-firm";
 import { cn } from "~/utils/cn";
 import { Button } from "~/lib/ui/button";
 import { Toast } from "~/lib/ui/toast";
@@ -22,6 +23,11 @@ const COLOR_PRESETS = [
 ] as const;
 
 const ACCOUNT_TYPES: AccountType[] = ["real", "funded", "demo", "paper"];
+const PROP_PHASES: PropPhase[] = ["evaluation", "funded", "payout"];
+const DRAWDOWN_TYPES: DrawdownType[] = ["trailing_intraday", "trailing_eod", "static"];
+
+const numOrNull = (v: string): number | null => (v.trim() !== "" ? parseFloat(v) : null);
+const intOrNull = (v: string): number | null => (v.trim() !== "" ? parseInt(v, 10) : null);
 
 type ToastState = { message: string; variant: ToastVariant };
 
@@ -39,6 +45,13 @@ export function AccountEditor({ account, renderTrigger }: Props): ReactElement {
   );
   const [color, setColor]                 = useState(account.color);
   const [notes, setNotes]                 = useState(account.notes ?? "");
+  const [propPhase, setPropPhase]         = useState<string>(account.propPhase ?? "");
+  const [drawdownType, setDrawdownType]   = useState<string>(account.drawdownType ?? "");
+  const [drawdownAmount, setDrawdownAmount] = useState<string>(account.drawdownAmount != null ? String(account.drawdownAmount) : "");
+  const [drawdownLockAt, setDrawdownLockAt] = useState<string>(account.drawdownLockAt != null ? String(account.drawdownLockAt) : "");
+  const [dailyLossLimit, setDailyLossLimit] = useState<string>(account.dailyLossLimit != null ? String(account.dailyLossLimit) : "");
+  const [profitTarget, setProfitTarget]   = useState<string>(account.profitTarget != null ? String(account.profitTarget) : "");
+  const [minTradingDays, setMinTradingDays] = useState<string>(account.minTradingDays != null ? String(account.minTradingDays) : "");
   const [archiveArmed, setArchiveArmed]   = useState(false);
   const [toast, setToast]                 = useState<ToastState | null>(null);
   const [isPending, startTransition]      = useTransition();
@@ -54,6 +67,13 @@ export function AccountEditor({ account, renderTrigger }: Props): ReactElement {
     setInitialBalance(account.initialBalance != null ? String(account.initialBalance) : "");
     setColor(account.color);
     setNotes(account.notes ?? "");
+    setPropPhase(account.propPhase ?? "");
+    setDrawdownType(account.drawdownType ?? "");
+    setDrawdownAmount(account.drawdownAmount != null ? String(account.drawdownAmount) : "");
+    setDrawdownLockAt(account.drawdownLockAt != null ? String(account.drawdownLockAt) : "");
+    setDailyLossLimit(account.dailyLossLimit != null ? String(account.dailyLossLimit) : "");
+    setProfitTarget(account.profitTarget != null ? String(account.profitTarget) : "");
+    setMinTradingDays(account.minTradingDays != null ? String(account.minTradingDays) : "");
     setArchiveArmed(false);
     setIsOpen(true);
   }
@@ -72,6 +92,13 @@ export function AccountEditor({ account, renderTrigger }: Props): ReactElement {
         initialBalance: initialBalance !== "" ? parseFloat(initialBalance) : null,
         color,
         notes:          notes.trim() || null,
+        propPhase:      (propPhase || null) as PropPhase | null,
+        drawdownType:   (drawdownType || null) as DrawdownType | null,
+        drawdownAmount: numOrNull(drawdownAmount),
+        drawdownLockAt: numOrNull(drawdownLockAt),
+        dailyLossLimit: numOrNull(dailyLossLimit),
+        profitTarget:   numOrNull(profitTarget),
+        minTradingDays: intOrNull(minTradingDays),
       });
 
       if (result.success) {
@@ -131,7 +158,7 @@ export function AccountEditor({ account, renderTrigger }: Props): ReactElement {
           onClick={closeModal}
         >
           <div
-            className="card border-border-hi max-w-[90vw] p-6 flex flex-col gap-5"
+            className="card border-border-hi max-w-[90vw] max-h-[90vh] overflow-y-auto p-6 flex flex-col gap-5"
             style={{ width: 480, boxShadow: "0 20px 80px rgba(0,0,0,0.6)" }}
             onClick={(e) => e.stopPropagation()}
           >
@@ -235,6 +262,97 @@ export function AccountEditor({ account, renderTrigger }: Props): ReactElement {
                 placeholder="Optional notes…"
                 className="bg-surface-2 border border-border rounded-sm px-2.5 py-2 text-base text-text w-full outline-none focus:border-border-hi resize-vertical"
               />
+            </div>
+
+            {/* Prop firm rules */}
+            <div className="flex flex-col gap-3 pt-3 border-t border-border">
+              <div className="label-caps">{PROP_FIRM.SECTION}</div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div className="flex flex-col gap-1.5">
+                  <label className="label-caps">{PROP_FIRM.PHASE}</label>
+                  <select
+                    value={propPhase}
+                    onChange={(e) => setPropPhase(e.target.value)}
+                    className="bg-surface-2 border border-border rounded-sm px-2.5 py-2 text-base text-text w-full outline-none focus:border-border-hi"
+                  >
+                    <option value="">{PROP_FIRM.PHASE_NONE}</option>
+                    {PROP_PHASES.map((p) => (
+                      <option key={p} value={p}>{PROP_FIRM.PHASE_LABELS[p]}</option>
+                    ))}
+                  </select>
+                </div>
+                <div className="flex flex-col gap-1.5">
+                  <label className="label-caps">{PROP_FIRM.DRAWDOWN_TYPE}</label>
+                  <select
+                    value={drawdownType}
+                    onChange={(e) => setDrawdownType(e.target.value)}
+                    className="bg-surface-2 border border-border rounded-sm px-2.5 py-2 text-base text-text w-full outline-none focus:border-border-hi"
+                  >
+                    <option value="">{PROP_FIRM.DRAWDOWN_NONE}</option>
+                    {DRAWDOWN_TYPES.map((d) => (
+                      <option key={d} value={d}>{PROP_FIRM.DRAWDOWN_TYPE_LABELS[d]}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div className="flex flex-col gap-1.5">
+                  <label className="label-caps">{PROP_FIRM.DD_AMOUNT}</label>
+                  <input
+                    type="number" min="0" step="0.01"
+                    value={drawdownAmount}
+                    onChange={(e) => setDrawdownAmount(e.target.value)}
+                    placeholder="2500"
+                    className="bg-surface-2 border border-border rounded-sm px-2.5 py-2 text-base text-text w-full outline-none focus:border-border-hi"
+                  />
+                </div>
+                <div className="flex flex-col gap-1.5">
+                  <label className="label-caps">{PROP_FIRM.DD_LOCK}</label>
+                  <input
+                    type="number" min="0" step="0.01"
+                    value={drawdownLockAt}
+                    onChange={(e) => setDrawdownLockAt(e.target.value)}
+                    placeholder="—"
+                    className="bg-surface-2 border border-border rounded-sm px-2.5 py-2 text-base text-text w-full outline-none focus:border-border-hi"
+                  />
+                </div>
+              </div>
+              <p className="text-xxs text-text-mute -mt-1.5">{PROP_FIRM.DD_LOCK_HINT}</p>
+
+              <div className="grid grid-cols-3 gap-3">
+                <div className="flex flex-col gap-1.5">
+                  <label className="label-caps">{PROP_FIRM.DAILY_LOSS}</label>
+                  <input
+                    type="number" min="0" step="0.01"
+                    value={dailyLossLimit}
+                    onChange={(e) => setDailyLossLimit(e.target.value)}
+                    placeholder="—"
+                    className="bg-surface-2 border border-border rounded-sm px-2.5 py-2 text-base text-text w-full outline-none focus:border-border-hi"
+                  />
+                </div>
+                <div className="flex flex-col gap-1.5">
+                  <label className="label-caps">{PROP_FIRM.PROFIT_TARGET}</label>
+                  <input
+                    type="number" min="0" step="0.01"
+                    value={profitTarget}
+                    onChange={(e) => setProfitTarget(e.target.value)}
+                    placeholder="—"
+                    className="bg-surface-2 border border-border rounded-sm px-2.5 py-2 text-base text-text w-full outline-none focus:border-border-hi"
+                  />
+                </div>
+                <div className="flex flex-col gap-1.5">
+                  <label className="label-caps">{PROP_FIRM.MIN_DAYS}</label>
+                  <input
+                    type="number" min="0" step="1"
+                    value={minTradingDays}
+                    onChange={(e) => setMinTradingDays(e.target.value)}
+                    placeholder="—"
+                    className="bg-surface-2 border border-border rounded-sm px-2.5 py-2 text-base text-text w-full outline-none focus:border-border-hi"
+                  />
+                </div>
+              </div>
             </div>
 
             {/* Footer */}
