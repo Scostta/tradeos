@@ -22,6 +22,7 @@ const FitIcon      = () => <svg width="14" height="14" viewBox="0 0 24 24" fill=
 const ZOOM_STEP = 0.3
 const ZOOM_MIN  = 0.5
 const ZOOM_MAX  = 4
+const ZERO_OFFSET = { x: 0, y: 0 }
 
 function IcoBtn({ onClick, title, children, danger = false }: {
   onClick: () => void; title: string; children: React.ReactNode; danger?: boolean
@@ -53,21 +54,34 @@ function Lightbox({
   isPending:  boolean
 }) {
   const [zoom,      setZoom]      = useState(1)
-  const [offset,    setOffset]    = useState({ x: 0, y: 0 })
+  const [offset,    setOffset]    = useState(ZERO_OFFSET)
   const [dragging,  setDragging]  = useState(false)
   const dragStart = useRef<{ mx: number; my: number; ox: number; oy: number } | null>(null)
   const stripRef  = useRef<HTMLDivElement>(null)
   const img = images[index]!
 
-  // Reset zoom + offset on image change; scroll thumbnail into view
-  useEffect(() => {
+  // Zoom changes funnel through here so we can recentre when zooming back
+  // out, without a state-syncing effect.
+  function applyZoom(next: number) {
+    const z = Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, +next.toFixed(1)))
+    setZoom(z)
+    if (z <= 1) setOffset(ZERO_OFFSET)
+  }
+
+  // Reset the view, then delegate navigation to the parent. Resetting here
+  // (rather than in an effect on `index`) keeps zoom/offset out of effects.
+  function resetView() {
     setZoom(1)
-    setOffset({ x: 0, y: 0 })
+    setOffset(ZERO_OFFSET)
+  }
+  function goPrev()               { resetView(); onPrev() }
+  function goNext()               { resetView(); onNext() }
+  function selectIndex(i: number) { resetView(); onSetIndex(i) }
+
+  // Scroll the active thumbnail into view — DOM side effect only, no setState.
+  useEffect(() => {
     stripRef.current?.children[index]?.scrollIntoView({ inline: "center", behavior: "smooth" })
   }, [index])
-
-  // Reset offset when zoom returns to 1
-  useEffect(() => { if (zoom <= 1) setOffset({ x: 0, y: 0 }) }, [zoom])
 
   function handleMouseDown(e: React.MouseEvent) {
     if (zoom <= 1 || e.button !== 0) return
@@ -91,16 +105,20 @@ function Lightbox({
 
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
-      if (e.key === "Escape")      onClose()
-      if (e.key === "ArrowLeft")   onPrev()
-      if (e.key === "ArrowRight")  onNext()
-      if (e.key === "+" || e.key === "=") setZoom(z => Math.min(ZOOM_MAX, +(z + ZOOM_STEP).toFixed(1)))
-      if (e.key === "-")           setZoom(z => Math.max(ZOOM_MIN, +(z - ZOOM_STEP).toFixed(1)))
-      if (e.key === "0")           setZoom(1)
+      if (e.key === "Escape")     { onClose(); return }
+      if (e.key === "ArrowLeft")  { setZoom(1); setOffset(ZERO_OFFSET); onPrev(); return }
+      if (e.key === "ArrowRight") { setZoom(1); setOffset(ZERO_OFFSET); onNext(); return }
+      if (e.key === "+" || e.key === "=") { setZoom(Math.min(ZOOM_MAX, +(zoom + ZOOM_STEP).toFixed(1))) }
+      if (e.key === "-") {
+        const z = Math.max(ZOOM_MIN, +(zoom - ZOOM_STEP).toFixed(1))
+        setZoom(z)
+        if (z <= 1) setOffset(ZERO_OFFSET)
+      }
+      if (e.key === "0") { setZoom(1); setOffset(ZERO_OFFSET) }
     }
     window.addEventListener("keydown", onKey)
     return () => window.removeEventListener("keydown", onKey)
-  }, [onClose, onPrev, onNext])
+  }, [zoom, onClose, onPrev, onNext])
 
   const THUMB_H = 72
 
@@ -118,13 +136,13 @@ function Lightbox({
 
         <div className="flex-1" />
 
-        <IcoBtn onClick={() => setZoom(z => Math.min(ZOOM_MAX, +(z + ZOOM_STEP).toFixed(1)))} title="Zoom in (+)">
+        <IcoBtn onClick={() => applyZoom(zoom + ZOOM_STEP)} title="Zoom in (+)">
           <ZoomInIcon />
         </IcoBtn>
-        <IcoBtn onClick={() => setZoom(z => Math.max(ZOOM_MIN, +(z - ZOOM_STEP).toFixed(1)))} title="Zoom out (-)">
+        <IcoBtn onClick={() => applyZoom(zoom - ZOOM_STEP)} title="Zoom out (-)">
           <ZoomOutIcon />
         </IcoBtn>
-        <IcoBtn onClick={() => setZoom(1)} title="Reset zoom (0)">
+        <IcoBtn onClick={() => applyZoom(1)} title="Reset zoom (0)">
           <FitIcon />
         </IcoBtn>
 
@@ -144,7 +162,7 @@ function Lightbox({
 
         {/* Prev arrow */}
         <button
-          onClick={onPrev}
+          onClick={goPrev}
           disabled={images.length <= 1}
           className="flex items-center justify-center shrink-0 cursor-pointer transition-colors disabled:opacity-0"
           style={{ width: 64, color: "rgba(255,255,255,.6)", background: "transparent" }}
@@ -189,7 +207,7 @@ function Lightbox({
 
         {/* Next arrow */}
         <button
-          onClick={onNext}
+          onClick={goNext}
           disabled={images.length <= 1}
           className="flex items-center justify-center shrink-0 cursor-pointer transition-colors disabled:opacity-0"
           style={{ width: 64, color: "rgba(255,255,255,.6)", background: "transparent" }}
@@ -209,7 +227,7 @@ function Lightbox({
         {images.map((im, i) => (
           <button
             key={im.id}
-            onClick={() => onSetIndex(i)}
+            onClick={() => selectIndex(i)}
             className="shrink-0 rounded-sm overflow-hidden cursor-pointer transition-all"
             style={{
               height:  THUMB_H,

@@ -1,6 +1,5 @@
 "use client"
 
-import { useState, useEffect } from "react"
 import type { ReactElement } from "react"
 import type { DowBucket } from "~/types/metrics"
 import { DASHBOARD } from "~/constants/copies/dashboard"
@@ -18,8 +17,9 @@ function fmtFooterVal(net: number): string {
 }
 
 export function PnlByDayCard({ data }: Props): ReactElement {
-  const [animKey, setAnimKey] = useState(0)
-  useEffect(() => { setAnimKey(k => k + 1) }, [data])
+  // Replay the bar animation when the data changes by remounting the group
+  // under a key derived from the data (key-reset pattern — no effect needed).
+  const animKey = data.map(d => `${d.key}:${d.net}`).join("|")
 
   const W = 272, H = 232
   const padL = 44, padR = 8, padT = 12, padB = 24

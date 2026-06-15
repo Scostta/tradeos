@@ -18,8 +18,8 @@ jobs:
 
       - run: npm ci
 
-      # Non-blocking: the repo has pre-existing lint debt from the
-      # react-hooks/set-state-in-effect rule. Surfaced but not gating.
+      # Non-blocking: the repo still has pre-existing lint debt (mostly
+      # react/jsx-no-undef). Surfaced but not gating until cleared.
       - name: Lint
         run: npm run lint
         continue-on-error: true

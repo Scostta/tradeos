@@ -3,8 +3,11 @@
 import { z } from "zod"
 import { revalidatePath } from "next/cache"
 import { createClient } from "~/utils/supabase/server"
+import { createServerClient } from "~/utils/supabase/service"
 import { createDataResult, createErrorResult } from "~/helpers/result"
 import type { ResultType } from "~/helpers/result"
+
+const ATTACHMENTS_BUCKET = "trade-attachments"
 
 const updateNotesSchema = z.object({
   id:    z.string().uuid(),
@@ -114,8 +117,15 @@ export async function deleteTrade(
   if (!user) return createErrorResult("UNAUTHENTICATED")
 
   const { id } = parsed.data
-  // trade_attachments rows cascade on delete; storage objects are namespaced
-  // per user/trade and cleaned up separately if needed.
+
+  // Collect attachment storage paths before deleting the trade: the DB rows
+  // cascade away, but the Storage objects would otherwise be orphaned.
+  const { data: attachments } = await supabase
+    .from("trade_attachments")
+    .select("storage_path")
+    .eq("trade_id", id)
+    .eq("user_id", user.id)
+
   const { error } = await supabase
     .from("trades")
     .delete()
@@ -125,6 +135,15 @@ export async function deleteTrade(
   if (error) {
     console.error(error)
     return createErrorResult(error.message)
+  }
+
+  const paths = (attachments ?? []).map((a) => a.storage_path)
+  if (paths.length > 0) {
+    // Non-fatal: the trade is already gone; a failed cleanup just leaves files.
+    const { error: storageError } = await createServerClient()
+      .storage.from(ATTACHMENTS_BUCKET)
+      .remove(paths)
+    if (storageError) console.error(storageError)
   }
 
   revalidatePath("/trades")

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useSyncExternalStore } from "react";
 import { createPortal } from "react-dom";
 import { Toast } from "~/lib/ui/toast";
 import type { ToastVariant } from "~/lib/ui/toast";
@@ -10,9 +10,12 @@ interface Props {
   message: string;
 }
 
+const subscribe = () => () => {};
+
 export function Toaster({ variant, message }: Props) {
-  const [mounted, setMounted] = useState(false);
-  useEffect(() => setMounted(true), []);
+  // createPortal needs `document`, so render only on the client. Reading
+  // client-vs-server via useSyncExternalStore avoids a setState-in-effect.
+  const mounted = useSyncExternalStore(subscribe, () => true, () => false);
   if (!mounted) return null;
 
   return createPortal(
