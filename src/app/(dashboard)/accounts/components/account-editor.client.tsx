@@ -186,7 +186,7 @@ export function AccountEditor({ account, renderTrigger }: Props): ReactElement {
                   type="button"
                   onClick={() => setEditorTab(t)}
                   className={cn(
-                    "flex-1 text-xs py-1.5 rounded-sm transition-colors",
+                    "flex-1 text-xs py-1.5 rounded-sm transition-colors cursor-pointer",
                     editorTab === t ? "bg-surface text-text" : "text-text-mute hover:text-text-dim"
                   )}
                 >
@@ -406,7 +406,7 @@ export function AccountEditor({ account, renderTrigger }: Props): ReactElement {
                   onClick={handleArchiveClick}
                   disabled={isPending}
                   className={cn(
-                    "text-xs text-text-mute hover:text-loss transition-colors disabled:opacity-60",
+                    "text-xs text-text-mute hover:text-loss transition-colors disabled:opacity-60 cursor-pointer",
                     archiveArmed && "text-loss"
                   )}
                 >
@@ -417,7 +417,7 @@ export function AccountEditor({ account, renderTrigger }: Props): ReactElement {
                   type="button"
                   onClick={handleRestore}
                   disabled={isPending}
-                  className="text-xs text-accent hover:text-accent/80 transition-colors disabled:opacity-60"
+                  className="text-xs text-accent hover:text-accent/80 transition-colors disabled:opacity-60 cursor-pointer"
                 >
                   {ACCOUNTS.EDITOR.RESTORE}
                 </button>
