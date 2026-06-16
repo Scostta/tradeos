@@ -27,6 +27,7 @@ export const accountSchema = z.object({
   dailyLossLimit: z.number().nullable(),
   profitTarget:   z.number().nullable(),
   minTradingDays: z.number().int().nullable(),
+  riskPerTrade:   z.number().nullable(),   // $ risked per trade — R fallback when no stop
   createdAt:      z.string().datetime({ offset: true }),
 })
 
@@ -52,6 +53,7 @@ export const updateAccountInputSchema = z.object({
   dailyLossLimit: z.number().nonnegative().nullable(),
   profitTarget:   z.number().nonnegative().nullable(),
   minTradingDays: z.number().int().nonnegative().nullable(),
+  riskPerTrade:   z.number().nonnegative().nullable(),
 })
 
 export type UpdateAccountInput = z.infer<typeof updateAccountInputSchema>

@@ -5,16 +5,28 @@ import { pointValue } from "~/lib/calculations/pnl"
 const round2 = (n: number): number => Math.round(n * 100) / 100
 
 /**
- * Realized R-multiple of a trade = net P&L ÷ initial risk.
- * Initial risk ($) = |entry − stop| × contracts × point value.
- * Returns null when the trade has no stop, an unknown instrument, or zero risk
- * (those trades are excluded from R stats — see `coverage`).
+ * Initial $ risk of a trade. Prefers the trade's own stop
+ * (|entry − stop| × contracts × point value); when there is no usable stop,
+ * falls back to the account's flat `risk_per_trade`. Returns null if neither
+ * is available.
  */
-export function rMultiple(trade: Trade): number | null {
+export function tradeRisk(trade: Trade, fallbackRisk: number | null = null): number | null {
   const pv = pointValue(trade.instrument)
-  if (pv == null || trade.stopPrice == null) return null
-  const risk = Math.abs(trade.entryPrice - trade.stopPrice) * trade.contracts * pv
-  if (!(risk > 0)) return null
+  if (pv != null && trade.stopPrice != null) {
+    const risk = Math.abs(trade.entryPrice - trade.stopPrice) * trade.contracts * pv
+    if (risk > 0) return risk
+  }
+  return fallbackRisk != null && fallbackRisk > 0 ? fallbackRisk : null
+}
+
+/**
+ * Realized R-multiple = net P&L ÷ initial risk. Uses the trade's stop when set,
+ * otherwise the account's flat `risk_per_trade` fallback. Null when no risk
+ * basis exists (trade excluded from R stats — see `coverage`).
+ */
+export function rMultiple(trade: Trade, fallbackRisk: number | null = null): number | null {
+  const risk = tradeRisk(trade, fallbackRisk)
+  if (risk == null) return null
   return trade.netPnl / risk
 }
 
@@ -38,8 +50,17 @@ function bucketize(rs: number[]): RBucket[] {
 
 const mean = (xs: number[]): number => (xs.length ? xs.reduce((s, x) => s + x, 0) / xs.length : 0)
 
-export function computeRStats(trades: Trade[]): RStats {
-  const rs = trades.map(rMultiple).filter((r): r is number => r != null)
+/**
+ * @param fallbackByAccount  per-account flat risk_per_trade, used when a trade
+ *   has no stop. Resolved by the trade's accountId; omit for stop-only stats.
+ */
+export function computeRStats(
+  trades: Trade[],
+  fallbackByAccount: Map<string, number | null> = new Map(),
+): RStats {
+  const rs = trades
+    .map(t => rMultiple(t, fallbackByAccount.get(t.accountId) ?? null))
+    .filter((r): r is number => r != null)
   const withR = rs.length
 
   if (withR === 0) {

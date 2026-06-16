@@ -20,6 +20,7 @@ export function mapAccountFromDb(row: Record<string, unknown>): Account {
     dailyLossLimit: row["daily_loss_limit"]?? null,
     profitTarget:   row["profit_target"]   ?? null,
     minTradingDays: row["min_trading_days"]?? null,
+    riskPerTrade:   row["risk_per_trade"]  ?? null,
     createdAt:      row["created_at"],
   })
 }

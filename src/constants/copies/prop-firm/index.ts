@@ -12,6 +12,8 @@ export const PROP_FIRM = {
   DAILY_LOSS:     "Daily loss limit ($)",
   PROFIT_TARGET:  "Profit target ($)",
   MIN_DAYS:       "Min trading days",
+  RISK_PER_TRADE: "Risk per trade ($)",
+  RISK_HINT:      "Fallback for R-multiples when a trade has no stop set.",
 
   PHASE_LABELS: {
     evaluation: "Evaluation",

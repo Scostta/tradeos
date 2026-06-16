@@ -128,6 +128,21 @@ export const getReportsData = cache(async function getReportsData(
     return createErrorResult(strategiesError.message)
   }
 
+  // ── Fetch accounts' risk_per_trade (R-multiple fallback when a trade has no stop) ─
+  const { data: accountsData, error: accountsError } = await supabase
+    .from("accounts")
+    .select("id, risk_per_trade")
+    .eq("user_id", user.id)
+
+  if (accountsError) {
+    console.error(accountsError)
+    return createErrorResult(accountsError.message)
+  }
+
+  const riskByAccount = new Map<string, number | null>(
+    (accountsData ?? []).map(a => [a.id, a.risk_per_trade])
+  )
+
   // ── Map to domain types ─────────────────────────────────────────────────────
   const trades     = (tradesData ?? []).map(row => mapTradeFromDb(row as Record<string, unknown>))
   const strategies = (strategiesData ?? []).map(row => mapStrategyFromDb(row as Record<string, unknown>))
@@ -192,7 +207,7 @@ export const getReportsData = cache(async function getReportsData(
     winsLosses:         buildBreakdown(trades, byOutcome),
     overview:           computeOverview(trades),
     compare:            { a: compareA.data, b: compareB.data },
-    rStats:             computeRStats(trades),
+    rStats:             computeRStats(trades, riskByAccount),
   }
 
   return createDataResult(reportsData)

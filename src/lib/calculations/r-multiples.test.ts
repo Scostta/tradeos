@@ -41,6 +41,14 @@ describe("rMultiple", () => {
     expect(rMultiple(tr({ instrument: "FOO" }))).toBeNull()
     expect(rMultiple(tr({ stopPrice: 19850 }))).toBeNull()  // risk = 0
   })
+  it("falls back to a flat risk when there is no stop", () => {
+    expect(rMultiple(tr({ netPnl: 1000, stopPrice: null }), 500)).toBe(2)
+    expect(rMultiple(tr({ stopPrice: null }), null)).toBeNull()
+  })
+  it("prefers the trade's own stop over the fallback", () => {
+    // stop → risk 1000 → R = 2 (fallback of 500 would give 4)
+    expect(rMultiple(tr({ netPnl: 2000 }), 500)).toBe(2)
+  })
 })
 
 describe("computeRStats", () => {
@@ -75,6 +83,14 @@ describe("computeRStats", () => {
   it("only counts trades that have a usable R (coverage)", () => {
     const s = computeRStats([...trades, tr({ netPnl: 500, stopPrice: null })])
     expect(s.coverage).toEqual({ withR: 4, total: 5 })
+  })
+
+  it("uses the per-account fallback risk for trades without a stop", () => {
+    const acct = "00000000-0000-0000-0000-000000000000"
+    const noStop = [tr({ netPnl: 1000, stopPrice: null }), tr({ netPnl: -500, stopPrice: null })]
+    const s = computeRStats(noStop, new Map([[acct, 500]]))
+    expect(s.coverage).toEqual({ withR: 2, total: 2 })   // both covered via fallback
+    expect(s.expectancy).toBe(0.5)                        // (+2 −1) / 2
   })
 
   it("returns zeroed stats with an empty distribution when no trade has a stop", () => {

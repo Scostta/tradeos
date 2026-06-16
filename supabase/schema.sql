@@ -25,6 +25,7 @@ create table if not exists accounts (
   daily_loss_limit  numeric(12,2),
   profit_target     numeric(12,2),
   min_trading_days  integer,
+  risk_per_trade    numeric(12,2),   -- $ arriesgado por trade (fallback de R cuando no hay stop)
   created_at      timestamptz default now(),
   unique(user_id, name)
 );

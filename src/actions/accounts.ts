@@ -22,7 +22,7 @@ export async function updateAccount(
   const {
     id, broker, accountType, initialBalance, color, notes,
     propPhase, drawdownType, drawdownAmount, drawdownLockAt,
-    dailyLossLimit, profitTarget, minTradingDays,
+    dailyLossLimit, profitTarget, minTradingDays, riskPerTrade,
   } = parsed.data
 
   const { data, error } = await supabase
@@ -40,6 +40,7 @@ export async function updateAccount(
       daily_loss_limit:  dailyLossLimit,
       profit_target:     profitTarget,
       min_trading_days:  minTradingDays,
+      risk_per_trade:    riskPerTrade,
     })
     .eq("id", id)
     .eq("user_id", user.id)

@@ -52,6 +52,7 @@ export function AccountEditor({ account, renderTrigger }: Props): ReactElement {
   const [dailyLossLimit, setDailyLossLimit] = useState<string>(account.dailyLossLimit != null ? String(account.dailyLossLimit) : "");
   const [profitTarget, setProfitTarget]   = useState<string>(account.profitTarget != null ? String(account.profitTarget) : "");
   const [minTradingDays, setMinTradingDays] = useState<string>(account.minTradingDays != null ? String(account.minTradingDays) : "");
+  const [riskPerTrade, setRiskPerTrade]   = useState<string>(account.riskPerTrade != null ? String(account.riskPerTrade) : "");
   const [archiveArmed, setArchiveArmed]   = useState(false);
   const [toast, setToast]                 = useState<ToastState | null>(null);
   const [isPending, startTransition]      = useTransition();
@@ -74,6 +75,7 @@ export function AccountEditor({ account, renderTrigger }: Props): ReactElement {
     setDailyLossLimit(account.dailyLossLimit != null ? String(account.dailyLossLimit) : "");
     setProfitTarget(account.profitTarget != null ? String(account.profitTarget) : "");
     setMinTradingDays(account.minTradingDays != null ? String(account.minTradingDays) : "");
+    setRiskPerTrade(account.riskPerTrade != null ? String(account.riskPerTrade) : "");
     setArchiveArmed(false);
     setIsOpen(true);
   }
@@ -99,6 +101,7 @@ export function AccountEditor({ account, renderTrigger }: Props): ReactElement {
         dailyLossLimit: numOrNull(dailyLossLimit),
         profitTarget:   numOrNull(profitTarget),
         minTradingDays: intOrNull(minTradingDays),
+        riskPerTrade:   numOrNull(riskPerTrade),
       });
 
       if (result.success) {
@@ -356,6 +359,20 @@ export function AccountEditor({ account, renderTrigger }: Props): ReactElement {
                   />
                 </div>
               </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div className="flex flex-col gap-1.5">
+                  <label className="label-caps">{PROP_FIRM.RISK_PER_TRADE}</label>
+                  <input
+                    type="number" min="0" step="0.01"
+                    value={riskPerTrade}
+                    onChange={(e) => setRiskPerTrade(e.target.value)}
+                    placeholder="—"
+                    className="bg-surface-2 border border-border rounded-sm px-2.5 py-2 text-base text-text w-full outline-none focus:border-border-hi"
+                  />
+                </div>
+              </div>
+              <p className="text-xxs text-text-mute -mt-1.5">{PROP_FIRM.RISK_HINT}</p>
             </div>
 
             {/* Footer */}
