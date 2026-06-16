@@ -264,7 +264,7 @@ export function TradeExecutionChart({ trade }: { trade: Trade }) {
   }, [state, chartType, trade, exitColor])
 
   return (
-    <div className="card overflow-hidden">
+    <div className="card overflow-hidden flex flex-col flex-1 min-h-0">
       {/* Toolbar */}
       <div className="flex items-center gap-3 px-4 border-b border-border shrink-0" style={{ height: 36 }}>
         <span className="mono text-sm font-semibold text-text">{s}</span>
@@ -334,14 +334,14 @@ export function TradeExecutionChart({ trade }: { trade: Trade }) {
         </div>
       </div>
 
-      {/* Chart */}
-      <div className="relative" style={{ height: 560 }}>
+      {/* Chart — fills the remaining height so it grows with the sidebar */}
+      <div className="relative flex-1 min-h-0" style={{ minHeight: 560 }}>
         {state.status === "loading" && (
           <div className="absolute inset-0 flex items-center justify-center text-xxs text-text-mute bg-surface z-10">
             Cargando datos…
           </div>
         )}
-        <div ref={containerRef} style={{ height: 560 }} />
+        <div ref={containerRef} className="absolute inset-0" />
       </div>
     </div>
   )
