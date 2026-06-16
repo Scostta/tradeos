@@ -15,7 +15,7 @@ import type { ToastVariant } from "~/lib/ui/toast"
 import { PlusIcon } from "~/lib/ui/icons/plus-icon"
 import { XIcon } from "~/lib/ui/icons/x-icon"
 import type { Account } from "~/types/account"
-import type { Strategy } from "~/types/strategy"
+import type { Playbook } from "~/types/playbook"
 import type { Trade } from "~/types/trade"
 
 const SESSIONS = ["RTH", "ETH", "overnight"] as const
@@ -26,7 +26,7 @@ type ToastState = { message: string; variant: ToastVariant }
 type Props = {
   mode:             "create" | "edit"
   accounts:         Account[]
-  strategies:       Strategy[]
+  playbooks:       Playbook[]
   defaultAccountId?: string | null
   initialTrade?:    Trade
 }
@@ -38,7 +38,7 @@ function isoToLocalInput(iso: string): string {
   return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}T${p(d.getHours())}:${p(d.getMinutes())}`
 }
 
-export function TradeFormModal({ mode, accounts, strategies, defaultAccountId, initialTrade }: Props): ReactElement {
+export function TradeFormModal({ mode, accounts, playbooks, defaultAccountId, initialTrade }: Props): ReactElement {
   const router = useRouter()
 
   const [isOpen, setIsOpen]   = useState(false)
@@ -54,7 +54,7 @@ export function TradeFormModal({ mode, accounts, strategies, defaultAccountId, i
   const [pnlTouched, setPnlTouched] = useState(false)
   const [commission, setCommission] = useState("")
   const [session, setSession]       = useState("")
-  const [strategyId, setStrategyId] = useState("")
+  const [playbookId, setPlaybookId] = useState("")
   const [notes, setNotes]           = useState("")
   const [toast, setToast]           = useState<ToastState | null>(null)
   const [isPending, startTransition] = useTransition()
@@ -78,7 +78,7 @@ export function TradeFormModal({ mode, accounts, strategies, defaultAccountId, i
       setPnlTouched(true)
       setCommission(String(initialTrade.commission))
       setSession(initialTrade.session ?? "")
-      setStrategyId(initialTrade.strategyId ?? "")
+      setPlaybookId(initialTrade.playbookId ?? "")
       setNotes(initialTrade.notes ?? "")
     } else {
       setAccountId(defaultAccountId ?? (accounts.length === 1 ? accounts[0]!.id : ""))
@@ -93,7 +93,7 @@ export function TradeFormModal({ mode, accounts, strategies, defaultAccountId, i
       setPnlTouched(false)
       setCommission("0")
       setSession("")
-      setStrategyId("")
+      setPlaybookId("")
       setNotes("")
     }
     setIsOpen(true)
@@ -135,7 +135,7 @@ export function TradeFormModal({ mode, accounts, strategies, defaultAccountId, i
       pnl:        Number(pnlValue) || 0,
       commission: Number(commission) || 0,
       session:    session === "" ? null : session,
-      strategyId: strategyId === "" ? null : strategyId,
+      playbookId: playbookId === "" ? null : playbookId,
       notes:      notes.trim() || null,
     }
 
@@ -303,11 +303,11 @@ export function TradeFormModal({ mode, accounts, strategies, defaultAccountId, i
               </span>
             </div>
 
-            {/* Strategy */}
-            <Field label={TRADES.FORM.STRATEGY}>
-              <select value={strategyId} onChange={(e) => setStrategyId(e.target.value)} className={INPUT_CLS}>
+            {/* Playbook */}
+            <Field label={TRADES.FORM.PLAYBOOK}>
+              <select value={playbookId} onChange={(e) => setPlaybookId(e.target.value)} className={INPUT_CLS}>
                 <option value="">{TRADES.FORM.NONE}</option>
-                {strategies.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
+                {playbooks.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
               </select>
             </Field>
 

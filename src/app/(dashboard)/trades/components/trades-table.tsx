@@ -5,7 +5,7 @@ import { TradesTableRow } from "./trades-table-row"
 
 type Props = {
   trades:     Trade[]
-  strategies: { id: string; name: string }[]
+  playbooks: { id: string; name: string }[]
 }
 
 const HEADERS = [
@@ -19,12 +19,12 @@ const HEADERS = [
   { label: TRADES.LIST.HEADERS.PNL_GROSS,  align: "right" },
   { label: TRADES.LIST.HEADERS.COMM,       align: "right" },
   { label: TRADES.LIST.HEADERS.NET_PNL,    align: "right" },
-  { label: TRADES.LIST.HEADERS.STRATEGY,   align: "left"  },
+  { label: TRADES.LIST.HEADERS.PLAYBOOK,   align: "left"  },
   { label: TRADES.LIST.HEADERS.HOLD,       align: "right" },
 ] as const
 
 export function TradesTable(props: Props): ReactElement {
-  const { trades, strategies } = props
+  const { trades, playbooks } = props
 
   return (
     <div className="card p-0 overflow-hidden">
@@ -58,7 +58,7 @@ export function TradesTable(props: Props): ReactElement {
               <TradesTableRow
                 key={trade.id}
                 trade={trade}
-                strategies={strategies}
+                playbooks={playbooks}
               />
             ))
           )}

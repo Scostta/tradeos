@@ -50,7 +50,7 @@ export async function getTradesPage(
   if (filters.accountId)  pageQuery = pageQuery.eq("account_id", filters.accountId)
   if (filters.instrument) pageQuery = pageQuery.eq("instrument", filters.instrument)
   if (filters.direction)  pageQuery = pageQuery.eq("direction", filters.direction)
-  if (filters.strategyId) pageQuery = pageQuery.eq("strategy_id", filters.strategyId)
+  if (filters.playbookId) pageQuery = pageQuery.eq("playbook_id", filters.playbookId)
   if (dateRange)          pageQuery = pageQuery.gte("entry_time", dateRange.from).lte("entry_time", dateRange.to)
 
   let netQuery = supabase
@@ -61,7 +61,7 @@ export async function getTradesPage(
   if (filters.accountId)  netQuery = netQuery.eq("account_id", filters.accountId)
   if (filters.instrument) netQuery = netQuery.eq("instrument", filters.instrument)
   if (filters.direction)  netQuery = netQuery.eq("direction", filters.direction)
-  if (filters.strategyId) netQuery = netQuery.eq("strategy_id", filters.strategyId)
+  if (filters.playbookId) netQuery = netQuery.eq("playbook_id", filters.playbookId)
   if (dateRange)          netQuery = netQuery.gte("entry_time", dateRange.from).lte("entry_time", dateRange.to)
 
   let instrQuery = supabase

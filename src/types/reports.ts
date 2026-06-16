@@ -71,7 +71,7 @@ export type CrossMatrix = {
 }
 
 /**
- * Complete data for one sub-report (Day & Time / Symbols / Strategies / Wins vs Losses).
+ * Complete data for one sub-report (Day & Time / Symbols / Playbooks / Wins vs Losses).
  *
  * The frontend ReportDetail component destructures this directly.
  */
@@ -285,7 +285,7 @@ export type ReportsData = {
   dayTime:            ReportBreakdown     // Day & Time sub-report (grouped by weekday)
   months:             ReportBreakdown     // Day & Time / Months sub-tab
   symbols:            ReportBreakdown     // Symbols sub-report
-  strategies:         ReportBreakdown     // Strategies (Playbooks) sub-report
+  playbooks:         ReportBreakdown     // Playbooks (Playbooks) sub-report
   winsLosses:         ReportBreakdown     // Wins vs Losses sub-report
   overview:           OverviewData        // Overview tab (all-time snapshot)
   compare:            CompareData         // Compare tab default (this vs last month)

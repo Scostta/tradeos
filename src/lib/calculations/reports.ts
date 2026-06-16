@@ -15,7 +15,7 @@
 
 import { winRate, totalNetPnl, avgWin, avgLoss, profitFactor, maxDrawdown } from "~/lib/calculations/metrics"
 import type { Trade } from "~/types/trade"
-import type { Strategy } from "~/types/strategy"
+import type { Playbook } from "~/types/playbook"
 import type { ComparePeriodKey } from "~/helpers/compare-period"
 import type {
   ReportRow,
@@ -90,12 +90,12 @@ export function bySymbol(trade: Trade): string {
 }
 
 /**
- * Groups by strategyId. Returns null for trades without a strategy, which
- * are excluded from the Strategies sub-report.
- * The caller is responsible for replacing strategyId with the strategy name.
+ * Groups by playbookId. Returns null for trades without a playbook, which
+ * are excluded from the Playbooks sub-report.
+ * The caller is responsible for replacing playbookId with the playbook name.
  */
-export function byStrategyId(trade: Trade): string | null {
-  return trade.strategyId
+export function byPlaybookId(trade: Trade): string | null {
+  return trade.playbookId
 }
 
 /** Groups trades into "Wins" or "Losses" based on netPnl. */
@@ -264,20 +264,20 @@ export function computeCrossMatrix(
   return { cols, rows: matrixRows }
 }
 
-// ── Strategies groupBy with name resolution ───────────────────────────────────
+// ── Playbooks groupBy with name resolution ───────────────────────────────────
 
 /**
- * Returns a groupBy function that maps trades to strategy names.
- * Trades with no strategyId are excluded (returns null).
- * Trades with a strategyId that has no matching Strategy record
- * are grouped under "Unknown Strategy".
+ * Returns a groupBy function that maps trades to playbook names.
+ * Trades with no playbookId are excluded (returns null).
+ * Trades with a playbookId that has no matching Playbook record
+ * are grouped under "Unknown Playbook".
  */
-export function makeByStrategyName(strategies: Strategy[]): (t: Trade) => string | null {
+export function makeByPlaybookName(playbooks: Playbook[]): (t: Trade) => string | null {
   const nameById = new Map<string, string>()
-  for (const s of strategies) nameById.set(s.id, s.name)
+  for (const s of playbooks) nameById.set(s.id, s.name)
   return (t: Trade): string | null => {
-    if (t.strategyId === null) return null
-    return nameById.get(t.strategyId) ?? "Unknown Strategy"
+    if (t.playbookId === null) return null
+    return nameById.get(t.playbookId) ?? "Unknown Playbook"
   }
 }
 

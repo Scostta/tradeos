@@ -6,13 +6,13 @@ import { APP_URLS } from "~/constants/app-urls"
 import { TradeFormModal } from "~/components/trades/trade-form-modal.client"
 import type { Trade } from "~/types/trade"
 import type { Account } from "~/types/account"
-import type { Strategy } from "~/types/strategy"
+import type { Playbook } from "~/types/playbook"
 import { TradeDeleteButton } from "./trade-delete-button.client"
 
-export function TradeViewHeader({ trade, accounts, strategies }: {
+export function TradeViewHeader({ trade, accounts, playbooks }: {
   trade:      Trade
   accounts:   Account[]
-  strategies: Strategy[]
+  playbooks: Playbook[]
 }): ReactElement {
   const num = trade.tradeNumber !== null
     ? trade.tradeNumber.toString().padStart(4, "0")
@@ -31,7 +31,7 @@ export function TradeViewHeader({ trade, accounts, strategies }: {
       <TradeFormModal
         mode="edit"
         accounts={accounts}
-        strategies={strategies}
+        playbooks={playbooks}
         initialTrade={trade}
       />
       <TradeDeleteButton tradeId={trade.id} />

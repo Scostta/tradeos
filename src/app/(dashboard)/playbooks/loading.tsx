@@ -1,4 +1,4 @@
-export default function StrategiesLoading() {
+export default function PlaybooksLoading() {
   return (
     <div className="flex flex-col h-full">
       {/* Header skeleton */}

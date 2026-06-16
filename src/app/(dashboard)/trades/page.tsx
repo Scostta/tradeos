@@ -1,7 +1,7 @@
 import type { ReactElement } from "react"
 import { TRADES } from "~/constants/copies/trades"
 import { getAccounts } from "~/services/queries/accounts"
-import { getStrategiesWithStats } from "~/services/queries/strategies"
+import { getPlaybooksWithStats } from "~/services/queries/playbooks"
 import { getTradesPage } from "~/services/queries/trades"
 import { parseTradeFilters } from "~/types/trade-filters"
 import { TradesHeader } from "./components/trades-header"
@@ -16,7 +16,7 @@ export default async function TradesPage({
     account?:    string
     instrument?: string
     direction?:  string
-    strategy?:   string
+    playbook?:   string
     range?:      string
     page?:       string
   }>
@@ -24,14 +24,14 @@ export default async function TradesPage({
   const params  = await searchParams
   const filters = parseTradeFilters(params)
 
-  const [tradesResult, accountsResult, strategiesResult] = await Promise.all([
+  const [tradesResult, accountsResult, playbooksResult] = await Promise.all([
     getTradesPage(filters),
     getAccounts(),
-    getStrategiesWithStats(),
+    getPlaybooksWithStats(),
   ])
 
   const accounts   = accountsResult.success   ? accountsResult.data   : []
-  const strategies = strategiesResult.success ? strategiesResult.data : []
+  const playbooks = playbooksResult.success ? playbooksResult.data : []
 
   if (!tradesResult.success) {
     return (
@@ -41,12 +41,12 @@ export default async function TradesPage({
           totalNet={0}
           accounts={accounts}
           accountId={filters.accountId}
-          strategies={strategies}
+          playbooks={playbooks}
         />
         <TradesFilterBar
           filters={filters}
           instruments={[]}
-          strategies={strategies}
+          playbooks={playbooks}
         />
         <div className="flex-1 flex items-center justify-center text-text-mute text-sm">
           {TRADES.LIST.ERROR}
@@ -64,17 +64,17 @@ export default async function TradesPage({
         totalNet={totalNet}
         accounts={accounts}
         accountId={filters.accountId}
-        strategies={strategies}
+        playbooks={playbooks}
       />
       <TradesFilterBar
         filters={filters}
         instruments={instruments}
-        strategies={strategies}
+        playbooks={playbooks}
       />
       <div className="flex-1 overflow-auto px-4 md:px-7 py-5">
         <TradesTable
           trades={trades}
-          strategies={strategies}
+          playbooks={playbooks}
         />
       </div>
       <TradesPagination

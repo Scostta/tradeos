@@ -15,15 +15,15 @@ function pnlColorVar(n: number): string {
 
 type Props = {
   trade:      Trade
-  strategies: { id: string; name: string }[]
+  playbooks: { id: string; name: string }[]
 }
 
 export function TradesTableRow(props: Props): ReactElement {
-  const { trade, strategies } = props
+  const { trade, playbooks } = props
   const router = useRouter()
 
-  const strategyName = trade.strategyId
-    ? (strategies.find(s => s.id === trade.strategyId)?.name ?? "—")
+  const playbookName = trade.playbookId
+    ? (playbooks.find(s => s.id === trade.playbookId)?.name ?? "—")
     : "—"
 
   const pnlColor   = pnlColorVar(trade.netPnl)
@@ -83,7 +83,7 @@ export function TradesTableRow(props: Props): ReactElement {
         {formatCurrency(trade.netPnl)}
       </td>
       <td className="px-3 py-2.5 text-text-dim text-xs">
-        {strategyName}
+        {playbookName}
       </td>
       <td className="px-3 py-2.5 mono text-text-mute text-xs text-right">
         {formatDuration(trade.entryTime, trade.exitTime)}

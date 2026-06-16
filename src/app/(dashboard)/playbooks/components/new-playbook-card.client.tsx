@@ -1,13 +1,13 @@
 "use client";
 
 import type { ReactElement } from "react";
-import { STRATEGIES } from "~/constants/copies/strategies";
+import { PLAYBOOKS } from "~/constants/copies/playbooks";
 import { PlusIcon } from "~/lib/ui/icons/plus-icon";
-import { StrategyEditor } from "./strategy-editor.client";
+import { PlaybookEditor } from "./playbook-editor.client";
 
-export function NewStrategyCard(): ReactElement {
+export function NewPlaybookCard(): ReactElement {
   return (
-    <StrategyEditor
+    <PlaybookEditor
       mode="create"
       renderTrigger={(open) => (
         <button
@@ -20,8 +20,8 @@ export function NewStrategyCard(): ReactElement {
             <PlusIcon />
           </div>
           <div className="flex flex-col items-center gap-1">
-            <span className="text-md font-medium text-text">{STRATEGIES.NEW_CARD.TITLE}</span>
-            <span className="text-sm text-text-mute">{STRATEGIES.NEW_CARD.BODY}</span>
+            <span className="text-md font-medium text-text">{PLAYBOOKS.NEW_CARD.TITLE}</span>
+            <span className="text-sm text-text-mute">{PLAYBOOKS.NEW_CARD.BODY}</span>
           </div>
         </button>
       )}

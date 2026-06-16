@@ -3,9 +3,9 @@
 import { useState, useTransition } from "react"
 import { createPortal } from "react-dom"
 import type { ReactElement } from "react"
-import type { StrategyWithStats } from "~/types/strategy"
-import { createStrategy, updateStrategy, setStrategyActive } from "~/actions/strategies"
-import { STRATEGIES } from "~/constants/copies/strategies"
+import type { PlaybookWithStats } from "~/types/playbook"
+import { createPlaybook, updatePlaybook, setPlaybookActive } from "~/actions/playbooks"
+import { PLAYBOOKS } from "~/constants/copies/playbooks"
 import { cn } from "~/utils/cn"
 import { Button } from "~/lib/ui/button"
 import { Toast } from "~/lib/ui/toast"
@@ -44,9 +44,9 @@ function serializeRules(r: RulesState): string | null {
 
 type Props =
   | { mode: "create"; renderTrigger?: (open: () => void) => ReactElement }
-  | { mode: "edit"; strategy: StrategyWithStats; renderTrigger?: (open: () => void) => ReactElement }
+  | { mode: "edit"; playbook: PlaybookWithStats; renderTrigger?: (open: () => void) => ReactElement }
 
-export function StrategyEditor(props: Props): ReactElement {
+export function PlaybookEditor(props: Props): ReactElement {
   const [isOpen, setIsOpen]             = useState(false)
   const [name, setName]                 = useState("")
   const [description, setDescription]  = useState("")
@@ -62,9 +62,9 @@ export function StrategyEditor(props: Props): ReactElement {
 
   function openModal() {
     if (props.mode === "edit") {
-      setName(props.strategy.name)
-      setDescription(props.strategy.description ?? "")
-      setRules(parseRules(props.strategy.rules))
+      setName(props.playbook.name)
+      setDescription(props.playbook.description ?? "")
+      setRules(parseRules(props.playbook.rules))
     } else {
       setName("")
       setDescription("")
@@ -107,17 +107,17 @@ export function StrategyEditor(props: Props): ReactElement {
       }
       const result =
         props.mode === "create"
-          ? await createStrategy(input)
-          : await updateStrategy({ id: props.strategy.id, ...input })
+          ? await createPlaybook(input)
+          : await updatePlaybook({ id: props.playbook.id, ...input })
 
       if (result.success) {
         showToast(
-          props.mode === "create" ? STRATEGIES.TOAST.CREATE_SUCCESS : STRATEGIES.TOAST.SAVE_SUCCESS,
+          props.mode === "create" ? PLAYBOOKS.TOAST.CREATE_SUCCESS : PLAYBOOKS.TOAST.SAVE_SUCCESS,
           "success",
         )
         closeModal()
       } else {
-        showToast(STRATEGIES.TOAST.ERROR, "error")
+        showToast(PLAYBOOKS.TOAST.ERROR, "error")
       }
     })
   }
@@ -127,9 +127,9 @@ export function StrategyEditor(props: Props): ReactElement {
     if (!archiveArmed) { setArchiveArmed(true); return }
     startTransition(async () => {
       if (props.mode !== "edit") return
-      const result = await setStrategyActive({ id: props.strategy.id, active: false })
-      if (result.success) { showToast(STRATEGIES.TOAST.ARCHIVED, "success"); closeModal() }
-      else showToast(STRATEGIES.TOAST.ERROR, "error")
+      const result = await setPlaybookActive({ id: props.playbook.id, active: false })
+      if (result.success) { showToast(PLAYBOOKS.TOAST.ARCHIVED, "success"); closeModal() }
+      else showToast(PLAYBOOKS.TOAST.ERROR, "error")
     })
   }
 
@@ -137,24 +137,24 @@ export function StrategyEditor(props: Props): ReactElement {
     if (props.mode !== "edit") return
     startTransition(async () => {
       if (props.mode !== "edit") return
-      const result = await setStrategyActive({ id: props.strategy.id, active: true })
-      if (result.success) { showToast(STRATEGIES.TOAST.RESTORED, "success"); closeModal() }
-      else showToast(STRATEGIES.TOAST.ERROR, "error")
+      const result = await setPlaybookActive({ id: props.playbook.id, active: true })
+      if (result.success) { showToast(PLAYBOOKS.TOAST.RESTORED, "success"); closeModal() }
+      else showToast(PLAYBOOKS.TOAST.ERROR, "error")
     })
   }
 
-  const title      = props.mode === "create" ? STRATEGIES.EDITOR.CREATE_TITLE : STRATEGIES.EDITOR.EDIT_TITLE
-  const saveLabel  = props.mode === "create" ? STRATEGIES.EDITOR.CREATE       : STRATEGIES.EDITOR.SAVE
+  const title      = props.mode === "create" ? PLAYBOOKS.EDITOR.CREATE_TITLE : PLAYBOOKS.EDITOR.EDIT_TITLE
+  const saveLabel  = props.mode === "create" ? PLAYBOOKS.EDITOR.CREATE       : PLAYBOOKS.EDITOR.SAVE
   const isSaveDisabled = name.trim() === "" || isPending
 
   const defaultTrigger = props.mode === "edit"
-    ? <Button variant="ghost" onClick={openModal}>{STRATEGIES.EDITOR.EDIT_TITLE}</Button>
+    ? <Button variant="ghost" onClick={openModal}>{PLAYBOOKS.EDITOR.EDIT_TITLE}</Button>
     : null
 
   const SECTIONS: { key: RulesSection; label: string }[] = [
-    { key: "entry",      label: STRATEGIES.EDITOR.ENTRY_CRITERIA    },
-    { key: "exit",       label: STRATEGIES.EDITOR.EXIT_CRITERIA     },
-    { key: "conditions", label: STRATEGIES.EDITOR.MARKET_CONDITIONS },
+    { key: "entry",      label: PLAYBOOKS.EDITOR.ENTRY_CRITERIA    },
+    { key: "exit",       label: PLAYBOOKS.EDITOR.EXIT_CRITERIA     },
+    { key: "conditions", label: PLAYBOOKS.EDITOR.MARKET_CONDITIONS },
   ]
 
   return (
@@ -181,7 +181,7 @@ export function StrategyEditor(props: Props): ReactElement {
             <div className="flex items-start justify-between gap-3 p-6 pb-4 shrink-0">
               <div>
                 <h2 className="text-lg font-semibold text-text">{title}</h2>
-                <span className="label-caps mt-0.5 block">{STRATEGIES.EDITOR.CAPTION}</span>
+                <span className="label-caps mt-0.5 block">{PLAYBOOKS.EDITOR.CAPTION}</span>
               </div>
               <Button variant="icon" onClick={closeModal} className="shrink-0">
                 <XIcon />
@@ -192,24 +192,24 @@ export function StrategyEditor(props: Props): ReactElement {
             <div className="flex flex-col gap-5 px-6 pb-4 overflow-y-auto">
               {/* Name */}
               <div className="flex flex-col gap-1.5">
-                <label className="label-caps">{STRATEGIES.EDITOR.NAME_LABEL}</label>
+                <label className="label-caps">{PLAYBOOKS.EDITOR.NAME_LABEL}</label>
                 <input
                   type="text"
                   value={name}
                   onChange={e => setName(e.target.value)}
-                  placeholder={STRATEGIES.EDITOR.NAME_PLACEHOLDER}
+                  placeholder={PLAYBOOKS.EDITOR.NAME_PLACEHOLDER}
                   className="bg-surface-2 border border-border rounded-sm px-2.5 py-2 text-base text-text w-full outline-none focus:border-border-hi"
                 />
               </div>
 
               {/* Description */}
               <div className="flex flex-col gap-1.5">
-                <label className="label-caps">{STRATEGIES.EDITOR.DESCRIPTION_LABEL}</label>
+                <label className="label-caps">{PLAYBOOKS.EDITOR.DESCRIPTION_LABEL}</label>
                 <textarea
                   rows={2}
                   value={description}
                   onChange={e => setDescription(e.target.value)}
-                  placeholder={STRATEGIES.EDITOR.DESCRIPTION_PLACEHOLDER}
+                  placeholder={PLAYBOOKS.EDITOR.DESCRIPTION_PLACEHOLDER}
                   className="bg-surface-2 border border-border rounded-sm px-2.5 py-2 text-base text-text w-full outline-none focus:border-border-hi resize-none"
                 />
               </div>
@@ -227,7 +227,7 @@ export function StrategyEditor(props: Props): ReactElement {
                             type="text"
                             value={rule}
                             onChange={e => updateRule(key, idx, e.target.value)}
-                            placeholder={STRATEGIES.EDITOR.RULE_PLACEHOLDER}
+                            placeholder={PLAYBOOKS.EDITOR.RULE_PLACEHOLDER}
                             className="flex-1 bg-surface-2 border border-border rounded-sm px-2.5 py-1.5 text-sm text-text outline-none focus:border-border-hi"
                           />
                           <button
@@ -248,7 +248,7 @@ export function StrategyEditor(props: Props): ReactElement {
                     onClick={() => addRule(key)}
                     className="self-start text-xs text-accent hover:text-accent/80 transition-colors cursor-pointer"
                   >
-                    {STRATEGIES.EDITOR.ADD_RULE}
+                    {PLAYBOOKS.EDITOR.ADD_RULE}
                   </button>
                 </div>
               ))}
@@ -257,7 +257,7 @@ export function StrategyEditor(props: Props): ReactElement {
             {/* Footer */}
             <div className="flex items-center justify-between gap-3 px-6 py-4 border-t border-border shrink-0">
               {props.mode === "edit" ? (
-                props.strategy.active ? (
+                props.playbook.active ? (
                   <button
                     type="button"
                     onClick={handleArchiveClick}
@@ -267,7 +267,7 @@ export function StrategyEditor(props: Props): ReactElement {
                       archiveArmed && "text-loss",
                     )}
                   >
-                    {archiveArmed ? STRATEGIES.EDITOR.ARCHIVE_CONFIRM : STRATEGIES.EDITOR.ARCHIVE}
+                    {archiveArmed ? PLAYBOOKS.EDITOR.ARCHIVE_CONFIRM : PLAYBOOKS.EDITOR.ARCHIVE}
                   </button>
                 ) : (
                   <button
@@ -276,14 +276,14 @@ export function StrategyEditor(props: Props): ReactElement {
                     disabled={isPending}
                     className="text-xs text-accent hover:text-accent/80 transition-colors disabled:opacity-60 cursor-pointer"
                   >
-                    {STRATEGIES.EDITOR.RESTORE}
+                    {PLAYBOOKS.EDITOR.RESTORE}
                   </button>
                 )
               ) : <span />}
 
               <div className="flex items-center gap-2">
                 <Button variant="ghost" onClick={closeModal} disabled={isPending}>
-                  {STRATEGIES.EDITOR.CANCEL}
+                  {PLAYBOOKS.EDITOR.CANCEL}
                 </Button>
                 <Button variant="accent" onClick={handleSave} disabled={isSaveDisabled} loading={isPending}>
                   {saveLabel}

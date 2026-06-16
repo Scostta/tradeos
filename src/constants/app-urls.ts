@@ -4,7 +4,7 @@ export const APP_URLS = {
   TRADES:     "/trades",
   IMPORT:     "/import",
   REPORTS:    "/reports",
-  STRATEGIES: "/strategies",
+  PLAYBOOKS: "/playbooks",
   JOURNAL:    "/journal",
   ACCOUNTS:   "/accounts",
 

@@ -36,9 +36,9 @@ create policy "Users see own accounts" on accounts
   for all using (auth.uid() = user_id);
 
 -- ------------------------------------------------------------
--- STRATEGIES
+-- PLAYBOOKS
 -- ------------------------------------------------------------
-create table if not exists strategies (
+create table if not exists playbooks (
   id          uuid primary key default gen_random_uuid(),
   user_id     uuid references auth.users not null,
   name        text not null,
@@ -48,9 +48,9 @@ create table if not exists strategies (
   created_at  timestamptz default now()
 );
 
-alter table strategies enable row level security;
+alter table playbooks enable row level security;
 
-create policy "Users see own strategies" on strategies
+create policy "Users see own playbooks" on playbooks
   for all using (auth.uid() = user_id);
 
 -- ------------------------------------------------------------
@@ -74,7 +74,7 @@ create table if not exists trades (
   mae          numeric(10,2),
   mfe          numeric(10,2),
   stop_price   numeric(12,4),
-  strategy_id  uuid references strategies(id) on delete set null,
+  playbook_id  uuid references playbooks(id) on delete set null,
   session      text check (session in ('RTH', 'ETH', 'overnight')),
   notes        text,
   tags         text[],

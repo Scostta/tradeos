@@ -12,7 +12,7 @@ import { SignedAreaChart } from "~/components/charts/signed-area-chart.client"
 import { WinRateLine } from "~/components/charts/win-rate-line.client"
 
 // MVP report keys (Phase 1)
-export type ReportKey = "dayTime" | "months" | "symbols" | "strategies" | "winsLosses"
+export type ReportKey = "dayTime" | "months" | "symbols" | "playbooks" | "winsLosses"
 
 type SubtabConfig = {
   key:         string
@@ -47,10 +47,10 @@ const REPORT_CONFIGS: Record<ReportKey, ReportConfig> = {
     firstCol: REPORTS.REPORT_DETAIL.SUBTABS.SYMBOLS,
     subtabs:  [{ key: "symbols", label: REPORTS.REPORT_DETAIL.SUBTABS.SYMBOLS, breakdownIdx: 0 }],
   },
-  strategies: {
-    noun:     "strategy",
-    firstCol: REPORTS.REPORT_DETAIL.SUBTABS.STRATEGIES,
-    subtabs:  [{ key: "playbooks", label: REPORTS.REPORT_DETAIL.SUBTABS.STRATEGIES, breakdownIdx: 0 }],
+  playbooks: {
+    noun:     "playbook",
+    firstCol: REPORTS.REPORT_DETAIL.SUBTABS.PLAYBOOKS,
+    subtabs:  [{ key: "playbooks", label: REPORTS.REPORT_DETAIL.SUBTABS.PLAYBOOKS, breakdownIdx: 0 }],
   },
   winsLosses: {
     noun:     "outcome",

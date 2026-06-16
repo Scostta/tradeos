@@ -18,7 +18,7 @@ export const tradeSchema = z.object({
   mae:         z.number().nullable(),
   mfe:         z.number().nullable(),
   stopPrice:   z.number().nullable(),
-  strategyId:  z.string().uuid().nullable(),
+  playbookId:  z.string().uuid().nullable(),
   session:     z.enum(["RTH", "ETH", "overnight"]).nullable(),
   notes:       z.string().nullable(),
   tags:        z.array(z.string()).nullable(),
@@ -42,7 +42,7 @@ const tradeFormFields = tradeSchema.pick({
   pnl:        true,
   commission: true,
   session:    true,
-  strategyId: true,
+  playbookId: true,
   notes:      true,
 })
 

@@ -4,18 +4,18 @@ import { formatCurrency } from "~/helpers/format"
 import { AccountSelector } from "~/components/account-selector.client"
 import { TradeFormModal } from "~/components/trades/trade-form-modal.client"
 import type { Account } from "~/types/account"
-import type { Strategy } from "~/types/strategy"
+import type { Playbook } from "~/types/playbook"
 
 type Props = {
   totalCount: number
   totalNet:   number
   accounts:   Account[]
   accountId:  string | null
-  strategies: Strategy[]
+  playbooks: Playbook[]
 }
 
 export function TradesHeader(props: Props): ReactElement {
-  const { totalCount, totalNet, accounts, accountId, strategies } = props
+  const { totalCount, totalNet, accounts, accountId, playbooks } = props
 
   return (
     <header className="flex flex-wrap items-center gap-3 px-4 md:px-7 py-3 border-b border-border bg-bg shrink-0">
@@ -32,7 +32,7 @@ export function TradesHeader(props: Props): ReactElement {
           <TradeFormModal
             mode="create"
             accounts={accounts}
-            strategies={strategies}
+            playbooks={playbooks}
             defaultAccountId={accountId}
           />
         )}

@@ -1,8 +1,8 @@
-import { strategySchema } from "~/types/strategy"
-import type { Strategy } from "~/types/strategy"
+import { playbookSchema } from "~/types/playbook"
+import type { Playbook } from "~/types/playbook"
 
-export function mapStrategyFromDb(row: Record<string, unknown>): Strategy {
-  return strategySchema.parse({
+export function mapPlaybookFromDb(row: Record<string, unknown>): Playbook {
+  return playbookSchema.parse({
     id:          row["id"],
     userId:      row["user_id"],
     name:        row["name"],

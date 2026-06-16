@@ -30,7 +30,7 @@ const NAV_ITEMS: NavItem[] = [
   { id: "trades", label: COMMON.NAV_LABELS.TRADES, path: APP_URLS.TRADES, Icon: ListIcon },
   { id: "import", label: COMMON.NAV_LABELS.IMPORT, path: APP_URLS.IMPORT, Icon: UploadIcon },
   { id: "reports", label: COMMON.NAV_LABELS.REPORTS, path: APP_URLS.REPORTS, Icon: BarIcon },
-  { id: "strategies", label: COMMON.NAV_LABELS.STRATEGIES, path: APP_URLS.STRATEGIES, Icon: LayersIcon },
+  { id: "playbooks", label: COMMON.NAV_LABELS.PLAYBOOKS, path: APP_URLS.PLAYBOOKS, Icon: LayersIcon },
   { id: "journal",    label: COMMON.NAV_LABELS.JOURNAL,    path: APP_URLS.JOURNAL,    Icon: CalendarIcon },
   { id: "accounts",  label: COMMON.NAV_LABELS.ACCOUNTS,   path: APP_URLS.ACCOUNTS,   Icon: WalletIcon },
 ];

@@ -49,7 +49,7 @@ export async function createTrade(
       pnl:          t.pnl,
       commission:   t.commission,
       net_pnl:      round2(t.pnl - t.commission),
-      strategy_id:  t.strategyId,
+      playbook_id:  t.playbookId,
       session:      t.session,
       notes:        t.notes,
     })
@@ -102,7 +102,7 @@ export async function updateTrade(
       pnl:         t.pnl,
       commission:  t.commission,
       net_pnl:     round2(t.pnl - t.commission),
-      strategy_id: t.strategyId,
+      playbook_id: t.playbookId,
       session:     t.session,
       notes:       t.notes,
     })
@@ -152,25 +152,25 @@ export async function updateTradeNotes(
   return createDataResult({ id })
 }
 
-const updateStrategySchema = z.object({
+const updatePlaybookSchema = z.object({
   id:         z.string().uuid(),
-  strategyId: z.string().uuid().nullable(),
+  playbookId: z.string().uuid().nullable(),
 })
 
-export async function updateTradeStrategy(
+export async function updateTradePlaybook(
   input: unknown,
 ): Promise<ResultType<{ id: string }, string>> {
-  const parsed = updateStrategySchema.safeParse(input)
+  const parsed = updatePlaybookSchema.safeParse(input)
   if (!parsed.success) return createErrorResult("INVALID_INPUT")
 
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return createErrorResult("UNAUTHENTICATED")
 
-  const { id, strategyId } = parsed.data
+  const { id, playbookId } = parsed.data
   const { error } = await supabase
     .from("trades")
-    .update({ strategy_id: strategyId })
+    .update({ playbook_id: playbookId })
     .eq("id", id)
     .eq("user_id", user.id)
 

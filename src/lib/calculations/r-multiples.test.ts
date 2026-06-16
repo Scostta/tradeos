@@ -22,7 +22,7 @@ function tr(over: Partial<Trade>): Trade {
     mae:         null,
     mfe:         null,
     stopPrice:   19800,
-    strategyId:  null,
+    playbookId:  null,
     session:     null,
     notes:       null,
     tags:        null,

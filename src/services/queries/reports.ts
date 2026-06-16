@@ -1,5 +1,5 @@
 // ── Reports query ─────────────────────────────────────────────────────────────
-// Fetches trades (and strategies for name resolution) once, then delegates
+// Fetches trades (and playbooks for name resolution) once, then delegates
 // all aggregation to pure functions in lib/calculations/reports.ts.
 //
 // Pattern mirrors getDashboardData (src/services/queries/dashboard.ts):
@@ -12,7 +12,7 @@
 import { cache } from "react"
 import { createClient } from "~/utils/supabase/server"
 import { mapTradeFromDb } from "~/services/mappers/trades"
-import { mapStrategyFromDb } from "~/services/mappers/strategies"
+import { mapPlaybookFromDb } from "~/services/mappers/playbooks"
 import { resolveDateRange } from "~/helpers/date-range"
 import { resolveComparePeriod } from "~/helpers/compare-period"
 import { createDataResult, createErrorResult } from "~/helpers/result"
@@ -23,7 +23,7 @@ import {
   buildCumPoints,
   buildAvgWinLoss,
   buildBreakdown,
-  makeByStrategyName,
+  makeByPlaybookName,
   byDayOfWeek,
   byMonth,
   bySymbol,
@@ -116,16 +116,16 @@ export const getReportsData = cache(async function getReportsData(
     return createErrorResult(tradesError.message)
   }
 
-  // ── Fetch strategies (for name resolution in Strategies sub-report) ─────────
-  const { data: strategiesData, error: strategiesError } = await supabase
-    .from("strategies")
+  // ── Fetch playbooks (for name resolution in Playbooks sub-report) ─────────
+  const { data: playbooksData, error: playbooksError } = await supabase
+    .from("playbooks")
     .select("*")
     .eq("user_id", user.id)
     .order("created_at", { ascending: true })
 
-  if (strategiesError) {
-    console.error(strategiesError)
-    return createErrorResult(strategiesError.message)
+  if (playbooksError) {
+    console.error(playbooksError)
+    return createErrorResult(playbooksError.message)
   }
 
   // ── Fetch accounts' risk_per_trade (R-multiple fallback when a trade has no stop) ─
@@ -145,7 +145,7 @@ export const getReportsData = cache(async function getReportsData(
 
   // ── Map to domain types ─────────────────────────────────────────────────────
   const trades     = (tradesData ?? []).map(row => mapTradeFromDb(row as Record<string, unknown>))
-  const strategies = (strategiesData ?? []).map(row => mapStrategyFromDb(row as Record<string, unknown>))
+  const playbooks = (playbooksData ?? []).map(row => mapPlaybookFromDb(row as Record<string, unknown>))
 
   // ── Early return for empty state ────────────────────────────────────────────
   if (trades.length === 0) {
@@ -175,7 +175,7 @@ export const getReportsData = cache(async function getReportsData(
       dayTime:            emptyBreakdown,
       months:             emptyBreakdown,
       symbols:            emptyBreakdown,
-      strategies:         emptyBreakdown,
+      playbooks:         emptyBreakdown,
       winsLosses:         emptyBreakdown,
       overview:           computeOverview([]),
       compare:            { a: emptyComparePeriod("this-month"), b: emptyComparePeriod("last-month") },
@@ -184,7 +184,7 @@ export const getReportsData = cache(async function getReportsData(
   }
 
   // ── Compute all aggregations ────────────────────────────────────────────────
-  const byStrategyName = makeByStrategyName(strategies)
+  const byPlaybookName = makeByPlaybookName(playbooks)
 
   // Compare defaults are independent of the page range — fetched on their own
   // windows (this month vs last month).
@@ -203,7 +203,7 @@ export const getReportsData = cache(async function getReportsData(
     dayTime:            buildBreakdown(trades, byDayOfWeek, sortByDayOfWeek),
     months:             buildBreakdown(trades, byMonth, sortByMonth),
     symbols:            buildBreakdown(trades, bySymbol),
-    strategies:         buildBreakdown(trades, byStrategyName),
+    playbooks:         buildBreakdown(trades, byPlaybookName),
     winsLosses:         buildBreakdown(trades, byOutcome),
     overview:           computeOverview(trades),
     compare:            { a: compareA.data, b: compareB.data },

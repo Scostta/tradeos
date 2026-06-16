@@ -11,7 +11,7 @@ export type TradeFilters = {
   accountId:  string | null
   instrument: string | null
   direction:  "long" | "short" | null
-  strategyId: string | null
+  playbookId: string | null
   range:      TradesRange
   page:       number
 }
@@ -42,7 +42,7 @@ export function parseTradeFilters(
     accountId:  params["account"]  ?? null,
     instrument: params["instrument"] ?? null,
     direction,
-    strategyId: params["strategy"] ?? null,
+    playbookId: params["playbook"] ?? null,
     range,
     page,
   }

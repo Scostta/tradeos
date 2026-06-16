@@ -1,20 +1,20 @@
 "use client"
 
 import { useState, useTransition, useCallback } from "react"
-import { updateTradeNotes, updateTradeStrategy, updateTradeTags } from "~/actions/trades"
+import { updateTradeNotes, updateTradePlaybook, updateTradeTags } from "~/actions/trades"
 import { TradeExecutionsCard } from "./trade-executions-card"
 import { TradeAttachmentsCard } from "./trade-attachments-card.client"
 import type { Trade } from "~/types/trade"
-import type { Strategy } from "~/types/strategy"
+import type { Playbook } from "~/types/playbook"
 
 type Props = {
   trade: Trade
-  strategies: Strategy[]
+  playbooks: Playbook[]
 }
 
-export function TradeSidebar({ trade, strategies }: Props) {
+export function TradeSidebar({ trade, playbooks }: Props) {
   const [notes, setNotes] = useState(trade.notes ?? "")
-  const [strategyId, setStrategyId] = useState(trade.strategyId ?? "")
+  const [playbookId, setPlaybookId] = useState(trade.playbookId ?? "")
   const [tags, setTags] = useState<string[]>(trade.tags ?? [])
   const [newTag, setNewTag] = useState("")
   const [addingTag, setAddingTag] = useState(false)
@@ -29,10 +29,10 @@ export function TradeSidebar({ trade, strategies }: Props) {
     })
   }, [trade.id, notes])
 
-  const handleStrategyChange = useCallback((newId: string) => {
-    setStrategyId(newId)
+  const handlePlaybookChange = useCallback((newId: string) => {
+    setPlaybookId(newId)
     startTransition(async () => {
-      await updateTradeStrategy({ id: trade.id, strategyId: newId || null })
+      await updateTradePlaybook({ id: trade.id, playbookId: newId || null })
     })
   }, [trade.id])
 
@@ -67,12 +67,12 @@ export function TradeSidebar({ trade, strategies }: Props) {
       <div className="card p-4">
         <div className="label-caps mb-2">Playbook</div>
         <select
-          value={strategyId}
-          onChange={e => handleStrategyChange(e.target.value)}
+          value={playbookId}
+          onChange={e => handlePlaybookChange(e.target.value)}
           className="w-full px-2.5 py-2 bg-surface-2 border border-border rounded-sm text-text text-base font-[inherit] outline-none focus:border-border-hi"
         >
           <option value="">— None —</option>
-          {strategies.map(s => (
+          {playbooks.map(s => (
             <option key={s.id} value={s.id}>{s.name}</option>
           ))}
         </select>

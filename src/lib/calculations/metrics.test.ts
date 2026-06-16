@@ -32,7 +32,7 @@ function trade(netPnl: number, entryTime = "2025-03-10T13:00:00.000Z", id = "t")
     mae:         null,
     mfe:         null,
     stopPrice:   null,
-    strategyId:  null,
+    playbookId:  null,
     session:     null,
     notes:       null,
     tags:        null,

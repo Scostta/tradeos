@@ -16,11 +16,11 @@ const RANGE_OPTIONS = [
 type Props = {
   filters:     TradeFilters
   instruments: string[]
-  strategies:  { id: string; name: string }[]
+  playbooks:  { id: string; name: string }[]
 }
 
 export function TradesFilterBar(props: Props): ReactElement {
-  const { filters, instruments, strategies } = props
+  const { filters, instruments, playbooks } = props
 
   const instrumentOptions = [
     { value: null as string | null, label: TRADES.LIST.FILTERS.ALL },
@@ -33,9 +33,9 @@ export function TradesFilterBar(props: Props): ReactElement {
     { value: "short" as string,      label: TRADES.LIST.FILTERS.SHORT },
   ]
 
-  const strategyOptions = [
+  const playbookOptions = [
     { value: null as string | null, label: TRADES.LIST.FILTERS.ALL },
-    ...strategies.map(s => ({ value: s.id, label: s.name })),
+    ...playbooks.map(s => ({ value: s.id, label: s.name })),
   ]
 
   return (
@@ -55,10 +55,10 @@ export function TradesFilterBar(props: Props): ReactElement {
             options={directionOptions}
           />
           <FilterPill
-            label={TRADES.LIST.FILTERS.STRATEGY}
-            paramKey="strategy"
-            value={filters.strategyId}
-            options={strategyOptions}
+            label={TRADES.LIST.FILTERS.PLAYBOOK}
+            paramKey="playbook"
+            value={filters.playbookId}
+            options={playbookOptions}
           />
         </>
       }

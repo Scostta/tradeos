@@ -21,7 +21,7 @@ type ReportMenuItem = {
 const REPORT_MENU: ReportMenuItem[] = [
   { key: "dayTime",    label: REPORTS.REPORT_MENU.DAY_TIME    },
   { key: "symbols",    label: REPORTS.REPORT_MENU.SYMBOLS     },
-  { key: "strategies", label: REPORTS.REPORT_MENU.STRATEGIES  },
+  { key: "playbooks", label: REPORTS.REPORT_MENU.PLAYBOOKS  },
   { key: "winsLosses", label: REPORTS.REPORT_MENU.WINS_LOSSES },
 ]
 

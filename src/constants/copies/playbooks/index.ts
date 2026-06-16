@@ -1,4 +1,4 @@
-export const STRATEGIES = {
+export const PLAYBOOKS = {
   TITLE:            "Playbooks",
   SUBTITLE:         "Define setups · tag trades · track edge",
   SUBTITLE_FALLBACK: "Track which setups are working",

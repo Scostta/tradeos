@@ -17,7 +17,7 @@ export const parsedRowSchema = tradeSchema
     netPnl:      true,
     mae:         true,
     mfe:         true,
-    strategyId:  true,
+    playbookId:  true,
     session:     true,
     notes:       true,
     tags:        true,

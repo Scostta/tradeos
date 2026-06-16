@@ -241,7 +241,7 @@ export function parseNinjaTraderCsv(csvText: string): ParseResult {
       netPnl,
       mae,
       mfe,
-      strategyId: null,
+      playbookId: null,
       session:    null,
       notes:      null,
       tags:       null,

@@ -6,17 +6,17 @@ import { formatDuration } from "~/helpers/duration"
 import { useStopPrice } from "./stop-price-context.client"
 import type { Trade } from "~/types/trade"
 import type { Account } from "~/types/account"
-import type { Strategy } from "~/types/strategy"
+import type { Playbook } from "~/types/playbook"
 
 const POINT_VALUES: Record<string, number> = { NQ: 20, MNQ: 2, ES: 50, MES: 5 }
 
 type Props = {
   trade:    Trade
   account:  Account | null
-  strategy: Strategy | null
+  playbook: Playbook | null
 }
 
-export function TradeHeroCard({ trade, account, strategy }: Props): ReactElement {
+export function TradeHeroCard({ trade, account, playbook }: Props): ReactElement {
   const { stopPrice } = useStopPrice()
 
   const isLong   = trade.direction === "long"
@@ -66,7 +66,7 @@ export function TradeHeroCard({ trade, account, strategy }: Props): ReactElement
       colorClass: "text-profit",
     },
     { label: "HOLD TIME", value: holdTime },
-    { label: "STRATEGY",  value: strategy?.name ?? "—" },
+    { label: "PLAYBOOK",  value: playbook?.name ?? "—" },
     { label: "SESSION",   value: trade.session ?? "—" },
     { label: "ACCOUNT",   value: account ? account.name : "—" },
   ]

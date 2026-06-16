@@ -19,5 +19,5 @@ export { accountSchema, accountTypeSchema, updateAccountInputSchema } from "./ac
 export type { RangeKey, EquityPoint, DowBucket, DashboardMetrics, DashboardData } from "./metrics"
 export { rangeKeySchema } from "./metrics"
 
-export type { Strategy, StrategyWithStats, CreateStrategyInput, UpdateStrategyInput } from "./strategy"
-export { strategySchema, createStrategyInputSchema, updateStrategyInputSchema } from "./strategy"
+export type { Playbook, PlaybookWithStats, CreatePlaybookInput, UpdatePlaybookInput } from "./playbook"
+export { playbookSchema, createPlaybookInputSchema, updatePlaybookInputSchema } from "./playbook"

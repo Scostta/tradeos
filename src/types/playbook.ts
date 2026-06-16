@@ -1,6 +1,6 @@
 import { z } from "zod"
 
-export const strategySchema = z.object({
+export const playbookSchema = z.object({
   id:          z.string().uuid(),
   userId:      z.string().uuid(),
   name:        z.string(),
@@ -10,9 +10,9 @@ export const strategySchema = z.object({
   createdAt:   z.string().datetime({ offset: true }),
 })
 
-export type Strategy = z.infer<typeof strategySchema>
+export type Playbook = z.infer<typeof playbookSchema>
 
-export type StrategyWithStats = Strategy & {
+export type PlaybookWithStats = Playbook & {
   tradeCount:   number
   winRate:      number
   netPnl:       number
@@ -24,16 +24,16 @@ export type StrategyWithStats = Strategy & {
   rCoverage:    { withR: number; total: number }
 }
 
-export const createStrategyInputSchema = z.object({
+export const createPlaybookInputSchema = z.object({
   name:        z.string().trim().min(1, "NAME_REQUIRED").max(80, "NAME_TOO_LONG"),
   description: z.string().trim().max(500).nullable(),
   rules:       z.string().trim().max(2000).nullable(),
 })
 
-export type CreateStrategyInput = z.infer<typeof createStrategyInputSchema>
+export type CreatePlaybookInput = z.infer<typeof createPlaybookInputSchema>
 
-export const updateStrategyInputSchema = createStrategyInputSchema.extend({
+export const updatePlaybookInputSchema = createPlaybookInputSchema.extend({
   id: z.string().uuid(),
 })
 
-export type UpdateStrategyInput = z.infer<typeof updateStrategyInputSchema>
+export type UpdatePlaybookInput = z.infer<typeof updatePlaybookInputSchema>

@@ -20,7 +20,7 @@ export function mapTradeFromDb(row: Record<string, unknown>): Trade {
     mae:         row["mae"],
     mfe:         row["mfe"],
     stopPrice:   row["stop_price"],
-    strategyId:  row["strategy_id"],
+    playbookId:  row["playbook_id"],
     session:     row["session"],
     notes:       row["notes"],
     tags:        row["tags"],
