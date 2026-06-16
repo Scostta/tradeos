@@ -1,11 +1,12 @@
 "use client"
 
 import { useEffect, useRef } from "react"
+import Link from "next/link"
 import type { ReactElement } from "react"
 import type { PlaybookWithStats } from "~/types/playbook"
 import { PLAYBOOKS } from "~/constants/copies/playbooks"
+import { APP_URLS } from "~/constants/app-urls"
 import { formatDate, formatCurrency, formatPct } from "~/helpers/format"
-import { PlaybookEditor } from "./playbook-editor.client"
 
 type Props = { playbook: PlaybookWithStats }
 
@@ -82,16 +83,11 @@ export function PlaybookCard({ playbook }: Props): ReactElement {
   const fmtR            = (r: number): string => `${r >= 0 ? "+" : "−"}${Math.abs(r).toFixed(2)}R`
 
   return (
-    <PlaybookEditor
-      mode="edit"
-      playbook={playbook}
-      renderTrigger={(open) => (
-        <div
-          role="button"
-          onClick={open}
-          className="card p-5 flex flex-col gap-4 cursor-pointer transition-colors hover:border-border-hi"
-          style={{ minHeight: 192 }}
-        >
+    <Link
+      href={`${APP_URLS.PLAYBOOKS}/${playbook.id}`}
+      className="card p-5 flex flex-col gap-4 cursor-pointer transition-colors hover:border-border-hi"
+      style={{ minHeight: 192 }}
+    >
           {/* Top row: name + status badge */}
           <div className="flex items-start justify-between gap-3">
             <p className="text-base font-semibold text-text truncate flex-1">{playbook.name}</p>
@@ -205,8 +201,6 @@ export function PlaybookCard({ playbook }: Props): ReactElement {
               )}
             </div>
           </div>
-        </div>
-      )}
-    />
+    </Link>
   )
 }

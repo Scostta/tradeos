@@ -1,4 +1,6 @@
 import { z } from "zod"
+import type { DashboardMetrics, EquityPoint } from "./metrics"
+import type { RStats, ReportRow } from "./reports"
 
 export const playbookSchema = z.object({
   id:          z.string().uuid(),
@@ -37,3 +39,12 @@ export const updatePlaybookInputSchema = createPlaybookInputSchema.extend({
 })
 
 export type UpdatePlaybookInput = z.infer<typeof updatePlaybookInputSchema>
+
+// Full per-playbook detail (route /playbooks/[id]).
+export type PlaybookDetail = {
+  playbook:     PlaybookWithStats
+  metrics:      DashboardMetrics
+  rStats:       RStats
+  equityCurve:  EquityPoint[]
+  byInstrument: ReportRow[]
+}

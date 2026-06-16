@@ -16,6 +16,34 @@ export const PLAYBOOKS = {
     CREATED_PREFIX: "Created",
   },
 
+  DETAIL: {
+    BACK:           "← Playbooks",
+    EDIT:           "Edit",
+    RULES:          "Rules",
+    NO_RULES:       "No rules defined yet.",
+    EQUITY:         "Equity curve",
+    R_DIST:         "R-multiple distribution",
+    NO_R:           "Set stops or a risk per trade on the account to see R-multiples.",
+    BY_INSTRUMENT:  "By instrument",
+    EMPTY:          "No trades tagged to this playbook yet.",
+    STATS: {
+      NET_PNL:      "Net P&L",
+      WIN_RATE:     "Win %",
+      PROFIT_FACTOR:"Profit factor",
+      EXPECTANCY_R: "Expectancy (R)",
+      AVG_WL:       "Avg W/L",
+      TRADES:       "Trades",
+      SQN:          "SQN",
+      MAX_DD:       "Max drawdown",
+    },
+    TABLE: {
+      INSTRUMENT: "Instrument",
+      TRADES:     "Trades",
+      WIN_RATE:   "Win %",
+      NET_PNL:    "Net P&L",
+    },
+  },
+
   EDITOR: {
     CREATE_TITLE:           "New playbook",
     EDIT_TITLE:             "Edit playbook",
