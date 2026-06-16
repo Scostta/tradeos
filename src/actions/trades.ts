@@ -214,6 +214,38 @@ export async function updateTradeTags(
   return createDataResult({ id })
 }
 
+const updateMistakesSchema = z.object({
+  id:       z.string().uuid(),
+  mistakes: z.array(z.string().trim().min(1).max(60)).max(20).nullable(),
+})
+
+export async function updateTradeMistakes(
+  input: unknown,
+): Promise<ResultType<{ id: string }, string>> {
+  const parsed = updateMistakesSchema.safeParse(input)
+  if (!parsed.success) return createErrorResult("INVALID_INPUT")
+
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return createErrorResult("UNAUTHENTICATED")
+
+  const { id, mistakes } = parsed.data
+  const { error } = await supabase
+    .from("trades")
+    .update({ mistakes })
+    .eq("id", id)
+    .eq("user_id", user.id)
+
+  if (error) {
+    console.error(error)
+    return createErrorResult(error.message)
+  }
+
+  revalidatePath(`/trades/${id}`)
+  revalidatePath("/reports")
+  return createDataResult({ id })
+}
+
 const updateFollowedRulesSchema = z.object({
   id:            z.string().uuid(),
   followedRules: z.array(z.string().max(200)).max(50).nullable(),

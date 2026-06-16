@@ -8,10 +8,11 @@ import { PerformanceTab } from "./performance-tab"
 import { OverviewTab } from "./overview-tab"
 import { CompareTab } from "./compare-tab.client"
 import { RMultiplesTab } from "./r-multiples-tab"
+import { MistakesTab } from "./mistakes-tab"
 import { ReportDetail } from "./report-detail.client"
 import type { ReportKey } from "./report-detail.client"
 
-type ActiveTab = "performance" | "overview" | "reports" | "compare" | "rmultiples"
+type ActiveTab = "performance" | "overview" | "reports" | "compare" | "rmultiples" | "mistakes"
 
 type ReportMenuItem = {
   key:   ReportKey
@@ -167,6 +168,15 @@ export function ReportsShell({ data, accountId }: Props): ReactElement {
           onClick={() => setTab("rmultiples")}
           badge
         />
+
+        {/* Mistakes tab */}
+        <TabButton
+          id="mistakes"
+          label={REPORTS.TABS.MISTAKES}
+          active={tab === "mistakes"}
+          onClick={() => setTab("mistakes")}
+          badge
+        />
       </div>
 
       {/* Tab content */}
@@ -195,6 +205,10 @@ export function ReportsShell({ data, accountId }: Props): ReactElement {
 
         {tab === "rmultiples" && (
           <RMultiplesTab rStats={data.rStats} />
+        )}
+
+        {tab === "mistakes" && (
+          <MistakesTab mistakes={data.mistakes} />
         )}
 
         {tab === "reports" && (

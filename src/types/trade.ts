@@ -23,6 +23,7 @@ export const tradeSchema = z.object({
   notes:       z.string().nullable(),
   tags:        z.array(z.string()).nullable(),
   followedRules: z.array(z.string()).nullable(),  // playbook rules confirmed for this trade
+  mistakes:    z.array(z.string()).nullable(),    // tagged execution mistakes
   createdAt:   z.string().datetime({ offset: true }),
 })
 

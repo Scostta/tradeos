@@ -97,6 +97,10 @@ body {
   -moz-osx-font-smoothing: grayscale;
 }
 
+/* All enabled buttons are clickable; disabled ones show the blocked cursor. */
+button:not(:disabled) { cursor: pointer; }
+button:disabled        { cursor: not-allowed; }
+
 /* ── Scrollbar ──────────────────────────────────────────────── */
 ::-webkit-scrollbar        { width: 4px; height: 4px; }
 ::-webkit-scrollbar-track  { background: var(--color-bg); }

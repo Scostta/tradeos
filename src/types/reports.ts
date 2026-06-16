@@ -270,6 +270,17 @@ export type RStats = {
   distribution: RBucket[]
 }
 
+// ── Mistakes tab ──────────────────────────────────────────────────────────────
+// Per-tagged-mistake aggregation. A trade can carry several mistakes and is
+// counted in each. Sorted most-costly (most negative net P&L) first.
+export type MistakeRow = {
+  label:   string
+  trades:  number
+  netPnl:  number
+  avgPnl:  number
+  winRate: number
+}
+
 // ── Top-level ReportsData ─────────────────────────────────────────────────────
 
 /**
@@ -292,4 +303,5 @@ export type ReportsData = {
   compare:            CompareData         // Compare tab default (this vs last month)
   rStats:             RStats              // R-multiples tab (expectancy, SQN, distribution)
   playbookAdherence:  PlaybookAdherence | null  // portfolio-wide setup adherence (Playbooks sub-report)
+  mistakes:           MistakeRow[]        // Mistakes tab (per-tag cost)
 }

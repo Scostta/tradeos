@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useTransition, useCallback } from "react"
-import { updateTradeNotes, updateTradePlaybook, updateTradeTags, updateTradeFollowedRules } from "~/actions/trades"
+import { updateTradeNotes, updateTradePlaybook, updateTradeTags, updateTradeFollowedRules, updateTradeMistakes } from "~/actions/trades"
 import { TradeExecutionsCard } from "./trade-executions-card"
 import { TradeAttachmentsCard } from "./trade-attachments-card.client"
 import { parsePlaybookRules } from "~/helpers/playbook-rules"
@@ -13,6 +13,11 @@ type Props = {
   playbooks: Playbook[]
 }
 
+const MISTAKE_PRESETS = [
+  "No setup", "Chased entry", "Moved stop", "Oversized",
+  "Revenge trade", "FOMO", "Early exit", "Late entry",
+] as const
+
 export function TradeSidebar({ trade, playbooks }: Props) {
   const [notes, setNotes] = useState(trade.notes ?? "")
   const [playbookId, setPlaybookId] = useState(trade.playbookId ?? "")
@@ -20,6 +25,7 @@ export function TradeSidebar({ trade, playbooks }: Props) {
   const [tags, setTags] = useState<string[]>(trade.tags ?? [])
   const [newTag, setNewTag] = useState("")
   const [addingTag, setAddingTag] = useState(false)
+  const [mistakes, setMistakes] = useState<string[]>(trade.mistakes ?? [])
   const [savedAt, setSavedAt] = useState<Date | null>(null)
 
   const [isPending, startTransition] = useTransition()
@@ -78,6 +84,16 @@ export function TradeSidebar({ trade, playbooks }: Props) {
       await updateTradeTags({ id: trade.id, tags: updated })
     })
   }, [trade.id, tags])
+
+  const toggleMistake = useCallback((mistake: string) => {
+    const updated = mistakes.includes(mistake)
+      ? mistakes.filter(m => m !== mistake)
+      : [...mistakes, mistake]
+    setMistakes(updated)
+    startTransition(async () => {
+      await updateTradeMistakes({ id: trade.id, mistakes: updated.length ? updated : null })
+    })
+  }, [trade.id, mistakes])
 
   const savedLabel = savedAt
     ? `autosaved · ${savedAt.toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit", hour12: false })}`
@@ -241,6 +257,44 @@ export function TradeSidebar({ trade, playbooks }: Props) {
               + add
             </button>
           )}
+        </div>
+      </div>
+
+      {/* Mistakes */}
+      <div className="card p-4">
+        <div className="flex justify-between items-center mb-3">
+          <div className="label-caps">Mistakes</div>
+          {mistakes.length > 0 && (
+            <span className="mono text-xs text-loss">{mistakes.length}</span>
+          )}
+        </div>
+        <div className="flex flex-wrap gap-2">
+          {MISTAKE_PRESETS.filter(m => !mistakes.includes(m)).length === MISTAKE_PRESETS.length && mistakes.length === 0 && (
+            <span className="text-xs text-text-mute italic">Tag what went wrong (optional).</span>
+          )}
+          {/* Selected mistakes */}
+          {mistakes.map(m => (
+            <button
+              key={m}
+              onClick={() => toggleMistake(m)}
+              disabled={isPending}
+              className="group text-sm px-2 py-0.5 rounded-xs bg-loss/10 text-loss border border-loss/30 hover:border-loss transition-colors disabled:opacity-60"
+            >
+              {m}
+              <span className="ml-1 opacity-0 group-hover:opacity-100 transition-opacity">×</span>
+            </button>
+          ))}
+          {/* Preset quick-add (not yet selected) */}
+          {MISTAKE_PRESETS.filter(m => !mistakes.includes(m)).map(m => (
+            <button
+              key={m}
+              onClick={() => toggleMistake(m)}
+              disabled={isPending}
+              className="text-sm px-2 py-0.5 rounded-xs text-text-mute border border-dashed border-border hover:border-loss hover:text-loss transition-colors disabled:opacity-60"
+            >
+              + {m}
+            </button>
+          ))}
         </div>
       </div>
 

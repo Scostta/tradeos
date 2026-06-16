@@ -8,6 +8,19 @@ export const REPORTS = {
     REPORTS:     "Reports",
     COMPARE:     "Compare",
     R_MULTIPLES: "R-Multiples",
+    MISTAKES:    "Mistakes",
+  },
+
+  MISTAKES: {
+    CHART_LABEL: "Net P&L by mistake",
+    EMPTY:       "No mistakes tagged yet. Tag what went wrong on each trade (in the trade view) to see what they cost you.",
+    TABLE: {
+      MISTAKE:  "Mistake",
+      TRADES:   "Trades",
+      NET_PNL:  "Net P&L",
+      AVG_PNL:  "Avg P&L",
+      WIN_RATE: "Win %",
+    },
   },
 
   R_MULTIPLES: {

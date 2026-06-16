@@ -37,6 +37,7 @@ function trade(netPnl: number, entryTime = "2025-03-10T13:00:00.000Z", id = "t")
     notes:       null,
     tags:        null,
     followedRules: null,
+    mistakes:    null,
     createdAt:   entryTime,
   }
 }

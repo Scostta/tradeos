@@ -33,6 +33,7 @@ import {
 } from "~/lib/calculations/reports"
 import { computeRStats } from "~/lib/calculations/r-multiples"
 import { computePortfolioAdherence } from "~/lib/calculations/playbook-adherence"
+import { computeMistakeStats } from "~/lib/calculations/mistakes"
 import { parsePlaybookRules } from "~/helpers/playbook-rules"
 import type { ParsedRules } from "~/helpers/playbook-rules"
 import type { ResultType } from "~/helpers/result"
@@ -184,6 +185,7 @@ export const getReportsData = cache(async function getReportsData(
       compare:            { a: emptyComparePeriod("this-month"), b: emptyComparePeriod("last-month") },
       rStats:             computeRStats([]),
       playbookAdherence:  null,
+      mistakes:           [],
     })
   }
 
@@ -216,6 +218,7 @@ export const getReportsData = cache(async function getReportsData(
     compare:            { a: compareA.data, b: compareB.data },
     rStats:             computeRStats(trades, riskByAccount),
     playbookAdherence:  computePortfolioAdherence(rulesById, trades, riskByAccount),
+    mistakes:           computeMistakeStats(trades),
   }
 
   return createDataResult(reportsData)

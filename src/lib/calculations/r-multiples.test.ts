@@ -27,6 +27,7 @@ function tr(over: Partial<Trade>): Trade {
     notes:       null,
     tags:        null,
     followedRules: null,
+    mistakes:    null,
     createdAt:   "2026-06-10T15:30:00.000Z",
     ...over,
   }
