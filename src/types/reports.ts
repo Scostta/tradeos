@@ -244,6 +244,31 @@ export type CompareData = {
   b: ComparePeriod
 }
 
+// ── R-multiples tab types ─────────────────────────────────────────────────────
+//
+// Realized R-multiple = net P&L ÷ initial risk, where risk = |entry − stop| ×
+// contracts × point value. Only trades WITH a stop price and a known instrument
+// point value are included; `coverage` reports how many of the total qualified.
+
+export type RBucket = {
+  label:    string   // R range, e.g. "1..2"
+  count:    number
+  negative: boolean  // bucket sits on the losing side (R ≤ 0)
+}
+
+export type RStats = {
+  coverage:     { withR: number; total: number }
+  expectancy:   number   // mean R-multiple per trade
+  totalR:       number   // sum of R-multiples
+  avgRWin:      number   // mean R of winning trades
+  avgRLoss:     number   // mean R of losing trades (≤ 0)
+  winRate:      number   // 0–1 among trades with R
+  sqn:          number   // System Quality Number = mean(R)/std(R) × √n
+  bestR:        number
+  worstR:       number
+  distribution: RBucket[]
+}
+
 // ── Top-level ReportsData ─────────────────────────────────────────────────────
 
 /**
@@ -264,4 +289,5 @@ export type ReportsData = {
   winsLosses:         ReportBreakdown     // Wins vs Losses sub-report
   overview:           OverviewData        // Overview tab (all-time snapshot)
   compare:            CompareData         // Compare tab default (this vs last month)
+  rStats:             RStats              // R-multiples tab (expectancy, SQN, distribution)
 }

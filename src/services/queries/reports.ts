@@ -31,6 +31,7 @@ import {
   sortByDayOfWeek,
   sortByMonth,
 } from "~/lib/calculations/reports"
+import { computeRStats } from "~/lib/calculations/r-multiples"
 import type { ResultType } from "~/helpers/result"
 import type { ReportsData, ComparePeriod } from "~/types/reports"
 import type { ComparePeriodKey } from "~/helpers/compare-period"
@@ -163,6 +164,7 @@ export const getReportsData = cache(async function getReportsData(
       winsLosses:         emptyBreakdown,
       overview:           computeOverview([]),
       compare:            { a: emptyComparePeriod("this-month"), b: emptyComparePeriod("last-month") },
+      rStats:             computeRStats([]),
     })
   }
 
@@ -190,6 +192,7 @@ export const getReportsData = cache(async function getReportsData(
     winsLosses:         buildBreakdown(trades, byOutcome),
     overview:           computeOverview(trades),
     compare:            { a: compareA.data, b: compareB.data },
+    rStats:             computeRStats(trades),
   }
 
   return createDataResult(reportsData)

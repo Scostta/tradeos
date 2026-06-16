@@ -7,6 +7,28 @@ export const REPORTS = {
     OVERVIEW:    "Overview",
     REPORTS:     "Reports",
     COMPARE:     "Compare",
+    R_MULTIPLES: "R-Multiples",
+  },
+
+  R_MULTIPLES: {
+    EXPECTANCY_LABEL: "Expectancy",
+    EXPECTANCY_UNIT:  "R per trade",
+    DIST_LABEL:       "R-multiple distribution",
+    COVERAGE:         "with a stop",          // "{withR} of {total} trades with a stop"
+    OF:               "of",
+    TRADES:           "trades",
+    NO_STOPS_TITLE:   "No R-multiples yet",
+    NO_STOPS_MSG:     "Set a stop price on your trades (in manual entry or the trade view) to track risk-based stats like expectancy and SQN.",
+    STATS: {
+      EXPECTANCY: "Expectancy (R)",
+      TOTAL_R:    "Total R",
+      AVG_WIN_R:  "Avg win (R)",
+      AVG_LOSS_R: "Avg loss (R)",
+      WIN_RATE:   "Win %",
+      SQN:        "System quality (SQN)",
+      BEST_R:     "Best (R)",
+      WORST_R:    "Worst (R)",
+    },
   },
 
   REPORT_MENU: {

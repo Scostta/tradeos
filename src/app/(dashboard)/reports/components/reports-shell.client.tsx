@@ -7,10 +7,11 @@ import { REPORTS } from "~/constants/copies/reports"
 import { PerformanceTab } from "./performance-tab"
 import { OverviewTab } from "./overview-tab"
 import { CompareTab } from "./compare-tab.client"
+import { RMultiplesTab } from "./r-multiples-tab"
 import { ReportDetail } from "./report-detail.client"
 import type { ReportKey } from "./report-detail.client"
 
-type ActiveTab = "performance" | "overview" | "reports" | "compare"
+type ActiveTab = "performance" | "overview" | "reports" | "compare" | "rmultiples"
 
 type ReportMenuItem = {
   key:   ReportKey
@@ -157,6 +158,15 @@ export function ReportsShell({ data, accountId }: Props): ReactElement {
           active={tab === "compare"}
           onClick={() => setTab("compare")}
         />
+
+        {/* R-Multiples tab */}
+        <TabButton
+          id="rmultiples"
+          label={REPORTS.TABS.R_MULTIPLES}
+          active={tab === "rmultiples"}
+          onClick={() => setTab("rmultiples")}
+          badge
+        />
       </div>
 
       {/* Tab content */}
@@ -181,6 +191,10 @@ export function ReportsShell({ data, accountId }: Props): ReactElement {
 
         {tab === "compare" && (
           <CompareTab initial={data.compare} accountId={accountId} />
+        )}
+
+        {tab === "rmultiples" && (
+          <RMultiplesTab rStats={data.rStats} />
         )}
 
         {tab === "reports" && (
