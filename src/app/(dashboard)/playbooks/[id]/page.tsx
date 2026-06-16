@@ -108,9 +108,9 @@ export default async function PlaybookDetailPage({
         </div>
 
         {/* Stats + By instrument */}
-        <div className="grid grid-cols-2 gap-4 items-start">
+        <div className="flex flex-col lg:flex-row gap-4">
           {/* Stats grid */}
-          <div className="card p-4">
+          <div className="card p-4 flex-1 min-w-0">
             <div className="grid grid-cols-2 gap-px bg-border rounded-sm border border-border overflow-hidden">
               {stats.map((cell) => (
                 <div key={cell.label} className="bg-surface p-3">
@@ -124,7 +124,7 @@ export default async function PlaybookDetailPage({
           </div>
 
           {/* By instrument */}
-          <div className="card p-4">
+          <div className="card p-4 flex-1 min-w-0">
             <div className="label-caps mb-3">{PLAYBOOKS.DETAIL.BY_INSTRUMENT}</div>
             {hasTrades ? (
               <table className="w-full text-sm">
@@ -157,8 +157,8 @@ export default async function PlaybookDetailPage({
 
         {/* Equity curve + R distribution */}
         {hasTrades && (
-          <div className="grid grid-cols-2 gap-4 items-start">
-            <div className="card p-4">
+          <div className="flex flex-col lg:flex-row gap-4">
+            <div className="card p-4 flex-1 min-w-0">
               <div className="label-caps mb-3">{PLAYBOOKS.DETAIL.EQUITY}</div>
               {cumData.length > 1 ? (
                 <SignedAreaChart uid="pb-eq" data={cumData} height={240} fewLabels />
@@ -167,7 +167,7 @@ export default async function PlaybookDetailPage({
               )}
             </div>
 
-            <div className="card p-4">
+            <div className="card p-4 flex-1 min-w-0">
               <div className="label-caps mb-3">{PLAYBOOKS.DETAIL.R_DIST}</div>
               {hasR ? (
                 <RDistribution distribution={rStats.distribution} />
