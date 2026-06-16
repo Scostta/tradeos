@@ -12,6 +12,8 @@ export const ACCOUNTS = {
   },
   EDITOR: {
     EDIT_CTA:        "Edit",
+    TAB_GENERAL:     "General",
+    TAB_PROP:        "Prop firm",
     NAME_CAPTION:    "From CSV · read-only",
     BROKER_LABEL:    "Broker",
     TYPE_LABEL:      "Account type",

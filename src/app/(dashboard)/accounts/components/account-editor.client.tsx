@@ -38,6 +38,7 @@ type Props = {
 
 export function AccountEditor({ account, renderTrigger }: Props): ReactElement {
   const [isOpen, setIsOpen]               = useState(false);
+  const [editorTab, setEditorTab]         = useState<"general" | "prop">("general");
   const [broker, setBroker]               = useState(account.broker ?? "");
   const [accountType, setAccountType]     = useState<AccountType>(account.accountType);
   const [initialBalance, setInitialBalance] = useState<string>(
@@ -77,6 +78,7 @@ export function AccountEditor({ account, renderTrigger }: Props): ReactElement {
     setMinTradingDays(account.minTradingDays != null ? String(account.minTradingDays) : "");
     setRiskPerTrade(account.riskPerTrade != null ? String(account.riskPerTrade) : "");
     setArchiveArmed(false);
+    setEditorTab("general");
     setIsOpen(true);
   }
 
@@ -176,6 +178,25 @@ export function AccountEditor({ account, renderTrigger }: Props): ReactElement {
               </Button>
             </div>
 
+            {/* Tabs */}
+            <div className="flex gap-1 p-0.5 rounded-sm bg-surface-2 border border-border">
+              {(["general", "prop"] as const).map((t) => (
+                <button
+                  key={t}
+                  type="button"
+                  onClick={() => setEditorTab(t)}
+                  className={cn(
+                    "flex-1 text-xs py-1.5 rounded-sm transition-colors",
+                    editorTab === t ? "bg-surface text-text" : "text-text-mute hover:text-text-dim"
+                  )}
+                >
+                  {t === "general" ? ACCOUNTS.EDITOR.TAB_GENERAL : ACCOUNTS.EDITOR.TAB_PROP}
+                </button>
+              ))}
+            </div>
+
+            {editorTab === "general" && (
+            <>
             {/* Broker */}
             <div className="flex flex-col gap-1.5">
               <label className="label-caps">{ACCOUNTS.EDITOR.BROKER_LABEL}</label>
@@ -266,10 +287,11 @@ export function AccountEditor({ account, renderTrigger }: Props): ReactElement {
                 className="bg-surface-2 border border-border rounded-sm px-2.5 py-2 text-base text-text w-full outline-none focus:border-border-hi resize-vertical"
               />
             </div>
+            </>
+            )}
 
-            {/* Prop firm rules */}
-            <div className="flex flex-col gap-3 pt-3 border-t border-border">
-              <div className="label-caps">{PROP_FIRM.SECTION}</div>
+            {editorTab === "prop" && (
+            <div className="flex flex-col gap-3">
 
               <div className="grid grid-cols-2 gap-3">
                 <div className="flex flex-col gap-1.5">
@@ -374,6 +396,7 @@ export function AccountEditor({ account, renderTrigger }: Props): ReactElement {
               </div>
               <p className="text-xxs text-text-mute -mt-1.5">{PROP_FIRM.RISK_HINT}</p>
             </div>
+            )}
 
             {/* Footer */}
             <div className="flex items-center justify-between gap-3 pt-1 border-t border-border">
