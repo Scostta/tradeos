@@ -108,7 +108,7 @@ export default async function PlaybookDetailPage({
         </div>
 
         {/* Stats + By instrument */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 items-start">
+        <div className="grid grid-cols-2 gap-4 items-start">
           {/* Stats grid */}
           <div className="card p-4">
             <div className="grid grid-cols-2 gap-px bg-border rounded-sm border border-border overflow-hidden">
@@ -157,7 +157,7 @@ export default async function PlaybookDetailPage({
 
         {/* Equity curve + R distribution */}
         {hasTrades && (
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 items-start">
+          <div className="grid grid-cols-2 gap-4 items-start">
             <div className="card p-4">
               <div className="label-caps mb-3">{PLAYBOOKS.DETAIL.EQUITY}</div>
               {cumData.length > 1 ? (
