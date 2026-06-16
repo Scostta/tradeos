@@ -26,6 +26,17 @@ export const PLAYBOOKS = {
     NO_R:           "Set stops or a risk per trade on the account to see R-multiples.",
     BY_INSTRUMENT:  "By instrument",
     EMPTY:          "No trades tagged to this playbook yet.",
+    ADHERENCE:      "Setup adherence",
+    FOLLOWED:       "Followed setup",
+    BROKE:          "Broke rules",
+    TRACKED:        "tracked",
+    ADH_NONE:       "Tick the rules you followed on each trade (in the trade view) to see how adherence affects results.",
+    ADH_STATS: {
+      TRADES:       "Trades",
+      WIN_RATE:     "Win %",
+      NET_PNL:      "Net P&L",
+      EXPECTANCY_R: "Expectancy (R)",
+    },
     STATS: {
       NET_PNL:      "Net P&L",
       WIN_RATE:     "Win %",

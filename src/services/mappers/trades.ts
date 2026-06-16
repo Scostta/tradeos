@@ -24,6 +24,7 @@ export function mapTradeFromDb(row: Record<string, unknown>): Trade {
     session:     row["session"],
     notes:       row["notes"],
     tags:        row["tags"],
+    followedRules: row["followed_rules"] ?? null,
     createdAt:   row["created_at"],
   })
 }

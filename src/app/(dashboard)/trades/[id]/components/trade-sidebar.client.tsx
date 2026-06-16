@@ -1,9 +1,10 @@
 "use client"
 
 import { useState, useTransition, useCallback } from "react"
-import { updateTradeNotes, updateTradePlaybook, updateTradeTags } from "~/actions/trades"
+import { updateTradeNotes, updateTradePlaybook, updateTradeTags, updateTradeFollowedRules } from "~/actions/trades"
 import { TradeExecutionsCard } from "./trade-executions-card"
 import { TradeAttachmentsCard } from "./trade-attachments-card.client"
+import { parsePlaybookRules } from "~/helpers/playbook-rules"
 import type { Trade } from "~/types/trade"
 import type { Playbook } from "~/types/playbook"
 
@@ -15,6 +16,7 @@ type Props = {
 export function TradeSidebar({ trade, playbooks }: Props) {
   const [notes, setNotes] = useState(trade.notes ?? "")
   const [playbookId, setPlaybookId] = useState(trade.playbookId ?? "")
+  const [followedRules, setFollowedRules] = useState<string[]>(trade.followedRules ?? [])
   const [tags, setTags] = useState<string[]>(trade.tags ?? [])
   const [newTag, setNewTag] = useState("")
   const [addingTag, setAddingTag] = useState(false)
@@ -35,6 +37,18 @@ export function TradeSidebar({ trade, playbooks }: Props) {
       await updateTradePlaybook({ id: trade.id, playbookId: newId || null })
     })
   }, [trade.id])
+
+  const toggleRule = useCallback((rule: string) => {
+    const next = followedRules.includes(rule)
+      ? followedRules.filter(r => r !== rule)
+      : [...followedRules, rule]
+    setFollowedRules(next)
+    startTransition(async () => {
+      await updateTradeFollowedRules({ id: trade.id, followedRules: next.length ? next : null })
+    })
+  }, [trade.id, followedRules])
+
+  const rules = parsePlaybookRules(playbooks.find(p => p.id === playbookId)?.rules ?? null).all
 
   const commitTag = useCallback(() => {
     const trimmed = newTag.trim()
@@ -77,6 +91,53 @@ export function TradeSidebar({ trade, playbooks }: Props) {
           ))}
         </select>
       </div>
+
+      {/* Setup checklist — only when the selected playbook has rules */}
+      {rules.length > 0 && (
+        <div className="card p-4">
+          <div className="flex justify-between items-center mb-3">
+            <div className="label-caps">Setup checklist</div>
+            <span
+              className="mono text-xs"
+              style={{ color: followedRules.length >= rules.length ? "var(--color-profit)" : "var(--color-text-mute)" }}
+            >
+              {rules.filter(r => followedRules.includes(r)).length}/{rules.length}
+            </span>
+          </div>
+          <div className="flex flex-col gap-1.5">
+            {rules.map(rule => {
+              const checked = followedRules.includes(rule)
+              return (
+                <button
+                  key={rule}
+                  type="button"
+                  onClick={() => toggleRule(rule)}
+                  disabled={isPending}
+                  className="flex items-start gap-2 text-left disabled:opacity-60 cursor-pointer group"
+                >
+                  <span
+                    className="shrink-0 mt-0.5 flex items-center justify-center w-4 h-4 rounded-xs border transition-colors"
+                    style={{
+                      background:  checked ? "var(--color-accent)" : "transparent",
+                      borderColor: checked ? "var(--color-accent)" : "var(--color-border-hi)",
+                      color:       "var(--color-bg)",
+                    }}
+                  >
+                    {checked && (
+                      <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round">
+                        <polyline points="20 6 9 17 4 12" />
+                      </svg>
+                    )}
+                  </span>
+                  <span className={checked ? "text-sm text-text" : "text-sm text-text-dim group-hover:text-text"}>
+                    {rule}
+                  </span>
+                </button>
+              )
+            })}
+          </div>
+        </div>
+      )}
 
       {/* Executions */}
       <TradeExecutionsCard trade={trade} />

@@ -22,6 +22,7 @@ export const tradeSchema = z.object({
   session:     z.enum(["RTH", "ETH", "overnight"]).nullable(),
   notes:       z.string().nullable(),
   tags:        z.array(z.string()).nullable(),
+  followedRules: z.array(z.string()).nullable(),  // playbook rules confirmed for this trade
   createdAt:   z.string().datetime({ offset: true }),
 })
 

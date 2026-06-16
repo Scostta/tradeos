@@ -5,6 +5,8 @@ import { computePlaybookStats } from "~/lib/calculations/playbook-stats"
 import { computeRStats } from "~/lib/calculations/r-multiples"
 import { computeDashboardMetrics, equityCurve } from "~/lib/calculations/metrics"
 import { buildBreakdown, bySymbol } from "~/lib/calculations/reports"
+import { computeAdherence } from "~/lib/calculations/playbook-adherence"
+import { parsePlaybookRules } from "~/helpers/playbook-rules"
 import { createDataResult, createErrorResult } from "~/helpers/result"
 import type { ResultType } from "~/helpers/result"
 import type { PlaybookWithStats, PlaybookDetail } from "~/types/playbook"
@@ -92,11 +94,14 @@ export async function getPlaybookDetail(
     (accountsResult.data ?? []).map(a => [a.id, a.risk_per_trade])
   )
 
+  const rules = parsePlaybookRules(playbookBase.rules).all
+
   return createDataResult({
     playbook:     computePlaybookStats([playbookBase], trades, riskByAccount)[0]!,
     metrics:      computeDashboardMetrics(trades),
     rStats:       computeRStats(trades, riskByAccount),
     equityCurve:  equityCurve(trades),
     byInstrument: buildBreakdown(trades, bySymbol).rows,
+    adherence:    computeAdherence(rules, trades, riskByAccount),
   })
 }

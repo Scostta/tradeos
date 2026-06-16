@@ -9,6 +9,7 @@ import { cn } from "~/utils/cn"
 import { SignedAreaChart } from "~/components/charts/signed-area-chart.client"
 import { RDistribution } from "~/components/charts/r-distribution"
 import { PlaybookEditButton } from "./components/playbook-edit-button.client"
+import type { AdherenceGroup } from "~/types/playbook"
 
 const fmtR = (r: number): string => `${r >= 0 ? "+" : "−"}${Math.abs(r).toFixed(2)}R`
 
@@ -32,7 +33,7 @@ export default async function PlaybookDetailPage({
   const result = await getPlaybookDetail(id)
   if (!result.success) notFound()
 
-  const { playbook, metrics, rStats, equityCurve, byInstrument } = result.data
+  const { playbook, metrics, rStats, equityCurve, byInstrument, adherence } = result.data
   const hasTrades = metrics.totalTrades > 0
   const hasR      = rStats.coverage.withR > 0
   const avgWL     = metrics.avgLoss !== 0 ? metrics.avgWin / Math.abs(metrics.avgLoss) : 0
@@ -155,6 +156,26 @@ export default async function PlaybookDetailPage({
           </div>
         </div>
 
+        {/* Setup adherence */}
+        {adherence && (
+          <div className="card p-4">
+            <div className="flex justify-between items-center mb-3">
+              <div className="label-caps">{PLAYBOOKS.DETAIL.ADHERENCE}</div>
+              <span className="mono text-xs text-text-mute">
+                {adherence.tracked}/{metrics.totalTrades} {PLAYBOOKS.DETAIL.TRACKED}
+              </span>
+            </div>
+            {adherence.tracked === 0 ? (
+              <p className="text-sm text-text-mute italic">{PLAYBOOKS.DETAIL.ADH_NONE}</p>
+            ) : (
+              <div className="grid grid-cols-2 gap-px bg-border rounded-sm border border-border overflow-hidden">
+                <AdherenceCol label={PLAYBOOKS.DETAIL.FOLLOWED} accent="var(--color-profit)" group={adherence.followed} />
+                <AdherenceCol label={PLAYBOOKS.DETAIL.BROKE}    accent="var(--color-loss)"   group={adherence.broke} />
+              </div>
+            )}
+          </div>
+        )}
+
         {/* Equity curve + R distribution */}
         {hasTrades && (
           <div className="flex flex-col lg:flex-row gap-4">
@@ -177,6 +198,33 @@ export default async function PlaybookDetailPage({
             </div>
           </div>
         )}
+      </div>
+    </div>
+  )
+}
+
+function AdherenceCol({ label, accent, group }: {
+  label:  string
+  accent: string
+  group:  AdherenceGroup
+}): ReactElement {
+  const hasR = group.rCoverage.withR > 0
+  const rows = [
+    { k: PLAYBOOKS.DETAIL.ADH_STATS.TRADES,       v: String(group.count) },
+    { k: PLAYBOOKS.DETAIL.ADH_STATS.WIN_RATE,     v: group.count ? formatPct(group.winRate) : "—" },
+    { k: PLAYBOOKS.DETAIL.ADH_STATS.NET_PNL,      v: group.count ? formatCurrency(group.netPnl) : "—" },
+    { k: PLAYBOOKS.DETAIL.ADH_STATS.EXPECTANCY_R, v: hasR ? fmtR(group.expectancyR) : "—" },
+  ]
+  return (
+    <div className="bg-surface p-4">
+      <div className="text-xs font-semibold mb-3" style={{ color: accent }}>{label}</div>
+      <div className="flex flex-col gap-2">
+        {rows.map(r => (
+          <div key={r.k} className="flex justify-between text-sm">
+            <span className="text-text-mute">{r.k}</span>
+            <span className="mono text-text">{r.v}</span>
+          </div>
+        ))}
       </div>
     </div>
   )

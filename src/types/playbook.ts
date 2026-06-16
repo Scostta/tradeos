@@ -40,6 +40,22 @@ export const updatePlaybookInputSchema = createPlaybookInputSchema.extend({
 
 export type UpdatePlaybookInput = z.infer<typeof updatePlaybookInputSchema>
 
+// Setup adherence: how following (or breaking) the playbook's rules affects results.
+export type AdherenceGroup = {
+  count:       number
+  winRate:     number
+  netPnl:      number
+  expectancyR: number
+  rCoverage:   { withR: number; total: number }
+}
+
+export type PlaybookAdherence = {
+  totalRules: number
+  tracked:    number   // trades with a followed-rules record
+  followed:   AdherenceGroup   // every rule checked
+  broke:      AdherenceGroup   // tracked but missing ≥1 rule
+}
+
 // Full per-playbook detail (route /playbooks/[id]).
 export type PlaybookDetail = {
   playbook:     PlaybookWithStats
@@ -47,4 +63,5 @@ export type PlaybookDetail = {
   rStats:       RStats
   equityCurve:  EquityPoint[]
   byInstrument: ReportRow[]
+  adherence:    PlaybookAdherence | null
 }
