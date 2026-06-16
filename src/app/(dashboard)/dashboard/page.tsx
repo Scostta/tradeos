@@ -3,7 +3,9 @@ import { tradesRangeSchema } from "~/types/trade-filters"
 import type { TradesRange } from "~/types/trade-filters"
 import { getDashboardData } from "~/services/queries/dashboard"
 import { getAccounts, getPropFirmStatus } from "~/services/queries/accounts"
+import { getGoalsWithProgress } from "~/services/queries/goals"
 import { PropFirmStatusCard } from "~/components/prop-firm/prop-firm-status-card"
+import { GoalsCard } from "./components/goals-card.client"
 import { DASHBOARD } from "~/constants/copies/dashboard"
 import { TRADES } from "~/constants/copies/trades"
 import { FilterBar } from "~/components/filter-bar"
@@ -42,6 +44,10 @@ export default async function DashboardPage({
   const propResult = accountId ? await getPropFirmStatus(accountId) : null
   const prop = propResult && propResult.success ? propResult.data : null
 
+  // Monthly goals (per user, current calendar month, all accounts).
+  const goalsResult = await getGoalsWithProgress()
+  const goalsData = goalsResult.success ? goalsResult.data : null
+
   const filterBar = (
     <FilterBar
       actions={<RangeSelector value={range} options={RANGE_OPTIONS} />}
@@ -77,6 +83,7 @@ export default async function DashboardPage({
             initialBalance={prop.account.initialBalance}
           />
         )}
+        {goalsData && <GoalsCard goals={goalsData.goals} progress={goalsData.progress} />}
         <MetricsRow metrics={metrics} />
 
         <div className="flex flex-col lg:flex-row gap-3">
