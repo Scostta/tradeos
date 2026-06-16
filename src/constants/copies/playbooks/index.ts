@@ -21,6 +21,8 @@ export const PLAYBOOKS = {
     EDIT:           "Edit",
     RULES:          "Rules",
     NO_RULES:       "No rules defined yet.",
+    REQUIRE:        "require",
+    OF:             "of",
     EQUITY:         "Equity curve",
     R_DIST:         "R-multiple distribution",
     NO_R:           "Set stops or a risk per trade on the account to see R-multiples.",

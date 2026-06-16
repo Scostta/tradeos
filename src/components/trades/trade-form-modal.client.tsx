@@ -307,7 +307,7 @@ export function TradeFormModal({ mode, accounts, playbooks, defaultAccountId, in
             <Field label={TRADES.FORM.PLAYBOOK}>
               <select value={playbookId} onChange={(e) => setPlaybookId(e.target.value)} className={INPUT_CLS}>
                 <option value="">{TRADES.FORM.NONE}</option>
-                {playbooks.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
+                {playbooks.filter(s => s.active || s.id === playbookId).map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
               </select>
             </Field>
 

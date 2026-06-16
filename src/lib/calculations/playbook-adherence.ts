@@ -7,7 +7,7 @@ import type { ParsedRules, RuleGroup } from "~/helpers/playbook-rules"
 const GROUPS: RuleGroup[] = ["entry", "exit", "conditions"]
 
 /** Did the trade meet every group's minimum for the given rules? */
-function meetsSetup(rules: ParsedRules, t: Trade): boolean {
+export function meetsSetup(rules: ParsedRules, t: Trade): boolean {
   const followed = t.followedRules ?? []
   return GROUPS.every(g => rules[g].filter(r => followed.includes(r)).length >= rules.min[g])
 }

@@ -8,21 +8,11 @@ import { formatCurrency, formatPct, formatDate } from "~/helpers/format"
 import { cn } from "~/utils/cn"
 import { SignedAreaChart } from "~/components/charts/signed-area-chart.client"
 import { RDistribution } from "~/components/charts/r-distribution"
+import { parsePlaybookRules } from "~/helpers/playbook-rules"
 import { PlaybookEditButton } from "./components/playbook-edit-button.client"
 import type { AdherenceGroup } from "~/types/playbook"
 
 const fmtR = (r: number): string => `${r >= 0 ? "+" : "−"}${Math.abs(r).toFixed(2)}R`
-
-type RuleGroups = { entry?: string[]; exit?: string[]; conditions?: string[] }
-
-function parseRules(raw: string | null): RuleGroups | string | null {
-  if (!raw) return null
-  try {
-    const parsed = JSON.parse(raw) as RuleGroups
-    if (parsed && (parsed.entry || parsed.exit || parsed.conditions)) return parsed
-  } catch { /* not JSON — fall through to raw text */ }
-  return raw
-}
 
 export default async function PlaybookDetailPage({
   params,
@@ -37,7 +27,8 @@ export default async function PlaybookDetailPage({
   const hasTrades = metrics.totalTrades > 0
   const hasR      = rStats.coverage.withR > 0
   const avgWL     = metrics.avgLoss !== 0 ? metrics.avgWin / Math.abs(metrics.avgLoss) : 0
-  const rules     = parseRules(playbook.rules)
+  const rules     = parsePlaybookRules(playbook.rules)
+  const hasRules  = rules.all.length > 0
 
   const cumData = equityCurve.map(p => ({
     label: formatDate(p.date),
@@ -87,18 +78,21 @@ export default async function PlaybookDetailPage({
           </p>
           <div>
             <div className="label-caps mb-2">{PLAYBOOKS.DETAIL.RULES}</div>
-            {rules === null ? (
-              <p className="text-sm text-text-mute italic">{PLAYBOOKS.DETAIL.NO_RULES}</p>
-            ) : typeof rules === "string" ? (
-              <p className="text-sm text-text-dim whitespace-pre-wrap">{rules}</p>
+            {!hasRules ? (
+              playbook.rules
+                ? <p className="text-sm text-text-dim whitespace-pre-wrap">{playbook.rules}</p>
+                : <p className="text-sm text-text-mute italic">{PLAYBOOKS.DETAIL.NO_RULES}</p>
             ) : (
               <div className="flex flex-col gap-2">
                 {(["entry", "exit", "conditions"] as const).map((k) =>
-                  rules[k]?.length ? (
+                  rules[k].length ? (
                     <div key={k}>
-                      <div className="text-xxs uppercase tracking-wider text-text-mute mb-1">{k}</div>
+                      <div className="flex items-center gap-2 mb-1">
+                        <span className="text-xxs uppercase tracking-wider text-text-mute">{k}</span>
+                        <span className="text-xxs text-text-mute">· {PLAYBOOKS.DETAIL.REQUIRE} {rules.min[k]} {PLAYBOOKS.DETAIL.OF} {rules[k].length}</span>
+                      </div>
                       <ul className="list-disc list-inside text-sm text-text-dim">
-                        {rules[k]!.map((r, i) => <li key={i}>{r}</li>)}
+                        {rules[k].map((r, i) => <li key={i}>{r}</li>)}
                       </ul>
                     </div>
                   ) : null

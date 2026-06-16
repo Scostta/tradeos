@@ -95,7 +95,7 @@ export function TradeSidebar({ trade, playbooks }: Props) {
           className="w-full px-2.5 py-2 bg-surface-2 border border-border rounded-sm text-text text-base font-[inherit] outline-none focus:border-border-hi"
         >
           <option value="">— None —</option>
-          {playbooks.map(s => (
+          {playbooks.filter(s => s.active || s.id === playbookId).map(s => (
             <option key={s.id} value={s.id}>{s.name}</option>
           ))}
         </select>

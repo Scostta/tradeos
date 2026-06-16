@@ -38,6 +38,7 @@ export async function createPlaybook(
   }
 
   revalidatePath("/playbooks")
+  revalidatePath("/reports")
   return createDataResult(mapPlaybookFromDb(data))
 }
 
@@ -67,6 +68,8 @@ export async function updatePlaybook(
   }
 
   revalidatePath("/playbooks")
+  revalidatePath(`/playbooks/${id}`)
+  revalidatePath("/reports")
   return createDataResult(mapPlaybookFromDb(data))
 }
 
@@ -99,5 +102,7 @@ export async function setPlaybookActive(
   }
 
   revalidatePath("/playbooks")
+  revalidatePath(`/playbooks/${id}`)
+  revalidatePath("/reports")
   return createDataResult({ id, active })
 }
