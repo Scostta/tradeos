@@ -11,7 +11,7 @@ export function RDistribution({ distribution }: { distribution: RBucket[] }): Re
   const step = (W - padL - padR) / distribution.length
 
   return (
-    <svg viewBox={`0 0 ${W} ${H}`} width="100%" style={{ display: "block", overflow: "visible" }}>
+    <svg viewBox={`0 0 ${W} ${H}`} width="100%" style={{ display: "block", overflow: "hidden" }}>
       <line x1={padL} y1={padT + hh} x2={W - padR} y2={padT + hh} stroke="var(--color-border-hi)" strokeWidth="1" />
       {distribution.map((b, i) => {
         const h     = (b.count / max) * hh

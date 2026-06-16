@@ -52,7 +52,7 @@ export function WinRateLine(props: Props): ReactElement {
       <svg
         viewBox={`0 0 ${W} ${H}`}
         width="100%"
-        style={{ display: "block", overflow: "visible" }}
+        style={{ display: "block", overflow: "hidden" }}
       >
         {/* Grid y labels */}
         {grid.map((g, i) => (

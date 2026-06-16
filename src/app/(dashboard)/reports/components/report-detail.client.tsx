@@ -3,7 +3,9 @@
 import { useState } from "react"
 import type { ReactElement } from "react"
 import type { ReportBreakdown } from "~/types/reports"
+import type { PlaybookAdherence, AdherenceGroup } from "~/types/playbook"
 import { REPORTS } from "~/constants/copies/reports"
+import { formatCurrency, formatPct } from "~/helpers/format"
 import { InsightCard, fmtTradesSubinfo, fmtWinRateSubinfo } from "./insight-card"
 import { SummaryTable } from "./summary-table.client"
 import { CrossHeatmap } from "./cross-heatmap"
@@ -64,13 +66,17 @@ type Props = {
   // breakdowns[i] maps to subtabs[i].breakdownIdx — parallel arrays.
   // dayTime passes [dayTimeBreakdown, monthsBreakdown]; others pass [breakdown].
   breakdowns: ReportBreakdown[]
+  adherence?: PlaybookAdherence | null  // only rendered for the playbooks report
 }
+
+const fmtR = (r: number): string => `${r >= 0 ? "+" : "−"}${Math.abs(r).toFixed(2)}R`
 
 export function ReportDetail(props: Props): ReactElement {
   // Note: this component always receives key={reportKey} from the parent shell,
   // so React resets state on reportKey change — no useEffect needed.
-  const { reportKey, breakdowns } = props
+  const { reportKey, breakdowns, adherence } = props
   const cfg = REPORT_CONFIGS[reportKey]
+  const showAdherence = reportKey === "playbooks" && adherence != null && adherence.tracked > 0
 
   const [activeSubtabKey, setActiveSubtabKey] = useState<string>(cfg.subtabs[0]!.key)
 
@@ -79,7 +85,11 @@ export function ReportDetail(props: Props): ReactElement {
 
   const { rows, insights, cross } = activeBreakdown
 
-  const chartLabel = (label: string) => cfg.shortLabel ? label.slice(0, 3) : label
+  // Truncate axis labels so long names (e.g. playbooks) don't overflow the chart.
+  const chartLabel = (label: string) => {
+    if (cfg.shortLabel) return label.slice(0, 3)
+    return label.length > 9 ? `${label.slice(0, 8)}…` : label
+  }
 
   const chartData = rows.map(r => ({ label: chartLabel(r.label), v: r.pnl }))
 
@@ -202,6 +212,22 @@ export function ReportDetail(props: Props): ReactElement {
         </div>
       )}
 
+      {/* Setup adherence (playbooks only) */}
+      {showAdherence && adherence && (
+        <div className="card" style={{ padding: 16 }}>
+          <div className="flex items-center justify-between mb-3">
+            <span className="label-caps">{REPORTS.PLAYBOOK_ADHERENCE.TITLE}</span>
+            <span className="mono text-xxs text-text-mute">
+              {adherence.tracked}/{adherence.totalRules} {REPORTS.PLAYBOOK_ADHERENCE.TRACKED}
+            </span>
+          </div>
+          <div className="grid grid-cols-2 gap-px bg-border rounded-sm border border-border overflow-hidden">
+            <AdherenceCol label={REPORTS.PLAYBOOK_ADHERENCE.FOLLOWED} accent="var(--color-profit)" group={adherence.followed} />
+            <AdherenceCol label={REPORTS.PLAYBOOK_ADHERENCE.BROKE}    accent="var(--color-loss)"   group={adherence.broke} />
+          </div>
+        </div>
+      )}
+
       {/* Summary table */}
       {rows.length > 0 && (
         <SummaryTable firstCol={cfg.firstCol} rows={rows} />
@@ -211,6 +237,33 @@ export function ReportDetail(props: Props): ReactElement {
       {cross.cols.length > 0 && rows.length > 0 && (
         <CrossHeatmap cross={cross} />
       )}
+    </div>
+  )
+}
+
+function AdherenceCol({ label, accent, group }: {
+  label:  string
+  accent: string
+  group:  AdherenceGroup
+}): ReactElement {
+  const hasR = group.rCoverage.withR > 0
+  const rows = [
+    { k: REPORTS.PLAYBOOK_ADHERENCE.TRADES,       v: String(group.count) },
+    { k: REPORTS.PLAYBOOK_ADHERENCE.WIN_RATE,     v: group.count ? formatPct(group.winRate) : "—" },
+    { k: REPORTS.PLAYBOOK_ADHERENCE.NET_PNL,      v: group.count ? formatCurrency(group.netPnl) : "—" },
+    { k: REPORTS.PLAYBOOK_ADHERENCE.EXPECTANCY_R, v: hasR ? fmtR(group.expectancyR) : "—" },
+  ]
+  return (
+    <div className="bg-surface p-4">
+      <div className="text-xs font-semibold mb-3" style={{ color: accent }}>{label}</div>
+      <div className="flex flex-col gap-2">
+        {rows.map(r => (
+          <div key={r.k} className="flex justify-between text-sm">
+            <span className="text-text-mute">{r.k}</span>
+            <span className="mono text-text">{r.v}</span>
+          </div>
+        ))}
+      </div>
     </div>
   )
 }

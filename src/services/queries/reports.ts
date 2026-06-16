@@ -32,6 +32,9 @@ import {
   sortByMonth,
 } from "~/lib/calculations/reports"
 import { computeRStats } from "~/lib/calculations/r-multiples"
+import { computePortfolioAdherence } from "~/lib/calculations/playbook-adherence"
+import { parsePlaybookRules } from "~/helpers/playbook-rules"
+import type { ParsedRules } from "~/helpers/playbook-rules"
 import type { ResultType } from "~/helpers/result"
 import type { ReportsData, ComparePeriod } from "~/types/reports"
 import type { ComparePeriodKey } from "~/helpers/compare-period"
@@ -180,11 +183,15 @@ export const getReportsData = cache(async function getReportsData(
       overview:           computeOverview([]),
       compare:            { a: emptyComparePeriod("this-month"), b: emptyComparePeriod("last-month") },
       rStats:             computeRStats([]),
+      playbookAdherence:  null,
     })
   }
 
   // ── Compute all aggregations ────────────────────────────────────────────────
   const byPlaybookName = makeByPlaybookName(playbooks)
+  const rulesById = new Map<string, ParsedRules>(
+    playbooks.map(p => [p.id, parsePlaybookRules(p.rules)])
+  )
 
   // Compare defaults are independent of the page range — fetched on their own
   // windows (this month vs last month).
@@ -208,6 +215,7 @@ export const getReportsData = cache(async function getReportsData(
     overview:           computeOverview(trades),
     compare:            { a: compareA.data, b: compareB.data },
     rStats:             computeRStats(trades, riskByAccount),
+    playbookAdherence:  computePortfolioAdherence(rulesById, trades, riskByAccount),
   }
 
   return createDataResult(reportsData)

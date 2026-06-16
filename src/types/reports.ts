@@ -152,6 +152,7 @@ export type PerformanceSummary = {
 //     undefined in the "all accounts" aggregate view)
 
 import type { ComparePeriodKey } from "~/helpers/compare-period"
+import type { PlaybookAdherence } from "./playbook"
 
 /** A headline figure (best/lowest/average month) with a contextual sub-label. */
 export type OverviewHighlight = {
@@ -290,4 +291,5 @@ export type ReportsData = {
   overview:           OverviewData        // Overview tab (all-time snapshot)
   compare:            CompareData         // Compare tab default (this vs last month)
   rStats:             RStats              // R-multiples tab (expectancy, SQN, distribution)
+  playbookAdherence:  PlaybookAdherence | null  // portfolio-wide setup adherence (Playbooks sub-report)
 }

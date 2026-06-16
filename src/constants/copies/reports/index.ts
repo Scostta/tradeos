@@ -63,6 +63,17 @@ export const REPORTS = {
     },
   },
 
+  PLAYBOOK_ADHERENCE: {
+    TITLE:        "Setup adherence",
+    FOLLOWED:     "Followed setup",
+    BROKE:        "Broke rules",
+    TRACKED:      "tracked",
+    TRADES:       "Trades",
+    WIN_RATE:     "Win %",
+    NET_PNL:      "Net P&L",
+    EXPECTANCY_R: "Expectancy (R)",
+  },
+
   REPORT_DETAIL: {
     INSIGHT_BEST:       "Best performing",
     INSIGHT_WORST:      "Least performing",

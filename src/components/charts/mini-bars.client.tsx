@@ -47,7 +47,7 @@ export function MiniBars(props: Props): ReactElement {
     <svg
       viewBox={`0 0 ${W} ${H}`}
       width="100%"
-      style={{ display: "block", overflow: "visible" }}
+      style={{ display: "block", overflow: "hidden" }}
     >
       {/* Y-axis labels */}
       {grid.map((g, i) => (

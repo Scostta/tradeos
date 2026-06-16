@@ -86,7 +86,7 @@ export function SignedAreaChart(props: Props): ReactElement {
       <svg
         viewBox={`0 0 ${W} ${H}`}
         width="100%"
-        style={{ display: "block", overflow: "visible" }}
+        style={{ display: "block", overflow: "hidden" }}
       >
         <defs>
           <linearGradient id={uidPos} x1="0" y1="0" x2="0" y2="1">

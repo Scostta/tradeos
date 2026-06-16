@@ -203,6 +203,7 @@ export function ReportsShell({ data, accountId }: Props): ReactElement {
             key={reportKey}
             reportKey={reportKey}
             breakdowns={breakdownsForKey(reportKey)}
+            adherence={data.playbookAdherence}
           />
         )}
       </div>
