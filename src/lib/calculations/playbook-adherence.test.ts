@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest"
 import { computeAdherence } from "./playbook-adherence"
 import type { Trade } from "~/types/trade"
+import type { ParsedRules } from "~/helpers/playbook-rules"
 
 function trade(over: Partial<Trade>): Trade {
   return {
@@ -14,34 +15,45 @@ function trade(over: Partial<Trade>): Trade {
   }
 }
 
-describe("computeAdherence", () => {
-  const rules = ["A", "B"]
+function rules(
+  entry: string[], exit: string[], conditions: string[],
+  min: { entry: number; exit: number; conditions: number },
+): ParsedRules {
+  return { entry, exit, conditions, all: [...entry, ...exit, ...conditions], min }
+}
 
-  it("splits tracked trades into followed-all vs broke", () => {
+describe("computeAdherence — per-group minimums", () => {
+  // Entry: need 2 of 3; Exit: need 1 of 2.
+  const r = rules(["A", "B", "C"], ["X", "Y"], [], { entry: 2, exit: 1, conditions: 0 })
+
+  it("counts a trade as followed when every group meets its minimum", () => {
     const trades = [
-      trade({ netPnl: 1000, followedRules: ["A", "B"] }),  // followed
-      trade({ netPnl: 600,  followedRules: ["B", "A"] }),  // followed (order-independent)
-      trade({ netPnl: -500, followedRules: ["A"] }),       // broke (missing B)
-      trade({ netPnl: 200,  followedRules: null }),        // untracked — excluded
+      trade({ netPnl: 1000, followedRules: ["A", "B", "X"] }),  // entry 2/3, exit 1/2 → valid
+      trade({ netPnl: -500, followedRules: ["A", "X"] }),        // entry 1/3 < 2 → broke
+      trade({ netPnl: 200,  followedRules: null }),              // untracked
     ]
-    const a = computeAdherence(rules, trades)!
+    const a = computeAdherence(r, trades)!
 
-    expect(a.totalRules).toBe(2)
-    expect(a.tracked).toBe(3)
-    expect(a.followed.count).toBe(2)
-    expect(a.followed.netPnl).toBe(1600)
-    expect(a.followed.winRate).toBe(1)
+    expect(a.tracked).toBe(2)
+    expect(a.followed.count).toBe(1)
+    expect(a.followed.netPnl).toBe(1000)
     expect(a.broke.count).toBe(1)
     expect(a.broke.netPnl).toBe(-500)
-    expect(a.broke.winRate).toBe(0)
+  })
+
+  it("a low exit minimum (1 of 2) validates with a single exit rule", () => {
+    const a = computeAdherence(r, [trade({ followedRules: ["A", "B", "Y"] })])!
+    expect(a.followed.count).toBe(1)
+    expect(a.broke.count).toBe(0)
   })
 
   it("returns null when the playbook has no rules", () => {
-    expect(computeAdherence([], [trade({ followedRules: [] })])).toBeNull()
+    expect(computeAdherence(rules([], [], [], { entry: 0, exit: 0, conditions: 0 }), [trade({ followedRules: [] })])).toBeNull()
   })
 
-  it("treats an empty followed-rules array as tracked-but-broke", () => {
-    const a = computeAdherence(rules, [trade({ followedRules: [] })])!
+  it("an empty followed-rules array is tracked but broke when a minimum is required", () => {
+    const r2 = rules(["A"], [], [], { entry: 1, exit: 0, conditions: 0 })
+    const a = computeAdherence(r2, [trade({ followedRules: [] })])!
     expect(a.tracked).toBe(1)
     expect(a.broke.count).toBe(1)
     expect(a.followed.count).toBe(0)

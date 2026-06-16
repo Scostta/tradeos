@@ -94,7 +94,7 @@ export async function getPlaybookDetail(
     (accountsResult.data ?? []).map(a => [a.id, a.risk_per_trade])
   )
 
-  const rules = parsePlaybookRules(playbookBase.rules).all
+  const rules = parsePlaybookRules(playbookBase.rules)
 
   return createDataResult({
     playbook:     computePlaybookStats([playbookBase], trades, riskByAccount)[0]!,

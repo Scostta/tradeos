@@ -48,7 +48,16 @@ export function TradeSidebar({ trade, playbooks }: Props) {
     })
   }, [trade.id, followedRules])
 
-  const rules = parsePlaybookRules(playbooks.find(p => p.id === playbookId)?.rules ?? null).all
+  const parsedRules = parsePlaybookRules(playbooks.find(p => p.id === playbookId)?.rules ?? null)
+  const ruleGroups: { key: "entry" | "exit" | "conditions"; label: string }[] = [
+    { key: "entry",      label: "Entry" },
+    { key: "exit",       label: "Exit" },
+    { key: "conditions", label: "Conditions" },
+  ]
+  const metInGroup = (g: "entry" | "exit" | "conditions") =>
+    parsedRules[g].filter(r => followedRules.includes(r)).length
+  const setupValid = parsedRules.all.length > 0 &&
+    ruleGroups.every(({ key }) => metInGroup(key) >= parsedRules.min[key])
 
   const commitTag = useCallback(() => {
     const trimmed = newTag.trim()
@@ -92,47 +101,67 @@ export function TradeSidebar({ trade, playbooks }: Props) {
         </select>
       </div>
 
-      {/* Setup checklist — only when the selected playbook has rules */}
-      {rules.length > 0 && (
+      {/* Setup checklist — grouped, with per-group minimums */}
+      {parsedRules.all.length > 0 && (
         <div className="card p-4">
           <div className="flex justify-between items-center mb-3">
             <div className="label-caps">Setup checklist</div>
             <span
-              className="mono text-xs"
-              style={{ color: followedRules.length >= rules.length ? "var(--color-profit)" : "var(--color-text-mute)" }}
+              className="text-xxs mono font-semibold tracking-wider rounded-sm px-2 py-0.5"
+              style={{
+                color:      setupValid ? "var(--color-profit)" : "var(--color-text-mute)",
+                background: setupValid ? "color-mix(in srgb, var(--color-profit) 14%, transparent)" : "var(--color-surface-2)",
+              }}
             >
-              {rules.filter(r => followedRules.includes(r)).length}/{rules.length}
+              {setupValid ? "VALID" : "INCOMPLETE"}
             </span>
           </div>
-          <div className="flex flex-col gap-1.5">
-            {rules.map(rule => {
-              const checked = followedRules.includes(rule)
+
+          <div className="flex flex-col gap-3">
+            {ruleGroups.map(({ key, label }) => {
+              if (parsedRules[key].length === 0) return null
+              const met      = metInGroup(key)
+              const min      = parsedRules.min[key]
+              const groupOk  = met >= min
               return (
-                <button
-                  key={rule}
-                  type="button"
-                  onClick={() => toggleRule(rule)}
-                  disabled={isPending}
-                  className="flex items-start gap-2 text-left disabled:opacity-60 cursor-pointer group"
-                >
-                  <span
-                    className="shrink-0 mt-0.5 flex items-center justify-center w-4 h-4 rounded-xs border transition-colors"
-                    style={{
-                      background:  checked ? "var(--color-accent)" : "transparent",
-                      borderColor: checked ? "var(--color-accent)" : "var(--color-border-hi)",
-                      color:       "var(--color-bg)",
-                    }}
-                  >
-                    {checked && (
-                      <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round">
-                        <polyline points="20 6 9 17 4 12" />
-                      </svg>
-                    )}
-                  </span>
-                  <span className={checked ? "text-sm text-text" : "text-sm text-text-dim group-hover:text-text"}>
-                    {rule}
-                  </span>
-                </button>
+                <div key={key} className="flex flex-col gap-1.5">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xxs uppercase tracking-wider text-text-mute">{label}</span>
+                    <span className="mono text-xxs" style={{ color: groupOk ? "var(--color-profit)" : "var(--color-text-mute)" }}>
+                      {met}/{parsedRules[key].length} · min {min}
+                    </span>
+                  </div>
+                  {parsedRules[key].map(rule => {
+                    const checked = followedRules.includes(rule)
+                    return (
+                      <button
+                        key={rule}
+                        type="button"
+                        onClick={() => toggleRule(rule)}
+                        disabled={isPending}
+                        className="flex items-start gap-2 text-left disabled:opacity-60 cursor-pointer group"
+                      >
+                        <span
+                          className="shrink-0 mt-0.5 flex items-center justify-center w-4 h-4 rounded-xs border transition-colors"
+                          style={{
+                            background:  checked ? "var(--color-accent)" : "transparent",
+                            borderColor: checked ? "var(--color-accent)" : "var(--color-border-hi)",
+                            color:       "var(--color-bg)",
+                          }}
+                        >
+                          {checked && (
+                            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round">
+                              <polyline points="20 6 9 17 4 12" />
+                            </svg>
+                          )}
+                        </span>
+                        <span className={checked ? "text-sm text-text" : "text-sm text-text-dim group-hover:text-text"}>
+                          {rule}
+                        </span>
+                      </button>
+                    )
+                  })}
+                </div>
               )
             })}
           </div>

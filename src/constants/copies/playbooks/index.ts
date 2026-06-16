@@ -66,6 +66,8 @@ export const PLAYBOOKS = {
     ENTRY_CRITERIA:         "Entry criteria",
     EXIT_CRITERIA:          "Exit criteria",
     MARKET_CONDITIONS:      "Market conditions",
+    MIN_LABEL:              "require",
+    MIN_OF:                 "of",
     ADD_RULE:               "+ Add rule",
     RULE_PLACEHOLDER:       "Add a rule…",
     SAVE:                   "Save changes",

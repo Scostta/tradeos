@@ -13,23 +13,32 @@ import type { ToastVariant } from "~/lib/ui/toast"
 import { XIcon } from "~/lib/ui/icons/x-icon"
 
 type ToastState  = { message: string; variant: ToastVariant }
-type RulesState  = { entry: string[]; exit: string[]; conditions: string[] }
-type RulesSection = keyof RulesState
+type RuleGroup   = "entry" | "exit" | "conditions"
+type RulesState  = { entry: string[]; exit: string[]; conditions: string[]; min: Record<RuleGroup, number> }
+type RulesSection = RuleGroup
+
+const clampMin = (n: number, max: number): number => Math.max(0, Math.min(max, Math.round(n)))
 
 function parseRules(raw: string | null): RulesState {
-  if (!raw) return { entry: [], exit: [], conditions: [] }
+  const empty: RulesState = { entry: [], exit: [], conditions: [], min: { entry: 0, exit: 0, conditions: 0 } }
+  if (!raw) return empty
   try {
     const p = JSON.parse(raw) as unknown
     if (p && typeof p === "object" && !Array.isArray(p)) {
       const obj = p as Record<string, unknown>
+      const arr = (k: string): string[] => (Array.isArray(obj[k]) ? (obj[k] as string[]) : [])
+      const entry = arr("entry"), exit = arr("exit"), conditions = arr("conditions")
+      const rawMin = (obj["min"] ?? {}) as Record<string, unknown>
+      // Default min = "all required" when not configured (preserves old behaviour).
+      const minFor = (g: RuleGroup, items: string[]): number =>
+        typeof rawMin[g] === "number" ? clampMin(rawMin[g] as number, items.length) : items.length
       return {
-        entry:      Array.isArray(obj["entry"])      ? (obj["entry"] as string[])      : [],
-        exit:       Array.isArray(obj["exit"])        ? (obj["exit"] as string[])       : [],
-        conditions: Array.isArray(obj["conditions"]) ? (obj["conditions"] as string[]) : [],
+        entry, exit, conditions,
+        min: { entry: minFor("entry", entry), exit: minFor("exit", exit), conditions: minFor("conditions", conditions) },
       }
     }
   } catch { /* legacy plain-text rules */ }
-  return { entry: [raw], exit: [], conditions: [] }
+  return { entry: [raw], exit: [], conditions: [], min: { entry: 1, exit: 0, conditions: 0 } }
 }
 
 function serializeRules(r: RulesState): string | null {
@@ -39,7 +48,14 @@ function serializeRules(r: RulesState): string | null {
     conditions: r.conditions.filter(x => x.trim()),
   }
   if (!clean.entry.length && !clean.exit.length && !clean.conditions.length) return null
-  return JSON.stringify(clean)
+  return JSON.stringify({
+    ...clean,
+    min: {
+      entry:      clampMin(r.min.entry, clean.entry.length),
+      exit:       clampMin(r.min.exit, clean.exit.length),
+      conditions: clampMin(r.min.conditions, clean.conditions.length),
+    },
+  })
 }
 
 type Props =
@@ -50,7 +66,7 @@ export function PlaybookEditor(props: Props): ReactElement {
   const [isOpen, setIsOpen]             = useState(false)
   const [name, setName]                 = useState("")
   const [description, setDescription]  = useState("")
-  const [rules, setRules]               = useState<RulesState>({ entry: [], exit: [], conditions: [] })
+  const [rules, setRules]               = useState<RulesState>({ entry: [], exit: [], conditions: [], min: { entry: 0, exit: 0, conditions: 0 } })
   const [archiveArmed, setArchiveArmed] = useState(false)
   const [toast, setToast]               = useState<ToastState | null>(null)
   const [isPending, startTransition]    = useTransition()
@@ -68,7 +84,7 @@ export function PlaybookEditor(props: Props): ReactElement {
     } else {
       setName("")
       setDescription("")
-      setRules({ entry: [], exit: [], conditions: [] })
+      setRules({ entry: [], exit: [], conditions: [], min: { entry: 0, exit: 0, conditions: 0 } })
     }
     setArchiveArmed(false)
     setIsOpen(true)
@@ -81,6 +97,10 @@ export function PlaybookEditor(props: Props): ReactElement {
 
   function addRule(section: RulesSection) {
     setRules(prev => ({ ...prev, [section]: [...prev[section], ""] }))
+  }
+
+  function setMin(section: RulesSection, value: number) {
+    setRules(prev => ({ ...prev, min: { ...prev.min, [section]: value } }))
   }
 
   function updateRule(section: RulesSection, idx: number, value: string) {
@@ -217,7 +237,24 @@ export function PlaybookEditor(props: Props): ReactElement {
               {/* Rules — three sections */}
               {SECTIONS.map(({ key, label }) => (
                 <div key={key} className="flex flex-col gap-2">
-                  <span className="text-sm font-medium text-text">{label}</span>
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="text-sm font-medium text-text">{label}</span>
+                    {rules[key].length > 0 && (
+                      <label className="flex items-center gap-1.5 text-xxs text-text-mute">
+                        {PLAYBOOKS.EDITOR.MIN_LABEL}
+                        <select
+                          value={Math.min(rules.min[key], rules[key].length)}
+                          onChange={e => setMin(key, Number(e.target.value))}
+                          className="bg-surface-2 border border-border rounded-xs px-1 py-0.5 text-xs text-text outline-none focus:border-border-hi cursor-pointer"
+                        >
+                          {Array.from({ length: rules[key].length + 1 }, (_, n) => (
+                            <option key={n} value={n}>{n}</option>
+                          ))}
+                        </select>
+                        {PLAYBOOKS.EDITOR.MIN_OF} {rules[key].length}
+                      </label>
+                    )}
+                  </div>
 
                   {rules[key].length > 0 && (
                     <div className="flex flex-col gap-1.5">
