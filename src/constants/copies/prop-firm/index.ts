@@ -8,6 +8,7 @@ export const PROP_FIRM = {
   DD_AMOUNT:      "Max drawdown ($)",
   DD_LOCK:        "Lock floor at ($)",
   DD_LOCK_HINT:   "Apex: start + $100 · Topstep: start balance · empty = trails forever",
+  DD_NEEDS_BALANCE: "⚠ Set an initial balance above — drawdown is tracked relative to it.",
   DAILY_LOSS:     "Daily loss limit ($)",
   PROFIT_TARGET:  "Profit target ($)",
   MIN_DAYS:       "Min trading days",

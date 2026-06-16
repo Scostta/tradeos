@@ -320,6 +320,9 @@ export function AccountEditor({ account, renderTrigger }: Props): ReactElement {
                 </div>
               </div>
               <p className="text-xxs text-text-mute -mt-1.5">{PROP_FIRM.DD_LOCK_HINT}</p>
+              {drawdownType !== "" && initialBalance === "" && (
+                <p className="text-xxs text-loss -mt-1.5">{PROP_FIRM.DD_NEEDS_BALANCE}</p>
+              )}
 
               <div className="grid grid-cols-3 gap-3">
                 <div className="flex flex-col gap-1.5">

@@ -51,6 +51,7 @@ export type TradingDaysStatus = {
 }
 
 export type PropFirmStatus = {
+  netPnl:         number   // cumulative net P&L on the account (progress)
   currentBalance: number
   peakBalance:    number
   drawdown:       DrawdownStatus | null

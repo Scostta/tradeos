@@ -106,6 +106,13 @@ describe("profit target & trading days", () => {
     expect(s.profit!.pct).toBe(1)
   })
 
+  it("tracks profit progress even without an initial balance", () => {
+    const s = computePropFirmStatus({ ...baseConfig, initialBalance: null, profitTarget: 3000 }, [t(1500), t(900)])!
+    expect(s.profit!.progress).toBe(2400)
+    expect(s.profit!.pct).toBeCloseTo(0.8)
+    expect(s.netPnl).toBe(2400)
+  })
+
   it("counts distinct trading days", () => {
     const s = computePropFirmStatus({ ...baseConfig, minTradingDays: 5 }, [
       t(10, "2026-06-10T15:00:00Z"),

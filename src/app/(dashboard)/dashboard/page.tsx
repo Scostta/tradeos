@@ -71,7 +71,11 @@ export default async function DashboardPage({
       {filterBar}
       <div className="flex-1 overflow-auto page-pad flex flex-col gap-4">
         {prop?.status && (
-          <PropFirmStatusCard status={prop.status} phase={prop.account.propPhase} />
+          <PropFirmStatusCard
+            status={prop.status}
+            phase={prop.account.propPhase}
+            initialBalance={prop.account.initialBalance}
+          />
         )}
         <MetricsRow metrics={metrics} />
 

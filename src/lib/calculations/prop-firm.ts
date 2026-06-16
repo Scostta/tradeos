@@ -96,8 +96,9 @@ export function computePropFirmStatus(
   }
 
   // ── Profit target ─────────────────────────────────────────────────────────────
+  // Progress is cumulative net P&L vs target — does not need an initial balance.
   let profit: PropFirmStatus["profit"] = null
-  if (config.profitTarget != null && initial != null) {
+  if (config.profitTarget != null) {
     const target = config.profitTarget
     profit = {
       target,
@@ -126,5 +127,5 @@ export function computePropFirmStatus(
   else if (maxUsed >= 0.8) alertLevel = "danger"
   else if (maxUsed >= 0.5) alertLevel = "warning"
 
-  return { currentBalance, peakBalance, drawdown, dailyLoss, profit, tradingDays, breached, alertLevel }
+  return { netPnl: totalNet, currentBalance, peakBalance, drawdown, dailyLoss, profit, tradingDays, breached, alertLevel }
 }

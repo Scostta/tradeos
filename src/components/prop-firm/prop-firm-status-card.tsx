@@ -36,11 +36,12 @@ function Block({ label, children }: { label: string; children: ReactNode }): Rea
   )
 }
 
-export function PropFirmStatusCard({ status, phase }: {
-  status: PropFirmStatus
-  phase:  PropPhase | null
+export function PropFirmStatusCard({ status, phase, initialBalance }: {
+  status:         PropFirmStatus
+  phase:          PropPhase | null
+  initialBalance: number | null
 }): ReactElement {
-  const { drawdown, dailyLoss, profit, tradingDays, alertLevel } = status
+  const { netPnl, currentBalance, drawdown, dailyLoss, profit, tradingDays, alertLevel } = status
   const alertColor = ALERT_COLOR[alertLevel]
 
   return (
@@ -58,12 +59,23 @@ export function PropFirmStatusCard({ status, phase }: {
             </span>
           )}
         </div>
-        <span
-          className="text-xs mono font-semibold tracking-wider rounded-sm px-2 py-0.5"
-          style={{ color: alertColor, background: `color-mix(in srgb, ${alertColor} 14%, transparent)` }}
-        >
-          {PROP_FIRM.ALERT[alertLevel].toUpperCase()}
-        </span>
+        <div className="flex items-center gap-3">
+          <span className="mono text-sm">
+            <span className="text-text-mute">{PROP_FIRM.BALANCE} </span>
+            <span className={netPnl >= 0 ? "text-profit" : "text-loss"}>
+              {formatCurrency(netPnl)}
+            </span>
+            {initialBalance != null && (
+              <span className="text-text-dim"> · {formatCurrency(currentBalance, { sign: false })}</span>
+            )}
+          </span>
+          <span
+            className="text-xs mono font-semibold tracking-wider rounded-sm px-2 py-0.5"
+            style={{ color: alertColor, background: `color-mix(in srgb, ${alertColor} 14%, transparent)` }}
+          >
+            {PROP_FIRM.ALERT[alertLevel].toUpperCase()}
+          </span>
+        </div>
       </div>
 
       {/* Blocks */}
