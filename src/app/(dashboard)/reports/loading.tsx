@@ -1,5 +1,4 @@
 import type { ReactElement } from "react"
-import { REPORTS } from "~/constants/copies/reports"
 
 export default function ReportsLoading(): ReactElement {
   return (

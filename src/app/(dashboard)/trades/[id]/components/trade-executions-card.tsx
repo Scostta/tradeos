@@ -2,7 +2,6 @@
 
 import { useTransition, useRef, useState } from "react"
 import type { ReactElement } from "react"
-import { formatCurrency } from "~/helpers/format"
 import { formatDuration } from "~/helpers/duration"
 import { updateTradeStopPrice } from "~/actions/trades"
 import { useStopPrice } from "./stop-price-context.client"

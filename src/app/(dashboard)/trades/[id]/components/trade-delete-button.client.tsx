@@ -32,14 +32,14 @@ export function TradeDeleteButton({ tradeId }: { tradeId: string }) {
         <button
           onClick={handleDelete}
           disabled={isPending}
-          className="px-3 h-[30px] rounded-sm text-base text-bg bg-loss hover:opacity-90 transition-opacity disabled:opacity-60"
+          className="px-3 h-7.5 rounded-sm text-base text-bg bg-loss hover:opacity-90 transition-opacity disabled:opacity-60"
         >
           {isPending ? "Deleting…" : "Confirm"}
         </button>
         <button
           onClick={() => setConfirming(false)}
           disabled={isPending}
-          className="px-3 h-[30px] rounded-sm text-base text-text-dim border border-border hover:border-border-hi transition-colors disabled:opacity-60"
+          className="px-3 h-7.5 rounded-sm text-base text-text-dim border border-border hover:border-border-hi transition-colors disabled:opacity-60"
         >
           Cancel
         </button>
@@ -51,7 +51,7 @@ export function TradeDeleteButton({ tradeId }: { tradeId: string }) {
     <button
       onClick={() => setConfirming(true)}
       title={error ?? "Delete this trade"}
-      className="flex items-center gap-1.5 px-3 h-[30px] rounded-sm text-base text-text-dim border border-border hover:border-loss hover:text-loss transition-colors whitespace-nowrap"
+      className="flex items-center gap-1.5 px-3 h-7.5 rounded-sm text-base text-text-dim border border-border hover:border-loss hover:text-loss transition-colors whitespace-nowrap"
     >
       Delete
     </button>

@@ -20,7 +20,7 @@ type Props = {
 }
 
 export function WinRateLine(props: Props): ReactElement {
-  const { uid = "wr", data, height = 240, color = "var(--color-long)" } = props
+  const { data, height = 240, color = "var(--color-long)" } = props
   const [hover, setHover] = useState<number | null>(null)
 
   const W = 720, H = height

@@ -170,7 +170,7 @@ export function TradeFormModal({ mode, accounts, playbooks, defaultAccountId, in
       ) : (
         <button
           onClick={openModal}
-          className="flex items-center gap-1.5 px-3 h-[30px] rounded-sm text-base text-text-dim border border-border hover:border-border-hi transition-colors whitespace-nowrap"
+          className="flex items-center gap-1.5 px-3 h-7.5 rounded-sm text-base text-text-dim border border-border hover:border-border-hi transition-colors whitespace-nowrap"
         >
           {TRADES.FORM.EDIT_CTA}
         </button>

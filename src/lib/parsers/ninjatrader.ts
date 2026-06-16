@@ -85,10 +85,6 @@ function parseNumber(raw: string): number {
   return parseFloat(cleaned)
 }
 
-function pad(n: number): string {
-  return String(n).padStart(2, "0")
-}
-
 function extractSymbol(instrument: string): string {
   return instrument.trim().split(" ")[0] ?? instrument.trim()
 }

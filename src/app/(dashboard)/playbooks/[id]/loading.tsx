@@ -6,8 +6,8 @@ export default function PlaybookDetailLoading(): ReactElement {
       <header className="flex items-center gap-4 px-4 md:px-7 py-3 border-b border-border bg-bg shrink-0">
         <div className="h-5 w-48 rounded bg-surface-2 animate-pulse" />
         <div className="ml-auto flex items-center gap-2">
-          <div className="h-[30px] w-14 rounded-sm bg-surface-2 animate-pulse" />
-          <div className="h-[30px] w-24 rounded-sm bg-surface-2 animate-pulse" />
+          <div className="h-7.5 w-14 rounded-sm bg-surface-2 animate-pulse" />
+          <div className="h-7.5 w-24 rounded-sm bg-surface-2 animate-pulse" />
         </div>
       </header>
 

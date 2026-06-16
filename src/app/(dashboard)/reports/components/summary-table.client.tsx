@@ -4,7 +4,7 @@ import { useState, useMemo } from "react"
 import type { ReactElement } from "react"
 import type { ReportRow } from "~/types/reports"
 import { REPORTS } from "~/constants/copies/reports"
-import { formatCurrency, formatPct } from "~/helpers/format"
+import { formatCurrency } from "~/helpers/format"
 
 type SortKey = keyof ReportRow
 type SortDir = 1 | -1

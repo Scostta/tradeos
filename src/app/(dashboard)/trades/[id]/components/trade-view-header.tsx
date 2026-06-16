@@ -26,7 +26,7 @@ export function TradeViewHeader({ trade, accounts, playbooks }: {
   const setupOk       = showAdherence && meetsSetup(playbookRules, trade)
 
   return (
-    <header className="flex items-center gap-4 px-7 py-[14px] border-b border-border bg-bg shrink-0">
+    <header className="flex items-center gap-4 px-7 py-3.5 border-b border-border bg-bg shrink-0">
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-2.5">
           <h1 className="text-xl font-semibold tracking-tight text-text">
@@ -57,7 +57,7 @@ export function TradeViewHeader({ trade, accounts, playbooks }: {
       <TradeDeleteButton tradeId={trade.id} />
       <Link
         href={APP_URLS.TRADES}
-        className="flex items-center gap-1.5 px-3 h-[30px] rounded-sm text-base text-text-dim border border-border hover:border-border-hi transition-colors whitespace-nowrap"
+        className="flex items-center gap-1.5 px-3 h-7.5 rounded-sm text-base text-text-dim border border-border hover:border-border-hi transition-colors whitespace-nowrap"
       >
         ← Back to list
       </Link>

@@ -70,9 +70,9 @@ export function SignedAreaChart(props: Props): ReactElement {
       : data.map((_, i) => i)
 
     return { xOf, yOf, y0, pts, lineD, areaD, lineMax, yr, grid, labelIdx, vmin, vr, ww }
-  }, [data, height, fewLabels, rightLines, padL, padR, padT, padB, ww, hh])
+  }, [data, fewLabels, rightLines, padL, padT, ww, hh])
 
-  const { xOf, y0, pts, lineD, areaD, lineMax, yr, grid, labelIdx } = geo
+  const { xOf, y0, lineD, areaD, lineMax, yr, grid, labelIdx } = geo
 
   const uidPos = `${uid}-pos`
   const uidNeg = `${uid}-neg`

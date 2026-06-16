@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useRef, useCallback, useEffect, useTransition, useReducer } from "react"
+import { useState, useRef, useCallback, useEffect, useTransition } from "react"
 import { createPortal } from "react-dom"
 import {
   getTradeAttachments,
@@ -42,7 +42,7 @@ function IcoBtn({ onClick, title, children, danger = false }: {
 }
 
 function Lightbox({
-  images, index, onClose, onPrev, onNext, onSetIndex, onDelete, isPending,
+  images, index, onClose, onPrev, onNext, onSetIndex, onDelete,
 }: {
   images:     TradeAttachment[]
   index:      number
@@ -51,7 +51,6 @@ function Lightbox({
   onNext:     () => void
   onSetIndex: (i: number) => void
   onDelete:   (img: TradeAttachment) => void
-  isPending:  boolean
 }) {
   const [zoom,      setZoom]      = useState(1)
   const [offset,    setOffset]    = useState(ZERO_OFFSET)
@@ -479,7 +478,6 @@ export function TradeAttachmentsCard({ tradeId }: { tradeId: string }) {
           onNext={goNext}
           onSetIndex={setCurrent}
           onDelete={handleRemove}
-          isPending={isPending}
         />
       )}
     </div>
