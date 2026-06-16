@@ -34,7 +34,7 @@ export const REPORTS = {
   REPORT_MENU: {
     DAY_TIME:    "Day & Time",
     SYMBOLS:     "Symbols",
-    STRATEGIES:  "Strategies",
+    STRATEGIES:  "Playbooks",
     WINS_LOSSES: "Wins vs Losses",
   },
 

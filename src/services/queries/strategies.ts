@@ -12,7 +12,7 @@ export async function getStrategiesWithStats(): Promise<ResultType<StrategyWithS
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return createErrorResult("UNAUTHENTICATED")
 
-  const [strategiesResult, tradesResult] = await Promise.all([
+  const [strategiesResult, tradesResult, accountsResult] = await Promise.all([
     supabase
       .from("strategies")
       .select("*")
@@ -23,6 +23,10 @@ export async function getStrategiesWithStats(): Promise<ResultType<StrategyWithS
       .select("*")
       .eq("user_id", user.id)
       .not("strategy_id", "is", null),
+    supabase
+      .from("accounts")
+      .select("id, risk_per_trade")
+      .eq("user_id", user.id),
   ])
 
   if (strategiesResult.error) {
@@ -35,8 +39,16 @@ export async function getStrategiesWithStats(): Promise<ResultType<StrategyWithS
     return createErrorResult(tradesResult.error.message)
   }
 
+  if (accountsResult.error) {
+    console.error(accountsResult.error)
+    return createErrorResult(accountsResult.error.message)
+  }
+
   const strategies = (strategiesResult.data ?? []).map(mapStrategyFromDb)
   const trades     = (tradesResult.data ?? []).map(mapTradeFromDb)
+  const riskByAccount = new Map<string, number | null>(
+    (accountsResult.data ?? []).map(a => [a.id, a.risk_per_trade])
+  )
 
-  return createDataResult(computeStrategyStats(strategies, trades))
+  return createDataResult(computeStrategyStats(strategies, trades, riskByAccount))
 }

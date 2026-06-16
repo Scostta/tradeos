@@ -17,6 +17,11 @@ export type StrategyWithStats = Strategy & {
   winRate:      number
   netPnl:       number
   equityCurve:  number[]   // cumulative net P&L sorted by entry_time
+  profitFactor: number     // gross win / |gross loss|
+  avgWin:       number
+  avgLoss:      number      // ≤ 0
+  expectancyR:  number      // mean R-multiple per trade (0 if no R coverage)
+  rCoverage:    { withR: number; total: number }
 }
 
 export const createStrategyInputSchema = z.object({

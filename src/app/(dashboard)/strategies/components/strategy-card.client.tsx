@@ -76,6 +76,10 @@ export function StrategyCard({ strategy }: Props): ReactElement {
   const hasData         = strategy.tradeCount > 0
   const winRatePositive = strategy.winRate > 0.5
   const pnlPositive     = strategy.netPnl >= 0
+  const hasR            = strategy.rCoverage.withR > 0
+  const hasAvgWL        = hasData && strategy.avgLoss !== 0
+  const avgWL           = hasAvgWL ? strategy.avgWin / Math.abs(strategy.avgLoss) : 0
+  const fmtR            = (r: number): string => `${r >= 0 ? "+" : "−"}${Math.abs(r).toFixed(2)}R`
 
   return (
     <StrategyEditor
@@ -156,6 +160,46 @@ export function StrategyCard({ strategy }: Props): ReactElement {
                 >
                   {formatCurrency(strategy.netPnl)}
                 </div>
+              ) : (
+                <div className="mono text-lg font-semibold text-text-mute">—</div>
+              )}
+            </div>
+          </div>
+
+          {/* Stats strip — risk-based (playbook attribution) */}
+          <div className="grid grid-cols-3 gap-px bg-border rounded-sm border border-border overflow-hidden">
+            <div className="bg-surface p-3">
+              <div className="label-caps mb-1">{STRATEGIES.CARD.EXPECTANCY_R}</div>
+              {hasR ? (
+                <div
+                  className="mono text-lg font-semibold"
+                  style={{ color: strategy.expectancyR >= 0 ? "var(--color-profit)" : "var(--color-loss)" }}
+                >
+                  {fmtR(strategy.expectancyR)}
+                </div>
+              ) : (
+                <div className="mono text-lg font-semibold text-text-mute">—</div>
+              )}
+            </div>
+
+            <div className="bg-surface p-3">
+              <div className="label-caps mb-1">{STRATEGIES.CARD.PROFIT_FACTOR}</div>
+              {hasData ? (
+                <div
+                  className="mono text-lg font-semibold"
+                  style={{ color: strategy.profitFactor >= 1 ? "var(--color-profit)" : "var(--color-loss)" }}
+                >
+                  {strategy.profitFactor.toFixed(2)}
+                </div>
+              ) : (
+                <div className="mono text-lg font-semibold text-text-mute">—</div>
+              )}
+            </div>
+
+            <div className="bg-surface p-3">
+              <div className="label-caps mb-1">{STRATEGIES.CARD.AVG_WL}</div>
+              {hasAvgWL ? (
+                <div className="mono text-lg font-semibold text-text">{avgWL.toFixed(2)}</div>
               ) : (
                 <div className="mono text-lg font-semibold text-text-mute">—</div>
               )}

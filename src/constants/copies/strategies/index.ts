@@ -1,5 +1,5 @@
 export const STRATEGIES = {
-  TITLE:            "Strategies",
+  TITLE:            "Playbooks",
   SUBTITLE:         "Define setups · tag trades · track edge",
   SUBTITLE_FALLBACK: "Track which setups are working",
 
@@ -7,6 +7,9 @@ export const STRATEGIES = {
     TRADES_LABEL:   "Trades",
     WIN_RATE_LABEL: "Win rate",
     NET_PNL_LABEL:  "Net P&L",
+    EXPECTANCY_R:   "Expectancy (R)",
+    PROFIT_FACTOR:  "Profit factor",
+    AVG_WL:         "Avg W/L",
     NO_DESCRIPTION: "No description",
     STATUS_ACTIVE:  "ACTIVE",
     STATUS_ARCHIVED: "ARCHIVED",
@@ -14,8 +17,8 @@ export const STRATEGIES = {
   },
 
   EDITOR: {
-    CREATE_TITLE:           "New strategy",
-    EDIT_TITLE:             "Edit strategy",
+    CREATE_TITLE:           "New playbook",
+    EDIT_TITLE:             "Edit playbook",
     CAPTION:                "Define a setup so you can tag trades and report on its edge.",
     NAME_LABEL:             "Name",
     NAME_PLACEHOLDER:       "e.g. London Open Fade",
@@ -27,36 +30,36 @@ export const STRATEGIES = {
     ADD_RULE:               "+ Add rule",
     RULE_PLACEHOLDER:       "Add a rule…",
     SAVE:                   "Save changes",
-    CREATE:                 "Create strategy",
+    CREATE:                 "Create playbook",
     CANCEL:                 "Cancel",
-    ARCHIVE:                "Archive strategy",
+    ARCHIVE:                "Archive playbook",
     ARCHIVE_CONFIRM:        "Click again to archive",
-    RESTORE:                "Restore strategy",
+    RESTORE:                "Restore playbook",
   },
 
   NEW_CARD: {
-    TITLE: "New strategy",
+    TITLE: "New playbook",
     BODY:  "Define rules and tag trades",
   },
 
   EMPTY: {
-    HEADLINE: "No strategies yet",
-    BODY:     "Create a strategy to tag your trades and track which setups are working.",
-    CTA:      "New strategy",
+    HEADLINE: "No playbooks yet",
+    BODY:     "Create a playbook to tag your trades and track which setups are working.",
+    CTA:      "New playbook",
   },
 
   TOAST: {
-    CREATE_SUCCESS: "Strategy created.",
-    SAVE_SUCCESS:   "Strategy updated.",
-    ARCHIVED:       "Strategy archived.",
-    RESTORED:       "Strategy restored.",
+    CREATE_SUCCESS: "Playbook created.",
+    SAVE_SUCCESS:   "Playbook updated.",
+    ARCHIVED:       "Playbook archived.",
+    RESTORED:       "Playbook restored.",
     ERROR:          "Could not save. Please try again.",
   },
 
   ERROR: {
-    LOAD_FAILED: "Could not load strategies.",
+    LOAD_FAILED: "Could not load playbooks.",
     TITLE:       "Something went wrong",
-    MESSAGE:     "Failed to load strategies.",
+    MESSAGE:     "Failed to load playbooks.",
     RETRY:       "Try again",
   },
 } as const

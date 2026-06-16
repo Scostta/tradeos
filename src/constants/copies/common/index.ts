@@ -12,7 +12,7 @@ export const COMMON = {
     TRADES:     "Trades",
     IMPORT:     "Import",
     REPORTS:    "Reports",
-    STRATEGIES: "Strategies",
+    STRATEGIES: "Playbooks",
     JOURNAL:    "Journal",
     ACCOUNTS:   "Accounts",
   },

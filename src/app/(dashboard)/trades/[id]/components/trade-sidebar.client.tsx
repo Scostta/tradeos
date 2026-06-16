@@ -63,9 +63,9 @@ export function TradeSidebar({ trade, strategies }: Props) {
   return (
     <div className="flex flex-col gap-4 min-w-0 h-full">
 
-      {/* Strategy */}
+      {/* Playbook */}
       <div className="card p-4">
-        <div className="label-caps mb-2">Strategy</div>
+        <div className="label-caps mb-2">Playbook</div>
         <select
           value={strategyId}
           onChange={e => handleStrategyChange(e.target.value)}
