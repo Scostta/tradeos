@@ -107,54 +107,26 @@ export default async function PlaybookDetailPage({
           </div>
         </div>
 
-        {/* Stats grid */}
-        <div className="card" style={{ padding: 0 }}>
-          <div className="grid grid-cols-2 sm:grid-cols-4">
-            {stats.map((cell, i) => (
-              <div
-                key={cell.label}
-                className="p-4"
-                style={{
-                  borderRight:  (i % 4 !== 3) ? "1px solid var(--color-border)" : undefined,
-                  borderBottom: (i < stats.length - 4) ? "1px solid var(--color-border)" : undefined,
-                }}
-              >
-                <div className="label-caps mb-1.5">{cell.label}</div>
-                <div className="mono text-lg font-semibold" style={{ color: cell.color ?? "var(--color-text)" }}>
-                  {cell.value}
+        {/* Stats + By instrument */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 items-start">
+          {/* Stats grid */}
+          <div className="card p-4">
+            <div className="grid grid-cols-2 gap-px bg-border rounded-sm border border-border overflow-hidden">
+              {stats.map((cell) => (
+                <div key={cell.label} className="bg-surface p-3">
+                  <div className="label-caps mb-1.5">{cell.label}</div>
+                  <div className="mono text-lg font-semibold" style={{ color: cell.color ?? "var(--color-text)" }}>
+                    {cell.value}
+                  </div>
                 </div>
-              </div>
-            ))}
+              ))}
+            </div>
           </div>
-        </div>
 
-        {!hasTrades ? (
-          <div className="card p-8 text-center text-sm text-text-mute">{PLAYBOOKS.DETAIL.EMPTY}</div>
-        ) : (
-          <>
-            {/* Equity curve */}
-            <div className="card p-4">
-              <div className="label-caps mb-3">{PLAYBOOKS.DETAIL.EQUITY}</div>
-              {cumData.length > 1 ? (
-                <SignedAreaChart uid="pb-eq" data={cumData} height={240} fewLabels />
-              ) : (
-                <div className="h-32 flex items-center justify-center text-xs text-text-mute">—</div>
-              )}
-            </div>
-
-            {/* R distribution */}
-            <div className="card p-4">
-              <div className="label-caps mb-3">{PLAYBOOKS.DETAIL.R_DIST}</div>
-              {hasR ? (
-                <RDistribution distribution={rStats.distribution} />
-              ) : (
-                <p className="text-sm text-text-mute italic">{PLAYBOOKS.DETAIL.NO_R}</p>
-              )}
-            </div>
-
-            {/* By instrument */}
-            <div className="card p-4">
-              <div className="label-caps mb-3">{PLAYBOOKS.DETAIL.BY_INSTRUMENT}</div>
+          {/* By instrument */}
+          <div className="card p-4">
+            <div className="label-caps mb-3">{PLAYBOOKS.DETAIL.BY_INSTRUMENT}</div>
+            {hasTrades ? (
               <table className="w-full text-sm">
                 <thead>
                   <tr className="text-text-mute">
@@ -177,8 +149,33 @@ export default async function PlaybookDetailPage({
                   ))}
                 </tbody>
               </table>
+            ) : (
+              <p className="text-sm text-text-mute italic">{PLAYBOOKS.DETAIL.EMPTY}</p>
+            )}
+          </div>
+        </div>
+
+        {/* Equity curve + R distribution */}
+        {hasTrades && (
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 items-start">
+            <div className="card p-4">
+              <div className="label-caps mb-3">{PLAYBOOKS.DETAIL.EQUITY}</div>
+              {cumData.length > 1 ? (
+                <SignedAreaChart uid="pb-eq" data={cumData} height={240} fewLabels />
+              ) : (
+                <div className="h-32 flex items-center justify-center text-xs text-text-mute">—</div>
+              )}
             </div>
-          </>
+
+            <div className="card p-4">
+              <div className="label-caps mb-3">{PLAYBOOKS.DETAIL.R_DIST}</div>
+              {hasR ? (
+                <RDistribution distribution={rStats.distribution} />
+              ) : (
+                <p className="text-sm text-text-mute italic">{PLAYBOOKS.DETAIL.NO_R}</p>
+              )}
+            </div>
+          </div>
         )}
       </div>
     </div>
