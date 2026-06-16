@@ -10,6 +10,7 @@ export const goalsSchema = z.object({
 export type Goals = z.infer<typeof goalsSchema>
 
 export const updateGoalsInputSchema = z.object({
+  accountId:        z.string().uuid().nullable(),   // null = global
   monthlyPnlTarget: z.number().nonnegative().nullable(),
   winRateTarget:    z.number().min(0).max(1).nullable(),
   maxDrawdownLimit: z.number().nonnegative().nullable(),
@@ -17,6 +18,10 @@ export const updateGoalsInputSchema = z.object({
 })
 
 export type UpdateGoalsInput = z.infer<typeof updateGoalsInputSchema>
+
+export const deleteGoalsInputSchema = z.object({
+  accountId: z.string().uuid().nullable(),
+})
 
 // ── Progress (current calendar month) ─────────────────────────────────────────
 export type GoalProgress = {
@@ -41,4 +46,17 @@ export type GoalsProgress = {
   winRate:     GoalProgress | null
   drawdown:    DrawdownProgress | null
   tradingDays: GoalProgress | null
+}
+
+// A goal scope: global (accountId null) or a specific account.
+export type GoalScope = {
+  accountId: string | null
+  label:     string   // "Global" or the account name
+  color:     string | null  // account dot color (null for global)
+}
+
+export type GoalSet = {
+  scope:    GoalScope
+  goals:    Goals
+  progress: GoalsProgress
 }

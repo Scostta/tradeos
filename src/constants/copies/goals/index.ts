@@ -1,5 +1,6 @@
 export const GOALS = {
   TITLE:     "Monthly goals",
+  PAGE_SUBTITLE: "Global and per-account monthly targets",
   EDIT:      "Edit",
   SET_CTA:   "Set goals",
   EMPTY:     "Set monthly targets to track your progress this month.",
@@ -20,7 +21,9 @@ export const GOALS = {
     MIN_DAYS:     "Min trading days",
     SAVE:         "Save goals",
     CANCEL:       "Cancel",
+    REMOVE:       "Remove goals",
     SUCCESS:      "Goals updated.",
+    REMOVED:      "Goals removed.",
     ERROR:        "Could not save goals.",
   },
 } as const

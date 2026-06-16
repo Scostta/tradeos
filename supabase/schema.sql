@@ -111,16 +111,25 @@ create policy "Users see own journal" on daily_journal
   for all using (auth.uid() = user_id);
 
 -- ------------------------------------------------------------
--- USER GOALS (metas mensuales, una fila por usuario)
+-- USER GOALS (metas mensuales: una global + una por cuenta)
+-- account_id null = meta global (todas las cuentas)
 -- ------------------------------------------------------------
 create table if not exists user_goals (
-  user_id            uuid primary key references auth.users not null,
+  id                 uuid primary key default gen_random_uuid(),
+  user_id            uuid references auth.users not null,
+  account_id         uuid references accounts(id) on delete cascade,
   monthly_pnl_target numeric(12,2),
   win_rate_target    numeric(5,4),    -- 0..1
   max_drawdown_limit numeric(12,2),   -- máximo drawdown permitido (positivo)
   min_trading_days   integer,
   updated_at         timestamptz default now()
 );
+
+-- Una meta global por usuario, una por (usuario, cuenta)
+create unique index if not exists user_goals_global_uniq
+  on user_goals (user_id) where account_id is null;
+create unique index if not exists user_goals_account_uniq
+  on user_goals (user_id, account_id) where account_id is not null;
 
 alter table user_goals enable row level security;
 
