@@ -4,7 +4,7 @@
 //   - static assets    → stale-while-revalidate (build files, generated icons)
 //   - everything else  → default network (Supabase / API pass straight through)
 
-const VERSION = "v1";
+const VERSION = "v2";
 const STATIC_CACHE = `tradeos-static-${VERSION}`;
 const OFFLINE_URL = "/offline.html";
 
