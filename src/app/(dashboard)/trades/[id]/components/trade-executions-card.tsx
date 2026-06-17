@@ -5,6 +5,7 @@ import type { ReactElement } from "react"
 import { formatDuration } from "~/helpers/duration"
 import { updateTradeStopPrice } from "~/actions/trades"
 import { useStopPrice } from "./stop-price-context.client"
+import { useTimezone } from "~/hooks/use-timezone"
 import type { Trade } from "~/types/trade"
 
 // ── MAE-based stop estimate ────────────────────────────────────────────────────
@@ -26,10 +27,11 @@ export function TradeExecutionsCard({ trade }: { trade: Trade }): ReactElement {
   const [draft,     setDraft]       = useState("")
   const [isPending, startTransition] = useTransition()
   const inputRef = useRef<HTMLInputElement>(null)
+  const timeZone = useTimezone()
 
   const fmtTime = (iso: string) =>
     new Date(iso).toLocaleTimeString("en-US", {
-      hour: "2-digit", minute: "2-digit", second: "2-digit", hour12: false,
+      hour: "2-digit", minute: "2-digit", second: "2-digit", hour12: false, timeZone,
     })
 
   const movePts  = ((trade.exitPrice - trade.entryPrice) * (isLong ? 1 : -1)).toFixed(2)

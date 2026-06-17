@@ -14,6 +14,7 @@
 //   - Month groupBy uses MMMM format (e.g. "January") for label.
 
 import { winRate, totalNetPnl, avgWin, avgLoss, profitFactor, maxDrawdown } from "~/lib/calculations/metrics"
+import { zonedDateKey, zonedParts, zonedWeekday, zonedYearMonthKey } from "~/helpers/tz"
 import type { Trade } from "~/types/trade"
 import type { Playbook } from "~/types/playbook"
 import type { ComparePeriodKey } from "~/helpers/compare-period"
@@ -35,20 +36,11 @@ import type {
 
 // ── Shared date helpers ───────────────────────────────────────────────────────
 
-/** Returns "YYYY-MM-DD" from an ISO timestamp using UTC. */
-function toDateKey(iso: string): string {
-  const d = new Date(iso)
-  const y = d.getUTCFullYear()
-  const m = String(d.getUTCMonth() + 1).padStart(2, "0")
-  const day = String(d.getUTCDate()).padStart(2, "0")
-  return `${y}-${m}-${day}`
-}
-
-/** Groups trades by a computed date key into a Map<YYYY-MM-DD, Trade[]>. */
-function groupByDateKey(trades: Trade[]): Map<string, Trade[]> {
+/** Groups trades by local calendar day into a Map<YYYY-MM-DD, Trade[]>. */
+function groupByDateKey(trades: Trade[], timeZone = "UTC"): Map<string, Trade[]> {
   const map = new Map<string, Trade[]>()
   for (const t of trades) {
-    const key = toDateKey(t.entryTime)
+    const key = zonedDateKey(t.entryTime, timeZone)
     const bucket = map.get(key) ?? []
     bucket.push(t)
     map.set(key, bucket)
@@ -69,9 +61,12 @@ const DOW_LABELS: Record<number, string> = {
   6: "Saturday",
 }
 
-/** Groups by day of week (0=Sunday … 6=Saturday). Includes weekends. */
-export function byDayOfWeek(trade: Trade): string {
-  return DOW_LABELS[new Date(trade.entryTime).getDay()] ?? "Unknown"
+/**
+ * Groups by day of week (0=Sunday … 6=Saturday) in the given timezone. Includes
+ * weekends. Returns a groupBy function so the timezone is bound once per report.
+ */
+export function byDayOfWeek(timeZone = "UTC"): (trade: Trade) => string {
+  return (trade: Trade): string => DOW_LABELS[zonedWeekday(trade.entryTime, timeZone)] ?? "Unknown"
 }
 
 const MONTH_LABELS = [
@@ -79,9 +74,9 @@ const MONTH_LABELS = [
   "July", "August", "September", "October", "November", "December",
 ]
 
-/** Groups by calendar month name (e.g. "March"). */
-export function byMonth(trade: Trade): string {
-  return MONTH_LABELS[new Date(trade.entryTime).getMonth()] ?? "Unknown"
+/** Groups by calendar month name (e.g. "March") in the given timezone. */
+export function byMonth(timeZone = "UTC"): (trade: Trade) => string {
+  return (trade: Trade): string => MONTH_LABELS[zonedParts(trade.entryTime, timeZone).month - 1] ?? "Unknown"
 }
 
 /** Groups by instrument symbol (e.g. "NQ"). */
@@ -334,7 +329,7 @@ export function sortByMonth(rows: ReportRow[]): ReportRow[] {
  * avgTradeWinLoss: avgWin / abs(avgLoss); 0 if no losing trades.
  * avgDailyWinPct: fraction of trading days (days with ≥1 trade) that are net positive.
  */
-export function computePerformanceSummary(trades: Trade[]): PerformanceSummary {
+export function computePerformanceSummary(trades: Trade[], timeZone = "UTC"): PerformanceSummary {
   if (trades.length === 0) {
     return {
       netPnl:           0,
@@ -373,7 +368,7 @@ export function computePerformanceSummary(trades: Trade[]): PerformanceSummary {
   const avgHoldTimeMs = totalHoldMs / trades.length
 
   // Per-day aggregation
-  const byDay = groupByDateKey(trades)
+  const byDay = groupByDateKey(trades, timeZone)
   const dayPnls = Array.from(byDay.values()).map(bucket =>
     bucket.reduce((s, t) => s + t.netPnl, 0),
   )
@@ -438,8 +433,8 @@ export function buildCumPoints(trades: Trade[]): CumPoint[] {
  * Days are sorted chronologically.
  * label: "DD MMM" (e.g. "10 Mar") for axis display.
  */
-export function buildAvgWinLoss(trades: Trade[]): AvgWinLossPoint[] {
-  const byDay = groupByDateKey(trades)
+export function buildAvgWinLoss(trades: Trade[], timeZone = "UTC"): AvgWinLossPoint[] {
+  const byDay = groupByDateKey(trades, timeZone)
   const entries = Array.from(byDay.entries()).sort(([a], [b]) => a.localeCompare(b))
 
   return entries.map(([dateKey, bucket]) => {
@@ -533,7 +528,7 @@ function monthKeyLabel(key: string): string {
  * Computes the full Overview snapshot from Trade[].
  * Pure; returns zeroed highlights/stats and empty series for an empty input.
  */
-export function computeOverview(trades: Trade[]): OverviewData {
+export function computeOverview(trades: Trade[], timeZone = "UTC"): OverviewData {
   const emptyHighlight: OverviewHighlight = { value: 0, sub: "—" }
 
   if (trades.length === 0) {
@@ -566,8 +561,7 @@ export function computeOverview(trades: Trade[]): OverviewData {
   // Per-month aggregation for the highlight cards
   const byMonth = new Map<string, number>()
   for (const t of sorted) {
-    const d = new Date(t.entryTime)
-    const key = `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, "0")}`
+    const key = zonedYearMonthKey(t.entryTime, timeZone)
     byMonth.set(key, (byMonth.get(key) ?? 0) + t.netPnl)
   }
   const monthEntries = Array.from(byMonth.entries())
@@ -576,7 +570,7 @@ export function computeOverview(trades: Trade[]): OverviewData {
   const avgMonth    = monthEntries.reduce((s, [, v]) => s + v, 0) / monthEntries.length
 
   // Per-day aggregation
-  const byDay = groupByDateKey(sorted)
+  const byDay = groupByDateKey(sorted, timeZone)
   const dayEntries = Array.from(byDay.entries()).sort(([a], [b]) => a.localeCompare(b))
   const dayPnls   = dayEntries.map(([, b]) => b.reduce((s, t) => s + t.netPnl, 0))
   const netDaily: NetDailyPoint[] = dayEntries.map(([date], i) => ({ date, v: dayPnls[i]! }))
@@ -641,8 +635,9 @@ export function computeComparePeriod(
   key:    ComparePeriodKey,
   label:  string,
   sub:    string,
+  timeZone = "UTC",
 ): ComparePeriod {
-  const s = computePerformanceSummary(trades)
+  const s = computePerformanceSummary(trades, timeZone)
   return {
     key,
     label,

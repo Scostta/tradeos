@@ -15,6 +15,7 @@ import { mapTradeFromDb } from "~/services/mappers/trades"
 import { mapPlaybookFromDb } from "~/services/mappers/playbooks"
 import { resolveDateRange } from "~/helpers/date-range"
 import { resolveComparePeriod } from "~/helpers/compare-period"
+import { getUserTimezone } from "~/services/queries/profile"
 import { createDataResult, createErrorResult } from "~/helpers/result"
 import {
   computePerformanceSummary,
@@ -56,6 +57,7 @@ export async function buildComparePeriod(
   userId:    string,
   accountId: string | null,
   key:       ComparePeriodKey,
+  timeZone = "UTC",
 ): Promise<ResultType<ComparePeriod, string>> {
   const w = resolveComparePeriod(key)
 
@@ -76,7 +78,7 @@ export async function buildComparePeriod(
   }
 
   const trades = (data ?? []).map(row => mapTradeFromDb(row as Record<string, unknown>))
-  return createDataResult(computeComparePeriod(trades, key, w.label, w.sub))
+  return createDataResult(computeComparePeriod(trades, key, w.label, w.sub, timeZone))
 }
 
 /**
@@ -101,7 +103,8 @@ export const getReportsData = cache(async function getReportsData(
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return createErrorResult("UNAUTHENTICATED")
 
-  const dateRange = range !== "all" ? resolveDateRange(range) : null
+  const timeZone = await getUserTimezone()
+  const dateRange = range !== "all" ? resolveDateRange(range, timeZone) : null
 
   // ── Fetch trades ────────────────────────────────────────────────────────────
   let tradesQuery = supabase
@@ -168,12 +171,12 @@ export const getReportsData = cache(async function getReportsData(
     // hasTrades is false, so compare/overview here are placeholders only.
     const emptyComparePeriod = (key: ComparePeriodKey): ComparePeriod => {
       const w = resolveComparePeriod(key)
-      return computeComparePeriod([], key, w.label, w.sub)
+      return computeComparePeriod([], key, w.label, w.sub, timeZone)
     }
 
     return createDataResult<ReportsData>({
       hasTrades:          false,
-      performanceSummary: computePerformanceSummary([]),
+      performanceSummary: computePerformanceSummary([], timeZone),
       cumPoints:          [],
       avgWinLoss:         [],
       dayTime:            emptyBreakdown,
@@ -181,7 +184,7 @@ export const getReportsData = cache(async function getReportsData(
       symbols:            emptyBreakdown,
       playbooks:         emptyBreakdown,
       winsLosses:         emptyBreakdown,
-      overview:           computeOverview([]),
+      overview:           computeOverview([], timeZone),
       compare:            { a: emptyComparePeriod("this-month"), b: emptyComparePeriod("last-month") },
       rStats:             computeRStats([]),
       playbookAdherence:  null,
@@ -198,23 +201,23 @@ export const getReportsData = cache(async function getReportsData(
   // Compare defaults are independent of the page range — fetched on their own
   // windows (this month vs last month).
   const [compareA, compareB] = await Promise.all([
-    buildComparePeriod(supabase, user.id, accountId, "this-month"),
-    buildComparePeriod(supabase, user.id, accountId, "last-month"),
+    buildComparePeriod(supabase, user.id, accountId, "this-month", timeZone),
+    buildComparePeriod(supabase, user.id, accountId, "last-month", timeZone),
   ])
   if (!compareA.success) return createErrorResult(compareA.error)
   if (!compareB.success) return createErrorResult(compareB.error)
 
   const reportsData: ReportsData = {
     hasTrades:          true,
-    performanceSummary: computePerformanceSummary(trades),
+    performanceSummary: computePerformanceSummary(trades, timeZone),
     cumPoints:          buildCumPoints(trades),
-    avgWinLoss:         buildAvgWinLoss(trades),
-    dayTime:            buildBreakdown(trades, byDayOfWeek, sortByDayOfWeek),
-    months:             buildBreakdown(trades, byMonth, sortByMonth),
+    avgWinLoss:         buildAvgWinLoss(trades, timeZone),
+    dayTime:            buildBreakdown(trades, byDayOfWeek(timeZone), sortByDayOfWeek),
+    months:             buildBreakdown(trades, byMonth(timeZone), sortByMonth),
     symbols:            buildBreakdown(trades, bySymbol),
     playbooks:         buildBreakdown(trades, byPlaybookName),
     winsLosses:         buildBreakdown(trades, byOutcome),
-    overview:           computeOverview(trades),
+    overview:           computeOverview(trades, timeZone),
     compare:            { a: compareA.data, b: compareB.data },
     rStats:             computeRStats(trades, riskByAccount),
     playbookAdherence:  computePortfolioAdherence(rulesById, trades, riskByAccount),

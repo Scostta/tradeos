@@ -1,13 +1,8 @@
+import { zonedDateKey } from "~/helpers/tz"
 import type { PropFirmConfig, PropFirmTrade, PropFirmStatus, AlertLevel } from "~/types/prop-firm"
 
 const round2  = (n: number): number => Math.round(n * 100) / 100
 const clamp01 = (n: number): number => Math.max(0, Math.min(1, n))
-
-// Local-date bucket key (mirrors the rest of the app, which buckets in local TZ).
-function dateKey(iso: string): string {
-  const d = new Date(iso)
-  return `${d.getFullYear()}-${d.getMonth() + 1}-${d.getDate()}`
-}
 
 /**
  * Compute prop-firm rule status for an account from its closed trades.
@@ -25,6 +20,7 @@ export function computePropFirmStatus(
   config: PropFirmConfig,
   trades: PropFirmTrade[],
   now: Date = new Date(),
+  timeZone = "UTC",
 ): PropFirmStatus | null {
   const hasRule =
     config.drawdownType   != null ||
@@ -44,7 +40,7 @@ export function computePropFirmStatus(
     if (config.drawdownType === "trailing_eod") {
       const closeByDay = new Map<string, number>()
       let cum = 0
-      for (const t of sorted) { cum = round2(cum + t.netPnl); closeByDay.set(dateKey(t.exitTime), cum) }
+      for (const t of sorted) { cum = round2(cum + t.netPnl); closeByDay.set(zonedDateKey(t.exitTime, timeZone), cum) }
       let p = initial
       for (const cumAtClose of closeByDay.values()) p = Math.max(p, round2(initial + cumAtClose))
       peakBalance = p
@@ -82,8 +78,8 @@ export function computePropFirmStatus(
   // ── Daily loss limit ─────────────────────────────────────────────────────────
   let dailyLoss: PropFirmStatus["dailyLoss"] = null
   if (config.dailyLossLimit != null) {
-    const todayKey = `${now.getFullYear()}-${now.getMonth() + 1}-${now.getDate()}`
-    const todayNet = round2(sorted.filter(t => dateKey(t.exitTime) === todayKey).reduce((s, t) => s + t.netPnl, 0))
+    const todayKey = zonedDateKey(now.toISOString(), timeZone)
+    const todayNet = round2(sorted.filter(t => zonedDateKey(t.exitTime, timeZone) === todayKey).reduce((s, t) => s + t.netPnl, 0))
     const used     = Math.max(0, round2(-todayNet))
     const limit    = config.dailyLossLimit
     dailyLoss = {
@@ -111,7 +107,7 @@ export function computePropFirmStatus(
   // ── Minimum trading days ──────────────────────────────────────────────────────
   let tradingDays: PropFirmStatus["tradingDays"] = null
   if (config.minTradingDays != null) {
-    const done = new Set(sorted.map(t => dateKey(t.exitTime))).size
+    const done = new Set(sorted.map(t => zonedDateKey(t.exitTime, timeZone))).size
     tradingDays = {
       required:  config.minTradingDays,
       done,

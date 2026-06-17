@@ -11,10 +11,11 @@ import type { Account } from "~/types/account"
 import type { Playbook } from "~/types/playbook"
 import { TradeDeleteButton } from "./trade-delete-button.client"
 
-export function TradeViewHeader({ trade, accounts, playbooks }: {
+export function TradeViewHeader({ trade, accounts, playbooks, timezone }: {
   trade:      Trade
   accounts:   Account[]
   playbooks: Playbook[]
+  timezone:   string
 }): ReactElement {
   const num = trade.tradeNumber !== null
     ? trade.tradeNumber.toString().padStart(4, "0")
@@ -45,7 +46,7 @@ export function TradeViewHeader({ trade, accounts, playbooks }: {
           )}
         </div>
         <div className="mono text-sm text-text-mute mt-0.5">
-          {formatDateTime(trade.entryTime)} · held {formatDuration(trade.entryTime, trade.exitTime)}
+          {formatDateTime(trade.entryTime, timezone)} · held {formatDuration(trade.entryTime, trade.exitTime)}
         </div>
       </div>
       <TradeFormModal

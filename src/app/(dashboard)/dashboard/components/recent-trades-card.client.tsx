@@ -7,11 +7,13 @@ import type { Trade } from "~/types/trade"
 import { DASHBOARD } from "~/constants/copies/dashboard"
 import { APP_URLS } from "~/constants/app-urls"
 import { formatCurrency, formatDateTime } from "~/helpers/format"
+import { useTimezone } from "~/hooks/use-timezone"
 
 type Props = { trades: Trade[] }
 
 export function RecentTradesCard({ trades }: Props): ReactElement {
   const router = useRouter()
+  const tz = useTimezone()
 
   if (trades.length === 0) {
     return (
@@ -82,7 +84,7 @@ export function RecentTradesCard({ trades }: Props): ReactElement {
                   </span>
                 </td>
                 <td className="px-3 py-2.5">
-                  <span className="mono text-sm text-text-dim">{formatDateTime(t.entryTime)}</span>
+                  <span className="mono text-sm text-text-dim">{formatDateTime(t.entryTime, tz)}</span>
                 </td>
                 <td className="px-3 py-2.5">
                   <span className="mono text-sm font-semibold text-text">{t.instrument}</span>

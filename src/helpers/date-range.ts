@@ -1,26 +1,17 @@
+import { zonedStartOfDay, zonedStartOfWeek, zonedStartOfMonth, zonedStartOfYear } from "~/helpers/tz"
 import type { RangeKey } from "~/types/metrics"
 
-export function resolveDateRange(range: RangeKey): { from: string; to: string } {
+/**
+ * Resolves a range key to an [from, to] ISO window. Boundaries (start of today /
+ * week / month / year) are computed in the user's timezone so "this month" means
+ * their local month. Defaults to UTC when no timezone is passed.
+ */
+export function resolveDateRange(range: RangeKey, timeZone = "UTC"): { from: string; to: string } {
   const now = new Date()
   const to = now.toISOString()
 
-  if (range === "today") {
-    const from = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate())).toISOString()
-    return { from, to }
-  }
-
-  if (range === "week") {
-    const day = now.getUTCDay()
-    const diff = day === 0 ? -6 : 1 - day
-    const monday = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() + diff))
-    return { from: monday.toISOString(), to }
-  }
-
-  if (range === "month") {
-    const from = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1)).toISOString()
-    return { from, to }
-  }
-
-  const from = new Date(Date.UTC(now.getUTCFullYear(), 0, 1)).toISOString()
-  return { from, to }
+  if (range === "today") return { from: zonedStartOfDay(now, timeZone), to }
+  if (range === "week")  return { from: zonedStartOfWeek(now, timeZone), to }
+  if (range === "month") return { from: zonedStartOfMonth(now, timeZone), to }
+  return { from: zonedStartOfYear(now, timeZone), to }
 }

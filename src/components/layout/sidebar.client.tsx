@@ -18,6 +18,7 @@ import { UploadIcon } from "~/lib/ui/icons/upload-icon";
 import { WalletIcon } from "~/lib/ui/icons/wallet-icon";
 import { TargetIcon } from "~/lib/ui/icons/target-icon";
 import { SparklesIcon } from "~/lib/ui/icons/sparkles-icon";
+import { SettingsIcon } from "~/lib/ui/icons/settings-icon";
 import { XIcon } from "~/lib/ui/icons/x-icon";
 
 interface NavItem {
@@ -42,23 +43,25 @@ const NAV_ITEMS: NavItem[] = [
 function getInitials(email?: string): string {
   if (!email) return "—";
   const local = email.split("@")[0] ?? "";
-  const parts = local.split(/[._-]/).filter(Boolean);
+  const parts = local.split(/[._\-\s]/).filter(Boolean);
   if (parts.length >= 2) return (parts[0][0] + parts[1][0]).toUpperCase();
   return local.slice(0, 2).toUpperCase();
 }
 
 export function Sidebar({
   userEmail,
+  userName,
   isOpen,
   onClose,
 }: {
   userEmail?: string
+  userName?: string
   isOpen?: boolean
   onClose?: () => void
 }) {
   const pathname = usePathname();
   const [pending, startSignOut] = useTransition();
-  const initials = getInitials(userEmail);
+  const initials = getInitials(userName ?? userEmail);
 
   function isActive(path: string): boolean {
     if (path === "/dashboard") return pathname === "/dashboard";
@@ -135,15 +138,30 @@ export function Sidebar({
 
       {/* User footer */}
       <div className="flex items-center gap-2.5 px-2 pt-2.5 mt-3 border-t border-border">
-        <div
-          className="flex items-center justify-center w-7 h-7 rounded-full text-xs font-semibold text-text shrink-0"
-          style={{ background: "linear-gradient(135deg, #475569, #1e293b)" }}
+        <Link
+          href={APP_URLS.SETTINGS}
+          className="flex items-center gap-2.5 flex-1 min-w-0 rounded hover:opacity-80 transition-opacity"
+          title={COMMON.USER_FOOTER.SETTINGS}
         >
-          {initials}
-        </div>
-        <div className="flex-1 min-w-0">
-          <div className="text-base text-text font-medium truncate">{userEmail ?? COMMON.USER_FOOTER.ACCOUNT}</div>
-        </div>
+          <div
+            className="flex items-center justify-center w-7 h-7 rounded-full text-xs font-semibold text-text shrink-0"
+            style={{ background: "linear-gradient(135deg, #475569, #1e293b)" }}
+          >
+            {initials}
+          </div>
+          <div className="flex-1 min-w-0">
+            <div className="text-base text-text font-medium truncate">
+              {userName ?? userEmail ?? COMMON.USER_FOOTER.ACCOUNT}
+            </div>
+          </div>
+        </Link>
+        <Link
+          href={APP_URLS.SETTINGS}
+          className="p-1 rounded text-text-mute hover:text-text-dim transition-colors"
+          title={COMMON.USER_FOOTER.SETTINGS}
+        >
+          <SettingsIcon />
+        </Link>
         <button
           type="button"
           disabled={pending}

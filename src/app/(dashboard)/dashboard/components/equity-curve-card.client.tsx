@@ -5,6 +5,7 @@ import type { ReactElement } from "react"
 import type { EquityPoint } from "~/types/metrics"
 import { DASHBOARD } from "~/constants/copies/dashboard"
 import { formatCurrency, formatDate } from "~/helpers/format"
+import { useTimezone } from "~/hooks/use-timezone"
 
 type Mode = "line" | "area" | "candle"
 
@@ -21,6 +22,7 @@ type Props = {
 }
 
 function EquityChart({ data, mode }: { data: EquityPoint[]; mode: Mode }): ReactElement | null {
+  const tz = useTimezone()
   const [hover, setHover] = useState<HoverState | null>(null)
   const lineRef = useRef<SVGPathElement>(null)
   const areaRef = useRef<SVGPathElement>(null)
@@ -234,7 +236,7 @@ function EquityChart({ data, mode }: { data: EquityPoint[]; mode: Mode }): React
           }}
         >
           <div style={{ color: "var(--color-text-mute)", marginBottom: 2 }}>
-            {formatDate(hover.d.date)}
+            {formatDate(hover.d.date, tz)}
           </div>
           <div style={{ color: hover.d.equity >= 0 ? "var(--color-profit)" : "var(--color-loss)" }}>
             {formatCurrency(hover.d.equity, { sign: false, decimals: 0 })}

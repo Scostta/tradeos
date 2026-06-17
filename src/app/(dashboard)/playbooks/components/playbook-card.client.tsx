@@ -7,6 +7,7 @@ import type { PlaybookWithStats } from "~/types/playbook"
 import { PLAYBOOKS } from "~/constants/copies/playbooks"
 import { APP_URLS } from "~/constants/app-urls"
 import { formatDate, formatCurrency, formatPct } from "~/helpers/format"
+import { useTimezone } from "~/hooks/use-timezone"
 
 type Props = { playbook: PlaybookWithStats }
 
@@ -74,6 +75,7 @@ function MiniEquitySpark({ points, gradientId }: { points: number[]; gradientId:
 }
 
 export function PlaybookCard({ playbook }: Props): ReactElement {
+  const tz              = useTimezone()
   const hasData         = playbook.tradeCount > 0
   const winRatePositive = playbook.winRate > 0.5
   const pnlPositive     = playbook.netPnl >= 0
@@ -113,7 +115,7 @@ export function PlaybookCard({ playbook }: Props): ReactElement {
 
           {/* Created meta */}
           <p className="mono text-xs text-text-mute -mt-2">
-            {PLAYBOOKS.CARD.CREATED_PREFIX} {formatDate(playbook.createdAt)}
+            {PLAYBOOKS.CARD.CREATED_PREFIX} {formatDate(playbook.createdAt, tz)}
           </p>
 
           {/* Description */}

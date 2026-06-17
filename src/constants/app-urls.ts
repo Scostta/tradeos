@@ -9,6 +9,7 @@ export const APP_URLS = {
   ACCOUNTS:   "/accounts",
   GOALS:      "/goals",
   INSIGHTS:   "/insights",
+  SETTINGS:   "/settings",
 
   LOGIN:           "/login",
   REGISTER:        "/register",

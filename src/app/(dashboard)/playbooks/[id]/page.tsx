@@ -2,6 +2,7 @@ import type { ReactElement } from "react"
 import Link from "next/link"
 import { notFound } from "next/navigation"
 import { getPlaybookDetail } from "~/services/queries/playbooks"
+import { getUserTimezone } from "~/services/queries/profile"
 import { PLAYBOOKS } from "~/constants/copies/playbooks"
 import { APP_URLS } from "~/constants/app-urls"
 import { formatCurrency, formatPct, formatDate } from "~/helpers/format"
@@ -20,7 +21,7 @@ export default async function PlaybookDetailPage({
   params: Promise<{ id: string }>
 }): Promise<ReactElement> {
   const { id } = await params
-  const result = await getPlaybookDetail(id)
+  const [result, timezone] = await Promise.all([getPlaybookDetail(id), getUserTimezone()])
   if (!result.success) notFound()
 
   const { playbook, metrics, rStats, equityCurve, byInstrument, adherence } = result.data
@@ -31,7 +32,7 @@ export default async function PlaybookDetailPage({
   const hasRules  = rules.all.length > 0
 
   const cumData = equityCurve.map(p => ({
-    label: formatDate(p.date),
+    label: formatDate(p.date, timezone),
     v:     p.equity,
   }))
 

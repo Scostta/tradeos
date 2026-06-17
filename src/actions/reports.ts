@@ -3,6 +3,7 @@
 import { z } from "zod"
 import { createClient } from "~/utils/supabase/server"
 import { buildComparePeriod } from "~/services/queries/reports"
+import { getUserTimezone } from "~/services/queries/profile"
 import { comparePeriodKeySchema } from "~/helpers/compare-period"
 import { createDataResult, createErrorResult } from "~/helpers/result"
 import type { ResultType } from "~/helpers/result"
@@ -30,9 +31,10 @@ export async function compareReportsPeriods(
   if (!user) return createErrorResult("UNAUTHENTICATED")
 
   const { accountId, keyA, keyB } = parsed.data
+  const timeZone = await getUserTimezone()
   const [a, b] = await Promise.all([
-    buildComparePeriod(supabase, user.id, accountId, keyA),
-    buildComparePeriod(supabase, user.id, accountId, keyB),
+    buildComparePeriod(supabase, user.id, accountId, keyA, timeZone),
+    buildComparePeriod(supabase, user.id, accountId, keyB, timeZone),
   ])
   if (!a.success) return createErrorResult(a.error)
   if (!b.success) return createErrorResult(b.error)

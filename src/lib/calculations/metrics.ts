@@ -1,3 +1,4 @@
+import { zonedWeekday } from "~/helpers/tz"
 import type { Trade } from "~/types/trade"
 import type { EquityPoint, DowBucket, DashboardMetrics } from "~/types/metrics"
 
@@ -58,12 +59,12 @@ const DOW_KEYS = ["Mon", "Tue", "Wed", "Thu", "Fri"] as const
 type DowKey = typeof DOW_KEYS[number]
 const DAY_TO_DOW: Record<number, DowKey> = { 1: "Mon", 2: "Tue", 3: "Wed", 4: "Thu", 5: "Fri" }
 
-export function pnlByDayOfWeek(trades: Trade[]): DowBucket[] {
+export function pnlByDayOfWeek(trades: Trade[], timeZone = "UTC"): DowBucket[] {
   const map = new Map<DowKey, { net: number; trades: number }>(
     DOW_KEYS.map(k => [k, { net: 0, trades: 0 }])
   )
   for (const t of trades) {
-    const day = new Date(t.entryTime).getDay()
+    const day = zonedWeekday(t.entryTime, timeZone)
     const key = DAY_TO_DOW[day]
     if (key) {
       const bucket = map.get(key)!

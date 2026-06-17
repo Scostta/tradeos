@@ -214,3 +214,22 @@ alter table ai_insights enable row level security;
 
 create policy "Users manage own insights" on ai_insights
   for all using (auth.uid() = user_id);
+
+-- ------------------------------------------------------------
+-- PROFILES — perfil de usuario (1:1 con auth.users). Preferencias:
+-- display_name, timezone (IANA, solo persistida por ahora) y divisa por
+-- defecto. Sin trigger: defaults on read + upsert on write.
+-- ------------------------------------------------------------
+create table if not exists profiles (
+  user_id          uuid primary key references auth.users on delete cascade,
+  display_name     text,
+  timezone         text not null default 'UTC',
+  default_currency text not null default 'USD',
+  created_at       timestamptz default now(),
+  updated_at       timestamptz default now()
+);
+
+alter table profiles enable row level security;
+
+create policy "Users manage own profile" on profiles
+  for all using (auth.uid() = user_id);

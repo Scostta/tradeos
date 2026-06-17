@@ -2,6 +2,7 @@ import { createClient } from "~/utils/supabase/server"
 import { mapTradeFromDb } from "~/services/mappers/trades"
 import { computeDashboardMetrics, equityCurve, pnlByDayOfWeek } from "~/lib/calculations/metrics"
 import { resolveDateRange } from "~/helpers/date-range"
+import { getUserTimezone } from "~/services/queries/profile"
 import { createDataResult, createErrorResult } from "~/helpers/result"
 import type { ResultType } from "~/helpers/result"
 import type { DashboardData } from "~/types/metrics"
@@ -15,7 +16,8 @@ export async function getDashboardData(
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return createErrorResult("UNAUTHENTICATED")
 
-  const dateRange = range !== "all" ? resolveDateRange(range) : null
+  const timeZone = await getUserTimezone()
+  const dateRange = range !== "all" ? resolveDateRange(range, timeZone) : null
 
   let query = supabase
     .from("trades")
@@ -38,7 +40,7 @@ export async function getDashboardData(
   const dashboardData: DashboardData = {
     metrics:      computeDashboardMetrics(trades),
     equityCurve:  equityCurve(trades),
-    pnlByDow:     pnlByDayOfWeek(trades),
+    pnlByDow:     pnlByDayOfWeek(trades, timeZone),
     recentTrades: [...trades].slice(-5).reverse(),
     hasTrades:    trades.length > 0,
   }

@@ -3,6 +3,7 @@ import { notFound } from "next/navigation"
 import { getTradeById } from "~/services/queries/trades"
 import { getAccounts } from "~/services/queries/accounts"
 import { getPlaybooksWithStats } from "~/services/queries/playbooks"
+import { getUserTimezone } from "~/services/queries/profile"
 import { TradeViewHeader } from "./components/trade-view-header"
 import { TradeHeroCard } from "./components/trade-hero-card"
 import { TradeExcursionBar } from "./components/trade-excursion-bar"
@@ -17,10 +18,11 @@ export default async function TradeViewPage({
 }): Promise<ReactElement> {
   const { id } = await params
 
-  const [tradeResult, accountsResult, playbooksResult] = await Promise.all([
+  const [tradeResult, accountsResult, playbooksResult, timezone] = await Promise.all([
     getTradeById(id),
     getAccounts(),
     getPlaybooksWithStats(),
+    getUserTimezone(),
   ])
 
   if (!tradeResult.success) notFound()
@@ -34,7 +36,7 @@ export default async function TradeViewPage({
 
   return (
     <div className="flex flex-col h-full">
-      <TradeViewHeader trade={trade} accounts={accounts} playbooks={playbooks} />
+      <TradeViewHeader trade={trade} accounts={accounts} playbooks={playbooks} timezone={timezone} />
 
       <StopPriceProvider initial={trade.stopPrice ?? null}>
         <div className="flex-1 overflow-auto px-4 md:px-7 py-5">

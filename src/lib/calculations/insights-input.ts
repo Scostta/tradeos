@@ -6,12 +6,14 @@
 // three behavioral signals that don't exist elsewhere: hour-of-day performance,
 // post-loss tilt, and overtrading by daily volume.
 //
-// Time bucketing uses UTC (getUTC*) so the output is deterministic regardless of
-// the runtime timezone — important for tests and for the Vercel (UTC) runtime.
+// Time bucketing uses the trader's timezone (threaded in as `timeZone`, default
+// UTC) so hour-of-day / day-of-week / daily signals reflect their local clock.
+// All zoned date math goes through ~/helpers/tz.
 
 import { winRate, totalNetPnl, avgWin, avgLoss, profitFactor, maxDrawdown } from "~/lib/calculations/metrics"
 import { computeReportBreakdown, byDayOfWeek } from "~/lib/calculations/reports"
 import { computeMistakeStats } from "~/lib/calculations/mistakes"
+import { zonedDateKey, zonedHour } from "~/helpers/tz"
 import type { Trade } from "~/types/trade"
 import type { RStats } from "~/types/reports"
 import type { PlaybookAdherence } from "~/types/playbook"
@@ -32,15 +34,6 @@ const round2 = (n: number): number => Math.round(n * 100) / 100
 const round4 = (n: number): number => Math.round(n * 10000) / 10000
 
 const TOP_MISTAKES = 5
-
-/** "YYYY-MM-DD" in UTC — one trading day. */
-function toDateKey(iso: string): string {
-  const d = new Date(iso)
-  const y = d.getUTCFullYear()
-  const m = String(d.getUTCMonth() + 1).padStart(2, "0")
-  const day = String(d.getUTCDate()).padStart(2, "0")
-  return `${y}-${m}-${day}`
-}
 
 function byEntryTime(a: Trade, b: Trade): number {
   return new Date(a.entryTime).getTime() - new Date(b.entryTime).getTime()
@@ -66,11 +59,11 @@ function buildOverview(trades: Trade[]): InsightsOverview {
 
 // ── Hour-of-day ───────────────────────────────────────────────────────────────
 
-/** Win rate and net P&L per UTC hour, sorted by hour, only hours with trades. */
-export function buildHourBuckets(trades: Trade[]): HourBucket[] {
+/** Win rate and net P&L per local hour, sorted by hour, only hours with trades. */
+export function buildHourBuckets(trades: Trade[], timeZone = "UTC"): HourBucket[] {
   const map = new Map<number, Trade[]>()
   for (const t of trades) {
-    const hour = new Date(t.entryTime).getUTCHours()
+    const hour = zonedHour(t.entryTime, timeZone)
     const bucket = map.get(hour) ?? []
     bucket.push(t)
     map.set(hour, bucket)
@@ -87,8 +80,8 @@ export function buildHourBuckets(trades: Trade[]): HourBucket[] {
 
 // ── Day of week (reuses the reports breakdown) ────────────────────────────────
 
-function buildDowSignals(trades: Trade[]): DowSignal[] {
-  return computeReportBreakdown(trades, byDayOfWeek).map(r => ({
+function buildDowSignals(trades: Trade[], timeZone = "UTC"): DowSignal[] {
+  return computeReportBreakdown(trades, byDayOfWeek(timeZone)).map(r => ({
     label:   r.label,
     trades:  r.trades,
     winRate: round4(r.winRate),
@@ -181,10 +174,10 @@ function median(xs: number[]): number {
  * net P&L on busy vs quiet days. Days with count > median are "high volume".
  * Returns zeroed groups when there are fewer than two trading days.
  */
-export function buildVolumeSignal(trades: Trade[]): VolumeSignal {
+export function buildVolumeSignal(trades: Trade[], timeZone = "UTC"): VolumeSignal {
   const byDay = new Map<string, Trade[]>()
   for (const t of trades) {
-    const key = toDateKey(t.entryTime)
+    const key = zonedDateKey(t.entryTime, timeZone)
     const bucket = byDay.get(key) ?? []
     bucket.push(t)
     byDay.set(key, bucket)
@@ -257,17 +250,18 @@ function buildAdherenceSignal(a: PlaybookAdherence): AdherenceSignal {
  */
 export function buildInsightsInput(
   trades: Trade[],
-  opts: { rStats?: RStats; adherence?: PlaybookAdherence | null } = {},
+  opts: { rStats?: RStats; adherence?: PlaybookAdherence | null; timeZone?: string } = {},
 ): InsightsInput {
+  const timeZone = opts.timeZone ?? "UTC"
   return {
     overview:    buildOverview(trades),
-    byHour:      buildHourBuckets(trades),
-    byDayOfWeek: buildDowSignals(trades),
+    byHour:      buildHourBuckets(trades, timeZone),
+    byDayOfWeek: buildDowSignals(trades, timeZone),
     bySession:   buildSessionBuckets(trades),
     topMistakes: computeMistakeStats(trades).slice(0, TOP_MISTAKES),
     rMultiples:  opts.rStats ? buildRSignal(opts.rStats) : null,
     adherence:   opts.adherence ? buildAdherenceSignal(opts.adherence) : null,
     streaks:     buildStreakSignal(trades),
-    volume:      buildVolumeSignal(trades),
+    volume:      buildVolumeSignal(trades, timeZone),
   }
 }

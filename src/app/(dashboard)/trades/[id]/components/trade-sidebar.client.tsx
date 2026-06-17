@@ -5,6 +5,7 @@ import { updateTradeNotes, updateTradePlaybook, updateTradeTags, updateTradeFoll
 import { TradeExecutionsCard } from "./trade-executions-card"
 import { TradeAttachmentsCard } from "./trade-attachments-card.client"
 import { parsePlaybookRules } from "~/helpers/playbook-rules"
+import { useTimezone } from "~/hooks/use-timezone"
 import type { Trade } from "~/types/trade"
 import type { Playbook } from "~/types/playbook"
 
@@ -19,6 +20,7 @@ const MISTAKE_PRESETS = [
 ] as const
 
 export function TradeSidebar({ trade, playbooks }: Props) {
+  const timeZone = useTimezone()
   const [notes, setNotes] = useState(trade.notes ?? "")
   const [playbookId, setPlaybookId] = useState(trade.playbookId ?? "")
   const [followedRules, setFollowedRules] = useState<string[]>(trade.followedRules ?? [])
@@ -96,7 +98,7 @@ export function TradeSidebar({ trade, playbooks }: Props) {
   }, [trade.id, mistakes])
 
   const savedLabel = savedAt
-    ? `autosaved · ${savedAt.toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit", hour12: false })}`
+    ? `autosaved · ${savedAt.toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit", hour12: false, timeZone })}`
     : null
 
   return (

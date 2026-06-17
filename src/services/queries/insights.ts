@@ -11,6 +11,7 @@ import { createClient } from "~/utils/supabase/server"
 import { mapTradeFromDb } from "~/services/mappers/trades"
 import { mapPlaybookFromDb } from "~/services/mappers/playbooks"
 import { buildInsightsInput } from "~/lib/calculations/insights-input"
+import { getUserTimezone } from "~/services/queries/profile"
 import { computeRStats } from "~/lib/calculations/r-multiples"
 import { computePortfolioAdherence } from "~/lib/calculations/playbook-adherence"
 import { parsePlaybookRules } from "~/helpers/playbook-rules"
@@ -69,6 +70,7 @@ export async function loadInsightsInput(
   const input = buildInsightsInput(trades, {
     rStats:    computeRStats(trades, riskByAccount),
     adherence: computePortfolioAdherence(rulesById, trades, riskByAccount),
+    timeZone:  await getUserTimezone(),
   })
 
   return createDataResult({ input, hash: hashInput(input), tradesCount: trades.length })

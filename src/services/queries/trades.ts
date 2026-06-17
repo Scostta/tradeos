@@ -1,6 +1,7 @@
 import { createClient } from "~/utils/supabase/server"
 import { mapTradeFromDb } from "~/services/mappers/trades"
 import { resolveDateRange } from "~/helpers/date-range"
+import { getUserTimezone } from "~/services/queries/profile"
 import { createDataResult, createErrorResult } from "~/helpers/result"
 import { PAGE_SIZE } from "~/types/trade-filters"
 import type { ResultType } from "~/helpers/result"
@@ -38,7 +39,7 @@ export async function getTradesPage(
 
   const offset = (filters.page - 1) * PAGE_SIZE
 
-  const dateRange = filters.range !== "all" ? resolveDateRange(filters.range) : null
+  const dateRange = filters.range !== "all" ? resolveDateRange(filters.range, await getUserTimezone()) : null
 
   let pageQuery = supabase
     .from("trades")

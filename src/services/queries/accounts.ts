@@ -1,6 +1,7 @@
 import { createClient } from "~/utils/supabase/server"
 import { mapAccountFromDb } from "~/services/mappers/accounts"
 import { computePropFirmStatus } from "~/lib/calculations/prop-firm"
+import { getUserTimezone } from "~/services/queries/profile"
 import type { Account } from "~/types/account"
 import type { AccountWithPropStatus, PropFirmConfig, PropFirmTrade } from "~/types/prop-firm"
 import { createDataResult, createErrorResult } from "~/helpers/result"
@@ -66,6 +67,7 @@ export async function getAccountsWithStats(): Promise<ResultType<AccountWithProp
     return createErrorResult(tradesResult.error.message)
   }
 
+  const timeZone = await getUserTimezone()
   const statsMap  = new Map<string, { tradeCount: number; netPnl: number }>()
   const tradesMap = new Map<string, PropFirmTrade[]>()
   for (const trade of tradesResult.data ?? []) {
@@ -82,7 +84,7 @@ export async function getAccountsWithStats(): Promise<ResultType<AccountWithProp
   const accounts: AccountWithPropStatus[] = (accountsResult.data ?? []).map((row) => {
     const account = mapAccountFromDb(row)
     const stats   = statsMap.get(row.id) ?? { tradeCount: 0, netPnl: 0 }
-    const propStatus = computePropFirmStatus(propConfig(account), tradesMap.get(row.id) ?? [])
+    const propStatus = computePropFirmStatus(propConfig(account), tradesMap.get(row.id) ?? [], new Date(), timeZone)
     return { ...account, ...stats, propStatus }
   })
 
@@ -124,7 +126,7 @@ export async function getPropFirmStatus(
   const propTrades: PropFirmTrade[] = (trades ?? []).map((t) => ({
     netPnl: t.net_pnl ?? 0, exitTime: t.exit_time,
   }))
-  const status = computePropFirmStatus(propConfig(account), propTrades)
+  const status = computePropFirmStatus(propConfig(account), propTrades, new Date(), await getUserTimezone())
 
   return createDataResult({ account, status })
 }

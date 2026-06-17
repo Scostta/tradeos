@@ -1,4 +1,5 @@
 import { totalNetPnl, winRate, maxDrawdown } from "~/lib/calculations/metrics"
+import { zonedDateKey } from "~/helpers/tz"
 import type { Trade } from "~/types/trade"
 import type { Goals, GoalsProgress } from "~/types/goals"
 
@@ -6,20 +7,15 @@ const round2  = (n: number): number => Math.round(n * 100) / 100
 const clamp01 = (n: number): number => Math.max(0, Math.min(1, n))
 const ratio   = (cur: number, target: number, met: boolean): number => (target > 0 ? clamp01(cur / target) : met ? 1 : 0)
 
-function dateKey(iso: string): string {
-  const d = new Date(iso)
-  return `${d.getFullYear()}-${d.getMonth() + 1}-${d.getDate()}`
-}
-
 /**
  * Progress of the current-month trades against the user's monthly goals.
  * Drawdown is a "stay under" limit; the rest are "reach" targets.
  */
-export function computeGoalsProgress(goals: Goals, trades: Trade[], monthLabel: string): GoalsProgress {
+export function computeGoalsProgress(goals: Goals, trades: Trade[], monthLabel: string, timeZone = "UTC"): GoalsProgress {
   const net = round2(totalNetPnl(trades))
   const wr  = winRate(trades)
   const dd  = round2(Math.abs(maxDrawdown(trades)))
-  const days = new Set(trades.map(t => dateKey(t.entryTime))).size
+  const days = new Set(trades.map(t => zonedDateKey(t.entryTime, timeZone))).size
 
   return {
     hasAnyGoal:

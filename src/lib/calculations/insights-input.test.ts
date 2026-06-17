@@ -36,6 +36,29 @@ describe("buildHourBuckets", () => {
   it("returns an empty array for no trades", () => {
     expect(buildHourBuckets([])).toEqual([])
   })
+
+  it("buckets by local hour when a timezone is given", () => {
+    // 04:30Z is 23:00 CT (previous evening) and 13:00 JST.
+    const t = [trade({ entryTime: "2026-06-11T04:30:00.000Z", netPnl: 100 })]
+    expect(buildHourBuckets(t)[0]!.hour).toBe(4)                       // default UTC
+    expect(buildHourBuckets(t, "America/Chicago")[0]!.hour).toBe(23)
+    expect(buildHourBuckets(t, "Asia/Tokyo")[0]!.hour).toBe(13)
+  })
+})
+
+describe("buildVolumeSignal timezone", () => {
+  it("splits two late-night trades into separate local days in Chicago", () => {
+    // Both on 2026-06-11 in UTC, but 23:30 CT (Jun 10) and 00:30 CT (Jun 11).
+    const trades = [
+      trade({ entryTime: "2026-06-11T04:30:00.000Z", netPnl: 10 }),
+      trade({ entryTime: "2026-06-11T05:30:00.000Z", netPnl: 20 }),
+    ]
+    // Same UTC day → one trading day → < 2 days → zeroed groups.
+    expect(buildVolumeSignal(trades).highVolumeDays.days).toBe(0)
+    // Two local days in Chicago → median split applies.
+    const ct = buildVolumeSignal(trades, "America/Chicago")
+    expect(ct.highVolumeDays.days + ct.lowVolumeDays.days).toBe(2)
+  })
 })
 
 describe("buildStreakSignal", () => {

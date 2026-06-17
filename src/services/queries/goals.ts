@@ -2,6 +2,8 @@ import { createClient } from "~/utils/supabase/server"
 import { mapTradeFromDb } from "~/services/mappers/trades"
 import { mapAccountFromDb } from "~/services/mappers/accounts"
 import { computeGoalsProgress } from "~/lib/calculations/goals"
+import { getUserTimezone } from "~/services/queries/profile"
+import { zonedStartOfMonth } from "~/helpers/tz"
 import { createDataResult, createErrorResult } from "~/helpers/result"
 import type { ResultType } from "~/helpers/result"
 import type { Goals, GoalSet, GoalScope } from "~/types/goals"
@@ -16,11 +18,11 @@ function mapGoals(row: Record<string, unknown> | null | undefined): Goals {
   }
 }
 
-function monthInfo(): { start: string; label: string } {
+function monthInfo(timeZone: string): { start: string; label: string } {
   const now = new Date()
   return {
-    start: new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1)).toISOString(),
-    label: now.toLocaleDateString("en-US", { month: "long", year: "numeric", timeZone: "UTC" }),
+    start: zonedStartOfMonth(now, timeZone),
+    label: now.toLocaleDateString("en-US", { month: "long", year: "numeric", timeZone }),
   }
 }
 
@@ -30,6 +32,7 @@ type LoadedGoals = {
   tradesByAccount: Map<string, Trade[]>
   allTrades:     Trade[]
   monthLabel:    string
+  timeZone:      string
 }
 
 async function load(): Promise<ResultType<LoadedGoals, string>> {
@@ -37,7 +40,8 @@ async function load(): Promise<ResultType<LoadedGoals, string>> {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return createErrorResult("UNAUTHENTICATED")
 
-  const { start, label } = monthInfo()
+  const timeZone = await getUserTimezone()
+  const { start, label } = monthInfo(timeZone)
 
   const [goalsRes, accountsRes, tradesRes] = await Promise.all([
     supabase.from("user_goals").select("*").eq("user_id", user.id),
@@ -66,24 +70,25 @@ async function load(): Promise<ResultType<LoadedGoals, string>> {
     tradesByAccount,
     allTrades,
     monthLabel: label,
+    timeZone,
   })
 }
 
-function buildSet(scope: GoalScope, goalRow: Record<string, unknown> | undefined, trades: Trade[], monthLabel: string): GoalSet {
+function buildSet(scope: GoalScope, goalRow: Record<string, unknown> | undefined, trades: Trade[], monthLabel: string, timeZone: string): GoalSet {
   const goals = mapGoals(goalRow)
-  return { scope, goals, progress: computeGoalsProgress(goals, trades, monthLabel) }
+  return { scope, goals, progress: computeGoalsProgress(goals, trades, monthLabel, timeZone) }
 }
 
 /** All goal scopes (Global + every active account) with current-month progress. */
 export async function getGoalsOverview(): Promise<ResultType<{ sets: GoalSet[] }, string>> {
   const loaded = await load()
   if (!loaded.success) return loaded
-  const { goalByAccount, accounts, tradesByAccount, allTrades, monthLabel } = loaded.data
+  const { goalByAccount, accounts, tradesByAccount, allTrades, monthLabel, timeZone } = loaded.data
 
   const sets: GoalSet[] = [
-    buildSet({ accountId: null, label: "Global", color: null }, goalByAccount.get(null), allTrades, monthLabel),
+    buildSet({ accountId: null, label: "Global", color: null }, goalByAccount.get(null), allTrades, monthLabel, timeZone),
     ...accounts.map(a =>
-      buildSet({ accountId: a.id, label: a.name, color: a.color }, goalByAccount.get(a.id), tradesByAccount.get(a.id) ?? [], monthLabel)
+      buildSet({ accountId: a.id, label: a.name, color: a.color }, goalByAccount.get(a.id), tradesByAccount.get(a.id) ?? [], monthLabel, timeZone)
     ),
   ]
   return createDataResult({ sets })
@@ -93,15 +98,15 @@ export async function getGoalsOverview(): Promise<ResultType<{ sets: GoalSet[] }
 export async function getDashboardGoals(accountId: string | null): Promise<ResultType<{ set: GoalSet }, string>> {
   const loaded = await load()
   if (!loaded.success) return loaded
-  const { goalByAccount, accounts, tradesByAccount, allTrades, monthLabel } = loaded.data
+  const { goalByAccount, accounts, tradesByAccount, allTrades, monthLabel, timeZone } = loaded.data
 
   const account = accountId ? accounts.find(a => a.id === accountId) : undefined
   if (account && goalByAccount.has(account.id)) {
     return createDataResult({
-      set: buildSet({ accountId: account.id, label: account.name, color: account.color }, goalByAccount.get(account.id), tradesByAccount.get(account.id) ?? [], monthLabel),
+      set: buildSet({ accountId: account.id, label: account.name, color: account.color }, goalByAccount.get(account.id), tradesByAccount.get(account.id) ?? [], monthLabel, timeZone),
     })
   }
   return createDataResult({
-    set: buildSet({ accountId: null, label: "Global", color: null }, goalByAccount.get(null), allTrades, monthLabel),
+    set: buildSet({ accountId: null, label: "Global", color: null }, goalByAccount.get(null), allTrades, monthLabel, timeZone),
   })
 }

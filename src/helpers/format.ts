@@ -12,16 +12,16 @@ export function formatPct(n: number, decimals = 1): string {
   return (n * 100).toFixed(decimals) + "%"
 }
 
-export function formatDateTime(iso: string): string {
+export function formatDateTime(iso: string, timeZone?: string): string {
   const dt = new Date(iso)
-  const parts = dt.toLocaleDateString("en-US", { month: "short", day: "2-digit", year: "2-digit" })
-  const t = dt.toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit", hour12: false })
+  const parts = dt.toLocaleDateString("en-US", { month: "short", day: "2-digit", year: "2-digit", timeZone })
+  const t = dt.toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit", hour12: false, timeZone })
   return parts + " · " + t
 }
 
-export function formatDate(iso: string): string {
+export function formatDate(iso: string, timeZone?: string): string {
   const dt = new Date(iso)
-  return dt.toLocaleDateString("en-US", { month: "short", day: "2-digit", year: "2-digit" })
+  return dt.toLocaleDateString("en-US", { month: "short", day: "2-digit", year: "2-digit", timeZone })
 }
 
 /** Compact currency: $1.2k, −$500, $1.2M. Used in chart tick labels and heatmap cells. */

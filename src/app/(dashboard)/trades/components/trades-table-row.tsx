@@ -4,6 +4,7 @@ import type { ReactElement } from "react"
 import { useRouter } from "next/navigation"
 import { formatCurrency, formatDateTime } from "~/helpers/format"
 import { formatDuration } from "~/helpers/duration"
+import { useTimezone } from "~/hooks/use-timezone"
 import { TRADES } from "~/constants/copies/trades"
 import type { Trade } from "~/types/trade"
 
@@ -21,6 +22,7 @@ type Props = {
 export function TradesTableRow(props: Props): ReactElement {
   const { trade, playbooks } = props
   const router = useRouter()
+  const tz = useTimezone()
 
   const playbookName = trade.playbookId
     ? (playbooks.find(s => s.id === trade.playbookId)?.name ?? "—")
@@ -41,7 +43,7 @@ export function TradesTableRow(props: Props): ReactElement {
           : "—"}
       </td>
       <td className="px-3 py-2.5 mono text-text-dim text-xs whitespace-nowrap">
-        {formatDateTime(trade.entryTime)}
+        {formatDateTime(trade.entryTime, tz)}
       </td>
       <td className="px-3 py-2.5 font-semibold text-text mono text-xs">
         {trade.instrument}

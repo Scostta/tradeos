@@ -9,6 +9,7 @@ import type { Account } from "~/types"
 import { upsertJournalEntry } from "~/actions/journal"
 import { JOURNAL } from "~/constants/copies/journal"
 import { formatCurrency, formatPct } from "~/helpers/format"
+import { useTimezone } from "~/hooks/use-timezone"
 import { Button } from "~/lib/ui/button"
 import { Toast } from "~/lib/ui/toast"
 import type { ToastVariant } from "~/lib/ui/toast"
@@ -44,6 +45,7 @@ type Props = {
 export function DayDrawer({ day, accounts, onClose }: Props): ReactElement {
   const accountMap = new Map(accounts.map(a => [a.id, a]))
   const router = useRouter()
+  const timeZone = useTimezone()
   const [draft, setDraft] = useState<Draft>(() => initDraft(day))
   const [toast, setToast] = useState<ToastState | null>(null)
   const [isPending, startTransition] = useTransition()
@@ -257,6 +259,7 @@ export function DayDrawer({ day, accounts, onClose }: Props): ReactElement {
                     hour: "2-digit",
                     minute: "2-digit",
                     hour12: false,
+                    timeZone,
                   })
                   return (
                     <Link

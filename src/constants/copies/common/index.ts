@@ -28,5 +28,6 @@ export const COMMON = {
     ACCOUNT:    "Account",
     INSTRUMENT: "NQ · live",
     LOG_OUT:    "Log out",
+    SETTINGS:   "Settings",
   },
 } as const;

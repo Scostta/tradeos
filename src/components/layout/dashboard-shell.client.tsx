@@ -3,17 +3,23 @@
 import { useState } from "react"
 import type { ReactNode } from "react"
 import { Sidebar } from "./sidebar.client"
+import { TimezoneContext } from "~/hooks/use-timezone"
 
 export function DashboardShell({
   userEmail,
+  userName,
+  timezone = "UTC",
   children,
 }: {
   userEmail?: string
+  userName?: string
+  timezone?: string
   children: ReactNode
 }) {
   const [sidebarOpen, setSidebarOpen] = useState(false)
 
   return (
+    <TimezoneContext.Provider value={timezone}>
     <div className="flex h-screen overflow-hidden bg-bg">
       {sidebarOpen && (
         <div
@@ -23,6 +29,7 @@ export function DashboardShell({
       )}
       <Sidebar
         userEmail={userEmail}
+        userName={userName}
         isOpen={sidebarOpen}
         onClose={() => setSidebarOpen(false)}
       />
@@ -45,5 +52,6 @@ export function DashboardShell({
         {children}
       </main>
     </div>
+    </TimezoneContext.Provider>
   )
 }
