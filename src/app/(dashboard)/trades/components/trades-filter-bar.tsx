@@ -4,6 +4,7 @@ import { MISTAKE_PRESETS } from "~/constants/trade-mistakes"
 import type { TradeFilters } from "~/types/trade-filters"
 import { FilterBar } from "~/components/filter-bar"
 import { FilterPill } from "~/components/filter-pill.client"
+import { FilterSheet } from "~/components/filter-sheet.client"
 import { RangeSelector } from "~/components/range-selector.client"
 import { PnlRangeFilter } from "./pnl-range-filter.client"
 import { ClearFiltersButton } from "./clear-filters-button.client"
@@ -52,26 +53,47 @@ export function TradesFilterBar(props: Props): ReactElement {
     ...MISTAKE_PRESETS.map(m => ({ value: m as string, label: m })),
   ]
 
-  const hasActiveFilters = Boolean(
-    filters.instrument || filters.direction || filters.outcome || filters.playbookId ||
-    filters.mistake || filters.tag || filters.pnlMin !== null || filters.pnlMax !== null ||
-    filters.range !== "all",
+  // Active filters that live in the pill set (range is excluded — it stays visible
+  // as its own selector, so it isn't collapsed into the mobile sheet).
+  const activeCount = [
+    filters.instrument,
+    filters.direction,
+    filters.outcome,
+    filters.playbookId,
+    filters.mistake,
+    filters.tag,
+    filters.pnlMin !== null || filters.pnlMax !== null ? "pnl" : null,
+  ].filter(Boolean).length
+
+  const hasActiveFilters = activeCount > 0 || filters.range !== "all"
+
+  const pills = (
+    <>
+      <FilterPill label={TRADES.LIST.FILTERS.INSTRUMENT} paramKey="instrument" value={filters.instrument} options={instrumentOptions} />
+      <FilterPill label={TRADES.LIST.FILTERS.DIRECTION}  paramKey="direction"  value={filters.direction}  options={directionOptions} />
+      <FilterPill label={TRADES.LIST.FILTERS.OUTCOME}    paramKey="outcome"    value={filters.outcome}    options={outcomeOptions} />
+      <FilterPill label={TRADES.LIST.FILTERS.PLAYBOOK}   paramKey="playbook"   value={filters.playbookId} options={playbookOptions} />
+      <FilterPill label={TRADES.LIST.FILTERS.MISTAKES}   paramKey="mistake"    value={filters.mistake}    options={mistakeOptions} />
+      {tags.length > 0 && (
+        <FilterPill label={TRADES.LIST.FILTERS.TAG} paramKey="tag" value={filters.tag} options={tagOptions} />
+      )}
+      <PnlRangeFilter min={filters.pnlMin} max={filters.pnlMax} />
+      {hasActiveFilters && <ClearFiltersButton />}
+    </>
   )
 
   return (
     <FilterBar
       filters={
         <>
-          <FilterPill label={TRADES.LIST.FILTERS.INSTRUMENT} paramKey="instrument" value={filters.instrument} options={instrumentOptions} />
-          <FilterPill label={TRADES.LIST.FILTERS.DIRECTION}  paramKey="direction"  value={filters.direction}  options={directionOptions} />
-          <FilterPill label={TRADES.LIST.FILTERS.OUTCOME}    paramKey="outcome"    value={filters.outcome}    options={outcomeOptions} />
-          <FilterPill label={TRADES.LIST.FILTERS.PLAYBOOK}   paramKey="playbook"   value={filters.playbookId} options={playbookOptions} />
-          <FilterPill label={TRADES.LIST.FILTERS.MISTAKES}   paramKey="mistake"    value={filters.mistake}    options={mistakeOptions} />
-          {tags.length > 0 && (
-            <FilterPill label={TRADES.LIST.FILTERS.TAG} paramKey="tag" value={filters.tag} options={tagOptions} />
-          )}
-          <PnlRangeFilter min={filters.pnlMin} max={filters.pnlMax} />
-          {hasActiveFilters && <ClearFiltersButton />}
+          {/* Desktop: inline pills */}
+          <div className="hidden md:flex flex-wrap items-center gap-2">{pills}</div>
+          {/* Mobile: collapse into a sheet */}
+          <div className="md:hidden">
+            <FilterSheet label={TRADES.LIST.FILTERS.BUTTON} title={TRADES.LIST.FILTERS.SHEET_TITLE} count={activeCount}>
+              {pills}
+            </FilterSheet>
+          </div>
         </>
       }
       actions={<RangeSelector value={filters.range} options={RANGE_OPTIONS} />}

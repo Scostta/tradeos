@@ -43,6 +43,8 @@ export const TRADES = {
       APPLY:      "Apply",
       CLEAR:      "Clear",
       CLEAR_ALL:  "Clear filters",
+      BUTTON:     "Filters",
+      SHEET_TITLE:"Filters",
     },
     RANGE: {
       DAY:   "Day",
