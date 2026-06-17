@@ -204,8 +204,8 @@ export function TradeFormModal({ mode, accounts, playbooks, defaultAccountId, in
           onClick={closeModal}
         >
           <div
-            className="card border-border-hi max-w-[95vw] max-h-[90vh] overflow-y-auto p-6 flex flex-col gap-4"
-            style={{ width: 520, boxShadow: "0 20px 80px rgba(0,0,0,0.6)" }}
+            className="card border-border-hi max-w-[95vw] max-h-[90vh] overflow-y-auto p-5 flex flex-col gap-3"
+            style={{ width: 600, boxShadow: "0 20px 80px rgba(0,0,0,0.6)" }}
             onClick={(e) => e.stopPropagation()}
           >
             {/* Header */}
@@ -241,18 +241,16 @@ export function TradeFormModal({ mode, accounts, playbooks, defaultAccountId, in
               <AttachmentStaging files={pendingFiles} onChange={setPendingFiles} disabled={isPending} />
             ) : (
             <>
-            {/* Account */}
-            <Field label={TRADES.FORM.ACCOUNT}>
-              <select value={accountId} onChange={(e) => setAccountId(e.target.value)} className={INPUT_CLS}>
-                <option value="" disabled>{TRADES.FORM.SELECT_ACCOUNT}</option>
-                {accounts.map((a) => (
-                  <option key={a.id} value={a.id}>{a.name}</option>
-                ))}
-              </select>
-            </Field>
-
-            {/* Instrument + Direction */}
+            {/* Account + Instrument */}
             <div className="grid grid-cols-2 gap-3">
+              <Field label={TRADES.FORM.ACCOUNT}>
+                <select value={accountId} onChange={(e) => setAccountId(e.target.value)} className={INPUT_CLS}>
+                  <option value="" disabled>{TRADES.FORM.SELECT_ACCOUNT}</option>
+                  {accounts.map((a) => (
+                    <option key={a.id} value={a.id}>{a.name}</option>
+                  ))}
+                </select>
+              </Field>
               <Field label={TRADES.FORM.INSTRUMENT}>
                 <input
                   type="text"
@@ -266,6 +264,10 @@ export function TradeFormModal({ mode, accounts, playbooks, defaultAccountId, in
                   {KNOWN_INSTRUMENTS.map((s) => <option key={s} value={s} />)}
                 </datalist>
               </Field>
+            </div>
+
+            {/* Direction + Contracts */}
+            <div className="grid grid-cols-2 gap-3">
               <Field label={TRADES.FORM.DIRECTION}>
                 <div className="grid grid-cols-2 gap-1.5">
                   {(["long", "short"] as const).map((d) => (
@@ -285,18 +287,8 @@ export function TradeFormModal({ mode, accounts, playbooks, defaultAccountId, in
                   ))}
                 </div>
               </Field>
-            </div>
-
-            {/* Contracts + Session */}
-            <div className="grid grid-cols-2 gap-3">
               <Field label={TRADES.FORM.CONTRACTS}>
                 <input type="number" min="1" step="1" value={contracts} onChange={(e) => setContracts(e.target.value)} placeholder="1" className={INPUT_CLS} />
-              </Field>
-              <Field label={TRADES.FORM.SESSION}>
-                <select value={session} onChange={(e) => setSession(e.target.value)} className={INPUT_CLS}>
-                  <option value="">{TRADES.FORM.NONE}</option>
-                  {SESSIONS.map((s) => <option key={s} value={s}>{s}</option>)}
-                </select>
               </Field>
             </div>
 
@@ -310,11 +302,6 @@ export function TradeFormModal({ mode, accounts, playbooks, defaultAccountId, in
               </Field>
             </div>
 
-            {/* Stop loss */}
-            <Field label={TRADES.FORM.STOP_PRICE} hint={TRADES.FORM.STOP_HINT}>
-              <input type="number" step="0.0001" value={stopPrice} onChange={(e) => setStopPrice(e.target.value)} placeholder="0.0000" className={INPUT_CLS} />
-            </Field>
-
             {/* Entry + Exit time */}
             <div className="grid grid-cols-2 gap-3">
               <Field label={TRADES.FORM.ENTRY_TIME}>
@@ -322,6 +309,19 @@ export function TradeFormModal({ mode, accounts, playbooks, defaultAccountId, in
               </Field>
               <Field label={TRADES.FORM.EXIT_TIME}>
                 <input type="datetime-local" value={exitTime} onChange={(e) => setExitTime(e.target.value)} className={INPUT_CLS} />
+              </Field>
+            </div>
+
+            {/* Stop loss + Session */}
+            <div className="grid grid-cols-2 gap-3">
+              <Field label={TRADES.FORM.STOP_PRICE} hint={TRADES.FORM.STOP_HINT}>
+                <input type="number" step="0.0001" value={stopPrice} onChange={(e) => setStopPrice(e.target.value)} placeholder="0.0000" className={INPUT_CLS} />
+              </Field>
+              <Field label={TRADES.FORM.SESSION}>
+                <select value={session} onChange={(e) => setSession(e.target.value)} className={INPUT_CLS}>
+                  <option value="">{TRADES.FORM.NONE}</option>
+                  {SESSIONS.map((s) => <option key={s} value={s}>{s}</option>)}
+                </select>
               </Field>
             </div>
 
@@ -342,24 +342,24 @@ export function TradeFormModal({ mode, accounts, playbooks, defaultAccountId, in
               </Field>
             </div>
 
-            {/* Net P&L (derived) */}
-            <div className="flex items-center justify-between px-2.5 py-2 rounded-sm bg-surface-2 border border-border">
-              <span className="label-caps">{TRADES.FORM.NET_PNL}</span>
-              <span
-                className="mono text-base font-semibold"
-                style={{ color: netPnl >= 0 ? "var(--color-profit)" : "var(--color-loss)" }}
-              >
-                {formatCurrency(netPnl)}
-              </span>
+            {/* Net P&L (derived) + Playbook */}
+            <div className="grid grid-cols-2 gap-3 items-end">
+              <Field label={TRADES.FORM.PLAYBOOK}>
+                <select value={playbookId} onChange={(e) => setPlaybookId(e.target.value)} className={INPUT_CLS}>
+                  <option value="">{TRADES.FORM.NONE}</option>
+                  {playbooks.filter(s => s.active || s.id === playbookId).map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
+                </select>
+              </Field>
+              <div className="flex items-center justify-between px-2.5 py-2 rounded-sm bg-surface-2 border border-border">
+                <span className="label-caps">{TRADES.FORM.NET_PNL}</span>
+                <span
+                  className="mono text-base font-semibold"
+                  style={{ color: netPnl >= 0 ? "var(--color-profit)" : "var(--color-loss)" }}
+                >
+                  {formatCurrency(netPnl)}
+                </span>
+              </div>
             </div>
-
-            {/* Playbook */}
-            <Field label={TRADES.FORM.PLAYBOOK}>
-              <select value={playbookId} onChange={(e) => setPlaybookId(e.target.value)} className={INPUT_CLS}>
-                <option value="">{TRADES.FORM.NONE}</option>
-                {playbooks.filter(s => s.active || s.id === playbookId).map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
-              </select>
-            </Field>
 
             {/* Notes */}
             <Field label={TRADES.FORM.NOTES}>
