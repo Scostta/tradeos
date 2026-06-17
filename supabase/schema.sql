@@ -188,3 +188,29 @@ create policy "Users delete own trade attachments"
     bucket_id = 'trade-attachments'
     and (storage.foldername(name))[1] = auth.uid()::text
   );
+
+-- ------------------------------------------------------------
+-- AI INSIGHTS — análisis generados por Claude, cacheados por hash del input.
+-- Una fila por scope (global = account_id null, o por cuenta). Solo se regenera
+-- cuando input_hash deja de coincidir con los datos actuales (control de coste).
+-- ------------------------------------------------------------
+create table if not exists ai_insights (
+  id           uuid primary key default gen_random_uuid(),
+  user_id      uuid references auth.users not null,
+  account_id   uuid references accounts(id) on delete cascade,  -- null = todas las cuentas
+  input_hash   text not null,
+  insights     jsonb not null,
+  model        text not null,
+  trades_count integer not null,
+  generated_at timestamptz default now()
+);
+
+create unique index if not exists ai_insights_global_uniq
+  on ai_insights (user_id) where account_id is null;
+create unique index if not exists ai_insights_account_uniq
+  on ai_insights (user_id, account_id) where account_id is not null;
+
+alter table ai_insights enable row level security;
+
+create policy "Users manage own insights" on ai_insights
+  for all using (auth.uid() = user_id);

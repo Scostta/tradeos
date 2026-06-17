@@ -17,6 +17,7 @@ import { LogOutIcon } from "~/lib/ui/icons/log-out-icon";
 import { UploadIcon } from "~/lib/ui/icons/upload-icon";
 import { WalletIcon } from "~/lib/ui/icons/wallet-icon";
 import { TargetIcon } from "~/lib/ui/icons/target-icon";
+import { SparklesIcon } from "~/lib/ui/icons/sparkles-icon";
 import { XIcon } from "~/lib/ui/icons/x-icon";
 
 interface NavItem {
@@ -31,6 +32,7 @@ const NAV_ITEMS: NavItem[] = [
   { id: "trades", label: COMMON.NAV_LABELS.TRADES, path: APP_URLS.TRADES, Icon: ListIcon },
   { id: "import", label: COMMON.NAV_LABELS.IMPORT, path: APP_URLS.IMPORT, Icon: UploadIcon },
   { id: "reports", label: COMMON.NAV_LABELS.REPORTS, path: APP_URLS.REPORTS, Icon: BarIcon },
+  { id: "insights", label: COMMON.NAV_LABELS.INSIGHTS, path: APP_URLS.INSIGHTS, Icon: SparklesIcon },
   { id: "playbooks", label: COMMON.NAV_LABELS.PLAYBOOKS, path: APP_URLS.PLAYBOOKS, Icon: LayersIcon },
   { id: "journal",    label: COMMON.NAV_LABELS.JOURNAL,    path: APP_URLS.JOURNAL,    Icon: CalendarIcon },
   { id: "goals",     label: COMMON.NAV_LABELS.GOALS,      path: APP_URLS.GOALS,      Icon: TargetIcon },

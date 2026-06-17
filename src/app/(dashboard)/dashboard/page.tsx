@@ -4,8 +4,10 @@ import type { TradesRange } from "~/types/trade-filters"
 import { getDashboardData } from "~/services/queries/dashboard"
 import { getAccounts, getPropFirmStatus } from "~/services/queries/accounts"
 import { getDashboardGoals } from "~/services/queries/goals"
+import { getInsightsView } from "~/services/queries/insights"
 import { PropFirmStatusCard } from "~/components/prop-firm/prop-firm-status-card"
 import { GoalsCard } from "~/components/goals/goals-card.client"
+import { InsightsCard } from "~/components/insights/insights-card.client"
 import { DASHBOARD } from "~/constants/copies/dashboard"
 import { TRADES } from "~/constants/copies/trades"
 import { FilterBar } from "~/components/filter-bar"
@@ -48,6 +50,10 @@ export default async function DashboardPage({
   const goalsResult = await getDashboardGoals(accountId)
   const goalsData = goalsResult.success ? goalsResult.data : null
 
+  // AI Insights — compact card (hides itself when there aren't enough trades).
+  const insightsResult = await getInsightsView(accountId)
+  const insightsView = insightsResult.success ? insightsResult.data : null
+
   const filterBar = (
     <FilterBar
       actions={<RangeSelector value={range} options={RANGE_OPTIONS} />}
@@ -85,6 +91,7 @@ export default async function DashboardPage({
         )}
         {goalsData && <GoalsCard set={goalsData.set} />}
         <MetricsRow metrics={metrics} />
+        {insightsView && <InsightsCard view={insightsView} accountId={accountId} />}
 
         <div className="flex flex-col lg:flex-row gap-3">
           <div className="flex-1 min-w-0">
