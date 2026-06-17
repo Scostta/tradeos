@@ -11,6 +11,8 @@ export const APP_URLS = {
   INSIGHTS:   "/insights",
   SETTINGS:   "/settings",
 
+  SHARE_PREFIX:    "/share/",
+
   LOGIN:           "/login",
   REGISTER:        "/register",
   FORGOT_PASSWORD: "/forgot-password",

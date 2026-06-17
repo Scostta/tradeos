@@ -233,3 +233,27 @@ alter table profiles enable row level security;
 
 create policy "Users manage own profile" on profiles
   for all using (auth.uid() = user_id);
+
+-- ------------------------------------------------------------
+-- REPORT SHARES — snapshot público read-only del resumen de reports.
+-- Token aleatorio en la URL; la lectura pública va por service role filtrando
+-- por (token, revoked=false) y solo expone `snapshot` (sin trades ni notas).
+-- ------------------------------------------------------------
+create table if not exists report_shares (
+  id          uuid primary key default gen_random_uuid(),
+  user_id     uuid references auth.users on delete cascade not null,
+  token       text unique not null,
+  account_id  uuid references accounts(id) on delete cascade,  -- null = todas las cuentas
+  range       text not null,
+  title       text not null,
+  snapshot    jsonb not null,
+  revoked     boolean default false,
+  created_at  timestamptz default now()
+);
+
+create index if not exists report_shares_token_idx on report_shares (token);
+
+alter table report_shares enable row level security;
+
+create policy "Users manage own shares" on report_shares
+  for all using (auth.uid() = user_id);

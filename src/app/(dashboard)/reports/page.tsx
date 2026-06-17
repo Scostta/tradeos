@@ -2,6 +2,7 @@ import type { ReactElement } from "react"
 import Link from "next/link"
 import { getReportsData } from "~/services/queries/reports"
 import { getAccounts } from "~/services/queries/accounts"
+import { listReportShares } from "~/services/queries/report-share"
 import { REPORTS } from "~/constants/copies/reports"
 import { TRADES } from "~/constants/copies/trades"
 import { tradesRangeSchema } from "~/types/trade-filters"
@@ -11,6 +12,7 @@ import { FilterBar } from "~/components/filter-bar"
 import { RangeSelector } from "~/components/range-selector.client"
 import { ReportsShell } from "./components/reports-shell.client"
 import { ExportReportPdf } from "./components/export-report-pdf.client"
+import { ShareReportModal } from "./components/share-report-modal.client"
 
 const RANGE_OPTIONS = [
   { id: "today", label: TRADES.LIST.RANGE.DAY   },
@@ -30,12 +32,14 @@ export default async function ReportsPage({
   const parsed    = tradesRangeSchema.safeParse(params.range)
   const range: TradesRange = parsed.success ? parsed.data : "all"
 
-  const [result, accountsResult] = await Promise.all([
+  const [result, accountsResult, sharesResult] = await Promise.all([
     getReportsData(accountId, range),
     getAccounts(),
+    listReportShares(),
   ])
 
   const accounts = accountsResult.success ? accountsResult.data : []
+  const shares   = sharesResult.success ? sharesResult.data : []
 
   const accountName = accountId
     ? (accounts.find(a => a.id === accountId)?.name ?? REPORTS.PDF.ALL)
@@ -50,7 +54,10 @@ export default async function ReportsPage({
       </div>
       <div className="md:ml-auto flex items-center gap-2">
         {result.success && result.data.hasTrades && (
-          <ExportReportPdf accountName={accountName} rangeLabel={rangeLabel} data={result.data} />
+          <>
+            <ShareReportModal accountId={accountId} range={range} shares={shares} />
+            <ExportReportPdf accountName={accountName} rangeLabel={rangeLabel} data={result.data} />
+          </>
         )}
         {accounts.length > 0 && (
           <AccountSelector accounts={accounts} value={accountId} />
