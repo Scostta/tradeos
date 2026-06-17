@@ -40,19 +40,18 @@ export default async function TradeViewPage({
 
       <StopPriceProvider initial={trade.stopPrice ?? null}>
         <div className="flex-1 overflow-auto px-4 md:px-7 py-5">
-          <div
-            className="grid gap-4"
-            style={{ gridTemplateColumns: "1fr 360px" }}
-          >
+          <div className="flex flex-col lg:flex-row gap-4">
             {/* Left — main content */}
-            <div className="flex flex-col gap-4 min-w-0">
+            <div className="flex-1 min-w-0 flex flex-col gap-4">
               <TradeHeroCard trade={trade} account={account} playbook={playbook} />
               <TradeExcursionBar trade={trade} />
               <TradeExecutionChart trade={trade} />
             </div>
 
             {/* Right — sidebar */}
-            <TradeSidebar trade={trade} playbooks={playbooks} />
+            <div className="w-full lg:w-80 shrink-0">
+              <TradeSidebar trade={trade} playbooks={playbooks} />
+            </div>
           </div>
         </div>
       </StopPriceProvider>

@@ -242,7 +242,7 @@ export function TradeFormModal({ mode, accounts, playbooks, defaultAccountId, in
             ) : (
             <>
             {/* Account + Instrument */}
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <Field label={TRADES.FORM.ACCOUNT}>
                 <select value={accountId} onChange={(e) => setAccountId(e.target.value)} className={INPUT_CLS}>
                   <option value="" disabled>{TRADES.FORM.SELECT_ACCOUNT}</option>
@@ -267,7 +267,7 @@ export function TradeFormModal({ mode, accounts, playbooks, defaultAccountId, in
             </div>
 
             {/* Direction + Contracts */}
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <Field label={TRADES.FORM.DIRECTION}>
                 <div className="grid grid-cols-2 gap-1.5">
                   {(["long", "short"] as const).map((d) => (
@@ -293,7 +293,7 @@ export function TradeFormModal({ mode, accounts, playbooks, defaultAccountId, in
             </div>
 
             {/* Entry + Exit price */}
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <Field label={TRADES.FORM.ENTRY_PRICE}>
                 <input type="number" step="0.0001" value={entryPrice} onChange={(e) => setEntryPrice(e.target.value)} placeholder="0.0000" className={INPUT_CLS} />
               </Field>
@@ -303,7 +303,7 @@ export function TradeFormModal({ mode, accounts, playbooks, defaultAccountId, in
             </div>
 
             {/* Entry + Exit time */}
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <Field label={TRADES.FORM.ENTRY_TIME}>
                 <input type="datetime-local" value={entryTime} onChange={(e) => setEntryTime(e.target.value)} className={INPUT_CLS} />
               </Field>
@@ -313,7 +313,7 @@ export function TradeFormModal({ mode, accounts, playbooks, defaultAccountId, in
             </div>
 
             {/* Stop loss + Session */}
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <Field label={TRADES.FORM.STOP_PRICE} hint={TRADES.FORM.STOP_HINT}>
                 <input type="number" step="0.0001" value={stopPrice} onChange={(e) => setStopPrice(e.target.value)} placeholder="0.0000" className={INPUT_CLS} />
               </Field>
@@ -326,7 +326,7 @@ export function TradeFormModal({ mode, accounts, playbooks, defaultAccountId, in
             </div>
 
             {/* Gross P&L + Commission */}
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <Field label={TRADES.FORM.GROSS_PNL} hint={showingAuto ? TRADES.FORM.AUTO : undefined}>
                 <input
                   type="number"

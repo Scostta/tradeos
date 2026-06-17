@@ -72,16 +72,12 @@ export function RMultiplesTab({ rStats }: { rStats: RStats }): ReactElement {
       </ChartFrameLite>
 
       {/* Stats grid */}
-      <div className="card" style={{ padding: 0 }}>
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)" }}>
-          {grid.map((cell, i) => (
+      <div className="card overflow-hidden" style={{ padding: 0 }}>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-px bg-border">
+          {grid.map((cell) => (
             <div
-              key={i}
-              style={{
-                padding:      "16px 18px",
-                borderRight:  (i % 4 !== 3) ? "1px solid var(--color-border)" : "none",
-                borderBottom: (i < grid.length - 4) ? "1px solid var(--color-border)" : "none",
-              }}
+              key={cell.label}
+              style={{ padding: "16px 18px", background: "var(--color-surface)" }}
             >
               <div style={{ fontSize: 9, fontWeight: 500, letterSpacing: "0.1em", color: "var(--color-text-mute)", textTransform: "uppercase", marginBottom: 7 }}>
                 {cell.label}

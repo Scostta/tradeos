@@ -171,13 +171,13 @@ export function CompareTab({ initial, accountId }: Props): ReactElement {
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 16, opacity: pending ? 0.6 : 1, transition: "opacity .15s" }}>
       {/* Period selectors */}
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
         <PeriodSelect value={keyA} accent={ACCENT_A} onChange={changeA} disabled={pending} />
         <PeriodSelect value={keyB} accent={ACCENT_B} onChange={changeB} disabled={pending} />
       </div>
 
       {/* Period cards */}
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
         <PeriodCard period={data.a} accent={ACCENT_A} />
         <PeriodCard period={data.b} accent={ACCENT_B} />
       </div>

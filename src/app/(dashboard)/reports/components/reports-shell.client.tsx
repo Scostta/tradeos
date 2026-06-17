@@ -64,8 +64,9 @@ export function ReportsShell({ data, accountId }: Props): ReactElement {
         style={{
           display:      "flex",
           alignItems:   "center",
+          flexWrap:     "wrap",
           gap:          4,
-          padding:      "10px 28px",
+          padding:      "10px 16px",
           borderBottom: "1px solid var(--color-border)",
           position:     "relative",
           flexShrink:   0,
@@ -181,10 +182,10 @@ export function ReportsShell({ data, accountId }: Props): ReactElement {
 
       {/* Tab content */}
       <div
+        className="p-4 md:p-7"
         style={{
           flex:     1,
           overflow: "auto",
-          padding:  28,
         }}
       >
         {tab === "performance" && (

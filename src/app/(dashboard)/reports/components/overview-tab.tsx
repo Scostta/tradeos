@@ -168,7 +168,7 @@ export function OverviewTab({ data }: Props): ReactElement {
       </div>
 
       {/* Two stat columns */}
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
         <div className="card" style={{ padding: "4px 16px" }}>
           {left.map((item, i) => <StatRow key={i} item={item} />)}
         </div>
@@ -178,7 +178,7 @@ export function OverviewTab({ data }: Props): ReactElement {
       </div>
 
       {/* Charts */}
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
         <div className="card" style={{ padding: 16, display: "flex", flexDirection: "column" }}>
           <div
             style={{

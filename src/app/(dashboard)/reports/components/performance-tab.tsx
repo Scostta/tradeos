@@ -117,7 +117,7 @@ export function PerformanceTab({ summary, cumPoints, avgWinLoss }: Props): React
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 18 }}>
       {/* Charts row */}
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
         <ChartFrame
           label={REPORTS.PERFORMANCE.CHART_NET_PNL}
           legend={[{ label: REPORTS.PERFORMANCE.LEGEND_NET_PNL, color: "var(--color-profit)" }]}
@@ -188,15 +188,11 @@ export function PerformanceTab({ summary, cumPoints, avgWinLoss }: Props): React
             {REPORTS.PERFORMANCE.SUMMARY_LABEL}
           </div>
         </div>
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)" }}>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-px bg-border">
           {grid.map((cell, i) => (
             <div
               key={i}
-              style={{
-                padding:      "16px 18px",
-                borderRight:  (i % 4 !== 3) ? "1px solid var(--color-border)" : "none",
-                borderBottom: (i < grid.length - 4) ? "1px solid var(--color-border)" : "none",
-              }}
+              style={{ padding: "16px 18px", background: "var(--color-surface)" }}
             >
               <div
                 style={{

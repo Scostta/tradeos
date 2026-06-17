@@ -293,7 +293,7 @@ export function AccountEditor({ account, renderTrigger }: Props): ReactElement {
             {editorTab === "prop" && (
             <div className="flex flex-col gap-3">
 
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div className="flex flex-col gap-1.5">
                   <label className="label-caps">{PROP_FIRM.PHASE}</label>
                   <select
@@ -322,7 +322,7 @@ export function AccountEditor({ account, renderTrigger }: Props): ReactElement {
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div className="flex flex-col gap-1.5">
                   <label className="label-caps">{PROP_FIRM.DD_AMOUNT}</label>
                   <input
@@ -349,7 +349,7 @@ export function AccountEditor({ account, renderTrigger }: Props): ReactElement {
                 <p className="text-xxs text-loss -mt-1.5">{PROP_FIRM.DD_NEEDS_BALANCE}</p>
               )}
 
-              <div className="grid grid-cols-3 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                 <div className="flex flex-col gap-1.5">
                   <label className="label-caps">{PROP_FIRM.DAILY_LOSS}</label>
                   <input
@@ -382,7 +382,7 @@ export function AccountEditor({ account, renderTrigger }: Props): ReactElement {
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div className="flex flex-col gap-1.5">
                   <label className="label-caps">{PROP_FIRM.RISK_PER_TRADE}</label>
                   <input

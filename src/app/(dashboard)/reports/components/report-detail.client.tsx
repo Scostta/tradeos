@@ -139,7 +139,7 @@ export function ReportDetail(props: Props): ReactElement {
       )}
 
       {/* Insight cards */}
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 12 }}>
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         <InsightCard
           kind="up"
           label={`Best performing ${cfg.noun}`}
@@ -170,7 +170,7 @@ export function ReportDetail(props: Props): ReactElement {
 
       {/* Dual chart + win% line */}
       {rows.length > 0 ? (
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
           <ChartFrame
             label={REPORTS.REPORT_DETAIL.CHART_NET_PNL}
             legend={[

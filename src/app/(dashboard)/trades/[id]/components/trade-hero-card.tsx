@@ -110,7 +110,7 @@ export function TradeHeroCard({ trade, account, playbook }: Props): ReactElement
 
       {/* Spec grid */}
       <div
-        className="grid grid-cols-4 rounded-sm overflow-hidden"
+        className="grid grid-cols-2 sm:grid-cols-4 rounded-sm overflow-hidden"
         style={{ gap: 1, background: "var(--color-border)", border: "1px solid var(--color-border)" }}
       >
         {specCells.map(({ label, value, colorClass }) => (
