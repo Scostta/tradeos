@@ -52,6 +52,10 @@ export async function middleware(request: NextRequest) {
 
 export const config = {
   matcher: [
-    "/((?!_next/static|_next/image|favicon\\.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)",
+    // Exclude framework assets and the public PWA resources (manifest, service
+    // worker, generated icons, offline page). These must be reachable without a
+    // session — the browser fetches the manifest/icons without credentials, so
+    // letting middleware redirect them to /login breaks installability.
+    "/((?!_next/static|_next/image|favicon\\.ico|manifest\\.webmanifest|sw\\.js|offline\\.html|apple-icon|icons/|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)",
   ],
 };
