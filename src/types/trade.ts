@@ -46,6 +46,7 @@ const tradeFormFields = tradeSchema.pick({
   session:    true,
   playbookId: true,
   notes:      true,
+  stopPrice:  true,
 })
 
 const exitAfterEntry = (v: { entryTime: string; exitTime: string }): boolean =>

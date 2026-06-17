@@ -52,6 +52,7 @@ export async function createTrade(
       playbook_id:  t.playbookId,
       session:      t.session,
       notes:        t.notes,
+      stop_price:   t.stopPrice,
     })
     .select("id")
     .single()
@@ -87,7 +88,7 @@ export async function updateTrade(
     .single()
   if (!account) return createErrorResult("ACCOUNT_NOT_FOUND")
 
-  // Only the form fields are updated; mae/mfe/stop_price/tags are preserved.
+  // Only the form fields are updated; mae/mfe/tags are preserved.
   const { error } = await supabase
     .from("trades")
     .update({
@@ -105,6 +106,7 @@ export async function updateTrade(
       playbook_id: t.playbookId,
       session:     t.session,
       notes:       t.notes,
+      stop_price:  t.stopPrice,
     })
     .eq("id", t.id)
     .eq("user_id", user.id)

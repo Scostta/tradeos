@@ -5,9 +5,11 @@ import { createPortal } from "react-dom"
 import { useRouter } from "next/navigation"
 import type { ReactElement } from "react"
 import { createTrade, updateTrade } from "~/actions/trades"
+import { uploadTradeAttachment } from "~/actions/attachments"
 import { computeGrossPnl, KNOWN_INSTRUMENTS } from "~/lib/calculations/pnl"
 import { formatCurrency } from "~/helpers/format"
 import { TRADES } from "~/constants/copies/trades"
+import { AttachmentStaging } from "~/components/trades/attachment-staging.client"
 import { cn } from "~/utils/cn"
 import { Button } from "~/lib/ui/button"
 import { Toast } from "~/lib/ui/toast"
@@ -42,6 +44,9 @@ export function TradeFormModal({ mode, accounts, playbooks, defaultAccountId, in
   const router = useRouter()
 
   const [isOpen, setIsOpen]   = useState(false)
+  const [tab, setTab]               = useState<"details" | "attachments">("details")
+  const [pendingFiles, setPendingFiles] = useState<File[]>([])
+  const [stopPrice, setStopPrice]   = useState("")
   const [accountId, setAccountId]   = useState("")
   const [instrument, setInstrument] = useState("")
   const [direction, setDirection]   = useState<"long" | "short">("long")
@@ -78,6 +83,7 @@ export function TradeFormModal({ mode, accounts, playbooks, defaultAccountId, in
       setPnlTouched(true)
       setCommission(String(initialTrade.commission))
       setSession(initialTrade.session ?? "")
+      setStopPrice(initialTrade.stopPrice != null ? String(initialTrade.stopPrice) : "")
       setPlaybookId(initialTrade.playbookId ?? "")
       setNotes(initialTrade.notes ?? "")
     } else {
@@ -93,9 +99,12 @@ export function TradeFormModal({ mode, accounts, playbooks, defaultAccountId, in
       setPnlTouched(false)
       setCommission("0")
       setSession("")
+      setStopPrice("")
       setPlaybookId("")
       setNotes("")
     }
+    setTab("details")
+    setPendingFiles([])
     setIsOpen(true)
   }
 
@@ -116,12 +125,13 @@ export function TradeFormModal({ mode, accounts, playbooks, defaultAccountId, in
   const netPnl     = (parseFloat(pnlValue) || 0) - (parseFloat(commission) || 0)
 
   function handleSave() {
-    if (!accountId)                       return showToast(TRADES.FORM.ERR_ACCOUNT, "error")
-    if (!instrument.trim())               return showToast(TRADES.FORM.ERR_INSTRUMENT, "error")
-    if (!contracts || !entryPrice || !exitPrice) return showToast(TRADES.FORM.ERR_NUMBERS, "error")
-    if (!entryTime || !exitTime)          return showToast(TRADES.FORM.ERR_TIMES, "error")
+    // Validation lives on the Details tab — switch to it so errors are visible.
+    if (!accountId)                       { setTab("details"); return showToast(TRADES.FORM.ERR_ACCOUNT, "error") }
+    if (!instrument.trim())               { setTab("details"); return showToast(TRADES.FORM.ERR_INSTRUMENT, "error") }
+    if (!contracts || !entryPrice || !exitPrice) { setTab("details"); return showToast(TRADES.FORM.ERR_NUMBERS, "error") }
+    if (!entryTime || !exitTime)          { setTab("details"); return showToast(TRADES.FORM.ERR_TIMES, "error") }
     if (new Date(exitTime).getTime() <= new Date(entryTime).getTime())
-      return showToast(TRADES.FORM.ERR_ORDER, "error")
+      { setTab("details"); return showToast(TRADES.FORM.ERR_ORDER, "error") }
 
     const payload = {
       accountId,
@@ -135,6 +145,7 @@ export function TradeFormModal({ mode, accounts, playbooks, defaultAccountId, in
       pnl:        Number(pnlValue) || 0,
       commission: Number(commission) || 0,
       session:    session === "" ? null : session,
+      stopPrice:  stopPrice.trim() === "" ? null : Number(stopPrice),
       playbookId: playbookId === "" ? null : playbookId,
       notes:      notes.trim() || null,
     }
@@ -144,13 +155,24 @@ export function TradeFormModal({ mode, accounts, playbooks, defaultAccountId, in
         ? await updateTrade({ ...payload, id: initialTrade.id })
         : await createTrade(payload)
 
-      if (result.success) {
-        showToast(mode === "edit" ? TRADES.FORM.SUCCESS_EDIT : TRADES.FORM.SUCCESS_CREATE, "success")
-        closeModal()
-        router.refresh()
-      } else {
+      if (!result.success) {
         showToast(result.error, "error")
+        return
       }
+
+      // Trade saved — now upload any staged attachments against its id.
+      if (pendingFiles.length > 0) {
+        await Promise.all(pendingFiles.map((file) => {
+          const fd = new FormData()
+          fd.append("file", file)
+          fd.append("tradeId", result.data.id)
+          return uploadTradeAttachment(fd)
+        }))
+      }
+
+      showToast(mode === "edit" ? TRADES.FORM.SUCCESS_EDIT : TRADES.FORM.SUCCESS_CREATE, "success")
+      closeModal()
+      router.refresh()
     })
   }
 
@@ -196,6 +218,29 @@ export function TradeFormModal({ mode, accounts, playbooks, defaultAccountId, in
               </Button>
             </div>
 
+            {/* Tabs */}
+            <div className="flex gap-1 p-0.5 rounded-sm bg-surface-2 border border-border">
+              {(["details", "attachments"] as const).map((t) => (
+                <button
+                  key={t}
+                  type="button"
+                  onClick={() => setTab(t)}
+                  className={cn(
+                    "flex-1 text-xs py-1.5 rounded-sm transition-colors cursor-pointer",
+                    tab === t ? "bg-surface text-text" : "text-text-mute hover:text-text-dim"
+                  )}
+                >
+                  {t === "details"
+                    ? TRADES.FORM.TAB_DETAILS
+                    : `${TRADES.FORM.TAB_ATTACHMENTS}${pendingFiles.length ? ` · ${pendingFiles.length}` : ""}`}
+                </button>
+              ))}
+            </div>
+
+            {tab === "attachments" ? (
+              <AttachmentStaging files={pendingFiles} onChange={setPendingFiles} disabled={isPending} />
+            ) : (
+            <>
             {/* Account */}
             <Field label={TRADES.FORM.ACCOUNT}>
               <select value={accountId} onChange={(e) => setAccountId(e.target.value)} className={INPUT_CLS}>
@@ -265,6 +310,11 @@ export function TradeFormModal({ mode, accounts, playbooks, defaultAccountId, in
               </Field>
             </div>
 
+            {/* Stop loss */}
+            <Field label={TRADES.FORM.STOP_PRICE} hint={TRADES.FORM.STOP_HINT}>
+              <input type="number" step="0.0001" value={stopPrice} onChange={(e) => setStopPrice(e.target.value)} placeholder="0.0000" className={INPUT_CLS} />
+            </Field>
+
             {/* Entry + Exit time */}
             <div className="grid grid-cols-2 gap-3">
               <Field label={TRADES.FORM.ENTRY_TIME}>
@@ -317,10 +367,12 @@ export function TradeFormModal({ mode, accounts, playbooks, defaultAccountId, in
                 rows={2}
                 value={notes}
                 onChange={(e) => setNotes(e.target.value)}
-                placeholder="Optional…"
+                placeholder={TRADES.FORM.NOTES_PLACEHOLDER}
                 className={cn(INPUT_CLS, "resize-vertical")}
               />
             </Field>
+            </>
+            )}
 
             {/* Footer */}
             <div className="flex items-center justify-end gap-2 pt-1 border-t border-border">
