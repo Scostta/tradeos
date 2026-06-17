@@ -28,7 +28,7 @@ export function TradeViewHeader({ trade, accounts, playbooks, timezone }: {
   const setupOk       = showAdherence && meetsSetup(playbookRules, trade)
 
   return (
-    <header className="flex items-center gap-4 px-7 py-3.5 border-b border-border bg-bg shrink-0">
+    <header className="flex items-center gap-3 md:gap-4 px-4 md:px-7 py-3.5 border-b border-border bg-bg shrink-0">
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-2.5">
           <h1 className="text-xl font-semibold tracking-tight text-text">

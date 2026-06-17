@@ -270,13 +270,16 @@ export function TradeExecutionChart({ trade }: { trade: Trade }) {
   return (
     <div className="card overflow-hidden flex flex-col flex-1 min-h-0">
       {/* Toolbar */}
-      <div className="flex items-center gap-3 px-4 border-b border-border shrink-0" style={{ height: 36 }}>
+      <div
+        className="flex flex-wrap items-center gap-x-3 gap-y-1.5 px-3 md:px-4 py-1.5 md:py-0 border-b border-border shrink-0"
+        style={{ minHeight: 36 }}
+      >
         <span className="mono text-sm font-semibold text-text">{s}</span>
-        <span className="text-border-hi select-none">|</span>
-        <span className="mono text-xs text-text-dim">{C.TIMEFRAME}</span>
+        <span className="text-border-hi select-none hidden sm:inline">|</span>
+        <span className="mono text-xs text-text-dim hidden md:inline">{C.TIMEFRAME}</span>
 
         <div className="flex items-center gap-2 mono text-xs">
-          <span style={{ color: "#3b82f6" }}>{C.OPEN} {trade.entryPrice.toFixed(2)}</span>
+          <span className="hidden sm:inline" style={{ color: "#3b82f6" }}>{C.OPEN} {trade.entryPrice.toFixed(2)}</span>
           <span style={{ color: pnlColor }}>{isProfit ? "+" : ""}{movePts} {C.PTS}</span>
           <span className="font-semibold" style={{ color: pnlColor }}>
             {isProfit ? `+$${trade.netPnl.toFixed(2)}` : `−$${Math.abs(trade.netPnl).toFixed(2)}`}
@@ -287,7 +290,7 @@ export function TradeExecutionChart({ trade }: { trade: Trade }) {
 
         {/* Data source badge */}
         {state.status === "ready" && (
-          <div className="flex items-center gap-1.5">
+          <div className="hidden sm:flex items-center gap-1.5">
             <span
               className="mono text-xxs px-1.5 py-px rounded-xs"
               style={{
@@ -330,7 +333,7 @@ export function TradeExecutionChart({ trade }: { trade: Trade }) {
         </div>
 
         {/* Legend */}
-        <div className="flex items-center gap-2 mono text-xxs">
+        <div className="hidden lg:flex items-center gap-2 mono text-xxs">
           <span style={{ color: "#3b82f6" }}>● {C.LEGEND_ENTRY}</span>
           <span style={{ color: exitColor }}>● {C.LEGEND_EXIT}</span>
           <span className="text-loss">┄ {C.LEGEND_STOP}</span>
