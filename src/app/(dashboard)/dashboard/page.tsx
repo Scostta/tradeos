@@ -5,6 +5,9 @@ import { getDashboardData } from "~/services/queries/dashboard"
 import { getAccounts, getPropFirmStatus } from "~/services/queries/accounts"
 import { getDashboardGoals } from "~/services/queries/goals"
 import { getInsightsView } from "~/services/queries/insights"
+import { getPlaybooksWithStats } from "~/services/queries/playbooks"
+import { getProfile } from "~/services/queries/profile"
+import { Onboarding } from "./components/onboarding"
 import { PropFirmStatusCard } from "~/components/prop-firm/prop-firm-status-card"
 import { GoalsCard } from "~/components/goals/goals-card.client"
 import { InsightsCard } from "~/components/insights/insights-card.client"
@@ -41,6 +44,27 @@ export default async function DashboardPage({
     getAccounts(),
   ])
   const accounts = accountsResult.success ? accountsResult.data : []
+
+  // First-run: no accounts yet → show the onboarding checklist instead of an
+  // empty zeroed dashboard. (Accounts are auto-created on the first import.)
+  if (accounts.length === 0) {
+    const [playbooksResult, profileResult] = await Promise.all([getPlaybooksWithStats(), getProfile()])
+    const playbookDone = playbooksResult.success && playbooksResult.data.length > 0
+    const profile      = profileResult.success ? profileResult.data : null
+    const prefsDone    = !!profile && (profile.displayName !== null || profile.timezone !== "UTC")
+
+    return (
+      <div className="flex flex-col h-full">
+        <header className="flex items-center gap-4 px-4 md:px-7 py-3 border-b border-border bg-bg shrink-0">
+          <div>
+            <h1 className="text-xl font-semibold tracking-tight text-text">{DASHBOARD.TITLE}</h1>
+            <div className="mono text-sm text-text-mute mt-0.5">{DASHBOARD.SUBTITLE}</div>
+          </div>
+        </header>
+        <Onboarding playbookDone={playbookDone} prefsDone={prefsDone} />
+      </div>
+    )
+  }
 
   // Prop-firm status only when a single account is active and has rules set.
   const propResult = accountId ? await getPropFirmStatus(accountId) : null

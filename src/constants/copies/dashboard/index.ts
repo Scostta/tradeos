@@ -52,8 +52,26 @@ export const DASHBOARD = {
 
   EMPTY: {
     TITLE:   "No trades yet",
-    MESSAGE: "Import a NinjaTrader CSV to see your metrics and equity curve.",
+    MESSAGE: "Import a CSV from any broker to see your metrics and equity curve.",
     CTA:     "Go to Import",
+  },
+
+  ONBOARDING: {
+    WELCOME:  "Welcome to TradeOS",
+    SUBTITLE: "Let's get your trading journal set up — a few quick steps.",
+    STEP:     "Step",
+    DONE:     "Done",
+    STEPS: {
+      IMPORT_TITLE:   "Import your trades",
+      IMPORT_DESC:    "Upload a CSV from any broker — NinjaTrader auto-detects, and you can map columns for the rest.",
+      IMPORT_CTA:     "Import trades",
+      PLAYBOOK_TITLE: "Build a playbook",
+      PLAYBOOK_DESC:  "Define your setups and rules so the journal can track how well you follow them.",
+      PLAYBOOK_CTA:   "Create a playbook",
+      PREFS_TITLE:    "Set your preferences",
+      PREFS_DESC:     "Pick your timezone and display name so everything reads in your local time.",
+      PREFS_CTA:      "Open settings",
+    },
   },
 
   ERROR: {
