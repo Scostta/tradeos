@@ -33,7 +33,7 @@ export async function getTradeById(
 // Filter predicates shared by the page query and the net-total query. Returns a
 // list of operations so the (deeply generic) Supabase builder type is never
 // named — each op just receives and returns the same builder instance.
-type FilterBuilderLike = {
+export type FilterBuilderLike = {
   eq(column: string, value: string | number): FilterBuilderLike
   gt(column: string, value: number): FilterBuilderLike
   lt(column: string, value: number): FilterBuilderLike
@@ -44,7 +44,7 @@ type FilterBuilderLike = {
   contains(column: string, value: readonly string[]): FilterBuilderLike
 }
 
-function tradeFilterOps(
+export function tradeFilterOps(
   filters: TradeFilters,
   dateRange: { from: string; to: string } | null,
 ): ((q: FilterBuilderLike) => FilterBuilderLike)[] {

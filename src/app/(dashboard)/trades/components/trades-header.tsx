@@ -3,6 +3,7 @@ import { TRADES } from "~/constants/copies/trades"
 import { formatCurrency } from "~/helpers/format"
 import { AccountSelector } from "~/components/account-selector.client"
 import { TradeFormModal } from "~/components/trades/trade-form-modal.client"
+import { ExportTradesButton } from "./export-trades-button.client"
 import type { Account } from "~/types/account"
 import type { Playbook } from "~/types/playbook"
 
@@ -28,6 +29,7 @@ export function TradesHeader(props: Props): ReactElement {
         </div>
       </div>
       <div className="ml-auto flex items-center gap-2">
+        {totalCount > 0 && <ExportTradesButton />}
         {accounts.length > 0 && (
           <TradeFormModal
             mode="create"

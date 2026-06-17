@@ -5,7 +5,14 @@ import { revalidatePath } from "next/cache"
 import { createClient } from "~/utils/supabase/server"
 import { createServerClient } from "~/utils/supabase/service"
 import { createTradeSchema, updateTradeSchema } from "~/types/trade"
+import { parseTradeFilters } from "~/types/trade-filters"
+import { tradeFilterOps } from "~/services/queries/trades"
+import { mapTradeFromDb } from "~/services/mappers/trades"
+import { getUserTimezone } from "~/services/queries/profile"
+import { resolveDateRange } from "~/helpers/date-range"
+import { zonedParts } from "~/helpers/tz"
 import { createDataResult, createErrorResult } from "~/helpers/result"
+import type { FilterBuilderLike } from "~/services/queries/trades"
 import type { ResultType } from "~/helpers/result"
 
 const ATTACHMENTS_BUCKET = "trade-attachments"
@@ -121,6 +128,101 @@ export async function updateTrade(
   revalidatePath("/reports")
   revalidatePath(`/trades/${t.id}`)
   return createDataResult({ id: t.id })
+}
+
+// ── CSV export ────────────────────────────────────────────────────────────────
+
+const CSV_COLUMNS = [
+  "Entry", "Exit", "Account", "Instrument", "Direction", "Contracts",
+  "Entry Price", "Exit Price", "Stop", "Gross P&L", "Commission", "Net P&L",
+  "MAE", "MFE", "Session", "Playbook", "Tags", "Mistakes", "Notes",
+] as const
+
+/** Quotes a CSV cell when it contains a comma, quote or newline. */
+function csvCell(value: string | number | null | undefined): string {
+  const s = value == null ? "" : String(value)
+  return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s
+}
+
+/** "YYYY-MM-DD HH:MM:SS" in the user's timezone — readable in Excel/Sheets. */
+function localStamp(iso: string, timeZone: string): string {
+  const p = zonedParts(iso, timeZone)
+  const pad = (n: number) => String(n).padStart(2, "0")
+  return `${p.year}-${pad(p.month)}-${pad(p.day)} ${pad(p.hour)}:${pad(p.minute)}:${pad(p.second)}`
+}
+
+/**
+ * Exports every trade matching the current filters (not just the page) as CSV.
+ * Reuses the same filter predicates as the trades table so what you see is what
+ * you export. Returns the CSV text + a suggested filename; the client downloads it.
+ */
+export async function exportTradesCsv(
+  params: unknown,
+): Promise<ResultType<{ csv: string; filename: string }, string>> {
+  const filters = parseTradeFilters(
+    (params && typeof params === "object" ? params : {}) as Record<string, string | undefined>,
+  )
+
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return createErrorResult("UNAUTHENTICATED")
+
+  const timeZone  = await getUserTimezone()
+  const dateRange = filters.range !== "all" ? resolveDateRange(filters.range, timeZone) : null
+
+  let query = supabase
+    .from("trades")
+    .select("*")
+    .eq("user_id", user.id)
+    .order("entry_time", { ascending: true })
+  for (const op of tradeFilterOps(filters, dateRange)) {
+    query = op(query as unknown as FilterBuilderLike) as unknown as typeof query
+  }
+
+  const [tradesRes, accountsRes, playbooksRes] = await Promise.all([
+    query,
+    supabase.from("accounts").select("id, name").eq("user_id", user.id),
+    supabase.from("playbooks").select("id, name").eq("user_id", user.id),
+  ])
+
+  if (tradesRes.error)    { console.error(tradesRes.error);    return createErrorResult(tradesRes.error.message) }
+  if (accountsRes.error)  { console.error(accountsRes.error);  return createErrorResult(accountsRes.error.message) }
+  if (playbooksRes.error) { console.error(playbooksRes.error); return createErrorResult(playbooksRes.error.message) }
+
+  const accountName  = new Map((accountsRes.data ?? []).map(a => [a.id as string, a.name as string]))
+  const playbookName = new Map((playbooksRes.data ?? []).map(p => [p.id as string, p.name as string]))
+
+  const trades = (tradesRes.data ?? []).map(r => mapTradeFromDb(r as Record<string, unknown>))
+
+  const rows = trades.map(t => [
+    localStamp(t.entryTime, timeZone),
+    localStamp(t.exitTime, timeZone),
+    accountName.get(t.accountId) ?? "",
+    t.instrument,
+    t.direction,
+    t.contracts,
+    t.entryPrice,
+    t.exitPrice,
+    t.stopPrice ?? "",
+    t.pnl,
+    t.commission,
+    t.netPnl,
+    t.mae ?? "",
+    t.mfe ?? "",
+    t.session ?? "",
+    t.playbookId ? (playbookName.get(t.playbookId) ?? "") : "",
+    (t.tags ?? []).join("; "),
+    (t.mistakes ?? []).join("; "),
+    t.notes ?? "",
+  ])
+
+  const csv = [
+    CSV_COLUMNS.join(","),
+    ...rows.map(r => r.map(csvCell).join(",")),
+  ].join("\r\n")
+
+  const stamp = new Date().toISOString().slice(0, 10)
+  return createDataResult({ csv, filename: `trades-${stamp}.csv` })
 }
 
 const updateNotesSchema = z.object({

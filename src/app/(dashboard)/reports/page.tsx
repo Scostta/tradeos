@@ -10,6 +10,7 @@ import { AccountSelector } from "~/components/account-selector.client"
 import { FilterBar } from "~/components/filter-bar"
 import { RangeSelector } from "~/components/range-selector.client"
 import { ReportsShell } from "./components/reports-shell.client"
+import { ExportReportPdf } from "./components/export-report-pdf.client"
 
 const RANGE_OPTIONS = [
   { id: "today", label: TRADES.LIST.RANGE.DAY   },
@@ -36,17 +37,25 @@ export default async function ReportsPage({
 
   const accounts = accountsResult.success ? accountsResult.data : []
 
+  const accountName = accountId
+    ? (accounts.find(a => a.id === accountId)?.name ?? REPORTS.PDF.ALL)
+    : REPORTS.PDF.ALL
+  const rangeLabel = RANGE_OPTIONS.find(o => o.id === range)?.label ?? TRADES.LIST.RANGE.ALL
+
   const header = (
     <header className="flex flex-col md:flex-row md:items-center gap-3 px-4 md:px-7 py-3 border-b border-border bg-bg shrink-0">
       <div>
         <h1 className="text-xl font-semibold tracking-tight text-text">{REPORTS.TITLE}</h1>
         <div className="mono text-sm text-text-mute mt-0.5">{REPORTS.SUBTITLE}</div>
       </div>
-      {accounts.length > 0 && (
-        <div className="md:ml-auto">
+      <div className="md:ml-auto flex items-center gap-2">
+        {result.success && result.data.hasTrades && (
+          <ExportReportPdf accountName={accountName} rangeLabel={rangeLabel} data={result.data} />
+        )}
+        {accounts.length > 0 && (
           <AccountSelector accounts={accounts} value={accountId} />
-        </div>
-      )}
+        )}
+      </div>
     </header>
   )
 

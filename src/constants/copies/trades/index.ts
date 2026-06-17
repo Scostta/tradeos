@@ -5,6 +5,9 @@ export const TRADES = {
     EMPTY:     "No trades match your filters",
     ERROR:     "Failed to load trades. Please try again.",
     NEW_TRADE: "New trade",
+    EXPORT:    "Export",
+    EXPORTING: "Exporting…",
+    EXPORT_ERROR: "Export failed. Please try again.",
     HEADERS: {
       NUMBER:    "#",
       DATE:      "Date / Time",
