@@ -45,3 +45,6 @@ next-env.d.ts
 .claude-docs
 .claude
 .agent-handoffs
+
+# crash artifacts
+*.stackdump
