@@ -6,6 +6,7 @@ import { TradeExecutionsCard } from "./trade-executions-card"
 import { TradeAttachmentsCard } from "./trade-attachments-card.client"
 import { parsePlaybookRules } from "~/helpers/playbook-rules"
 import { useTimezone } from "~/hooks/use-timezone"
+import { MISTAKE_PRESETS } from "~/constants/trade-mistakes"
 import type { Trade } from "~/types/trade"
 import type { Playbook } from "~/types/playbook"
 
@@ -13,11 +14,6 @@ type Props = {
   trade: Trade
   playbooks: Playbook[]
 }
-
-const MISTAKE_PRESETS = [
-  "No setup", "Chased entry", "Moved stop", "Oversized",
-  "Revenge trade", "FOMO", "Early exit", "Late entry",
-] as const
 
 export function TradeSidebar({ trade, playbooks }: Props) {
   const timeZone = useTimezone()

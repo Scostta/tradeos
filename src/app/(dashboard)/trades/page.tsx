@@ -17,6 +17,11 @@ export default async function TradesPage({
     instrument?: string
     direction?:  string
     playbook?:   string
+    outcome?:    string
+    mistake?:    string
+    tag?:        string
+    pnlMin?:     string
+    pnlMax?:     string
     range?:      string
     page?:       string
   }>
@@ -46,6 +51,7 @@ export default async function TradesPage({
         <TradesFilterBar
           filters={filters}
           instruments={[]}
+          tags={[]}
           playbooks={playbooks}
         />
         <div className="flex-1 flex items-center justify-center text-text-mute text-sm">
@@ -55,7 +61,7 @@ export default async function TradesPage({
     )
   }
 
-  const { trades, totalCount, totalNet, page, pageCount, instruments } = tradesResult.data
+  const { trades, totalCount, totalNet, page, pageCount, instruments, tags } = tradesResult.data
 
   return (
     <div className="flex flex-col h-full">
@@ -69,6 +75,7 @@ export default async function TradesPage({
       <TradesFilterBar
         filters={filters}
         instruments={instruments}
+        tags={tags}
         playbooks={playbooks}
       />
       <div className="flex-1 overflow-auto px-4 md:px-7 py-5">

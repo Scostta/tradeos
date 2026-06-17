@@ -30,6 +30,48 @@ export async function getTradeById(
   return createDataResult(mapTradeFromDb(data as Record<string, unknown>))
 }
 
+// Filter predicates shared by the page query and the net-total query. Returns a
+// list of operations so the (deeply generic) Supabase builder type is never
+// named — each op just receives and returns the same builder instance.
+type FilterBuilderLike = {
+  eq(column: string, value: string | number): FilterBuilderLike
+  gt(column: string, value: number): FilterBuilderLike
+  lt(column: string, value: number): FilterBuilderLike
+  gte(column: string, value: string | number): FilterBuilderLike
+  lte(column: string, value: string | number): FilterBuilderLike
+  is(column: string, value: null): FilterBuilderLike
+  not(column: string, operator: string, value: null): FilterBuilderLike
+  contains(column: string, value: readonly string[]): FilterBuilderLike
+}
+
+function tradeFilterOps(
+  filters: TradeFilters,
+  dateRange: { from: string; to: string } | null,
+): ((q: FilterBuilderLike) => FilterBuilderLike)[] {
+  const ops: ((q: FilterBuilderLike) => FilterBuilderLike)[] = []
+
+  if (filters.accountId)  ops.push(q => q.eq("account_id", filters.accountId!))
+  if (filters.instrument) ops.push(q => q.eq("instrument", filters.instrument!))
+  if (filters.direction)  ops.push(q => q.eq("direction", filters.direction!))
+  if (filters.playbookId) ops.push(q => q.eq("playbook_id", filters.playbookId!))
+
+  if (filters.outcome === "win")  ops.push(q => q.gt("net_pnl", 0))
+  if (filters.outcome === "loss") ops.push(q => q.lt("net_pnl", 0))
+  if (filters.outcome === "be")   ops.push(q => q.eq("net_pnl", 0))
+  if (filters.pnlMin !== null)    ops.push(q => q.gte("net_pnl", filters.pnlMin!))
+  if (filters.pnlMax !== null)    ops.push(q => q.lte("net_pnl", filters.pnlMax!))
+
+  if (filters.mistake === "clean")    ops.push(q => q.is("mistakes", null))
+  else if (filters.mistake === "any") ops.push(q => q.not("mistakes", "is", null))
+  else if (filters.mistake)           ops.push(q => q.contains("mistakes", [filters.mistake!]))
+
+  if (filters.tag) ops.push(q => q.contains("tags", [filters.tag!]))
+
+  if (dateRange) ops.push(q => q.gte("entry_time", dateRange.from).lte("entry_time", dateRange.to))
+
+  return ops
+}
+
 export async function getTradesPage(
   filters: TradeFilters,
 ): Promise<ResultType<TradesPageData, string>> {
@@ -40,6 +82,7 @@ export async function getTradesPage(
   const offset = (filters.page - 1) * PAGE_SIZE
 
   const dateRange = filters.range !== "all" ? resolveDateRange(filters.range, await getUserTimezone()) : null
+  const ops = tradeFilterOps(filters, dateRange)
 
   let pageQuery = supabase
     .from("trades")
@@ -47,35 +90,24 @@ export async function getTradesPage(
     .eq("user_id", user.id)
     .order("entry_time", { ascending: false })
     .range(offset, offset + PAGE_SIZE - 1)
+  for (const op of ops) pageQuery = op(pageQuery as unknown as FilterBuilderLike) as unknown as typeof pageQuery
 
-  if (filters.accountId)  pageQuery = pageQuery.eq("account_id", filters.accountId)
-  if (filters.instrument) pageQuery = pageQuery.eq("instrument", filters.instrument)
-  if (filters.direction)  pageQuery = pageQuery.eq("direction", filters.direction)
-  if (filters.playbookId) pageQuery = pageQuery.eq("playbook_id", filters.playbookId)
-  if (dateRange)          pageQuery = pageQuery.gte("entry_time", dateRange.from).lte("entry_time", dateRange.to)
+  let netQuery = supabase.from("trades").select("net_pnl").eq("user_id", user.id)
+  for (const op of ops) netQuery = op(netQuery as unknown as FilterBuilderLike) as unknown as typeof netQuery
 
-  let netQuery = supabase
+  // Available instruments + tags reflect the account scope only (not the other
+  // filters), so the dropdowns always show every option for the active account.
+  let optionsQuery = supabase
     .from("trades")
-    .select("net_pnl")
+    .select("instrument, tags")
     .eq("user_id", user.id)
 
-  if (filters.accountId)  netQuery = netQuery.eq("account_id", filters.accountId)
-  if (filters.instrument) netQuery = netQuery.eq("instrument", filters.instrument)
-  if (filters.direction)  netQuery = netQuery.eq("direction", filters.direction)
-  if (filters.playbookId) netQuery = netQuery.eq("playbook_id", filters.playbookId)
-  if (dateRange)          netQuery = netQuery.gte("entry_time", dateRange.from).lte("entry_time", dateRange.to)
+  if (filters.accountId) optionsQuery = optionsQuery.eq("account_id", filters.accountId)
 
-  let instrQuery = supabase
-    .from("trades")
-    .select("instrument")
-    .eq("user_id", user.id)
-
-  if (filters.accountId) instrQuery = instrQuery.eq("account_id", filters.accountId)
-
-  const [pageResult, netResult, instrResult] = await Promise.all([
+  const [pageResult, netResult, optionsResult] = await Promise.all([
     pageQuery,
     netQuery,
-    instrQuery,
+    optionsQuery,
   ])
 
   if (pageResult.error) {
@@ -86,9 +118,9 @@ export async function getTradesPage(
     console.error(netResult.error)
     return createErrorResult(netResult.error.message)
   }
-  if (instrResult.error) {
-    console.error(instrResult.error)
-    return createErrorResult(instrResult.error.message)
+  if (optionsResult.error) {
+    console.error(optionsResult.error)
+    return createErrorResult(optionsResult.error.message)
   }
 
   const trades     = (pageResult.data ?? []).map(row => mapTradeFromDb(row as Record<string, unknown>))
@@ -100,10 +132,13 @@ export async function getTradesPage(
   const pageCount  = Math.max(1, Math.ceil(totalCount / PAGE_SIZE))
 
   const instrSet = new Set<string>()
-  for (const row of instrResult.data ?? []) {
+  const tagSet   = new Set<string>()
+  for (const row of optionsResult.data ?? []) {
     if (typeof row.instrument === "string") instrSet.add(row.instrument)
+    if (Array.isArray(row.tags)) {
+      for (const t of row.tags) if (typeof t === "string") tagSet.add(t)
+    }
   }
-  const instruments = Array.from(instrSet).sort()
 
   return createDataResult({
     trades,
@@ -111,6 +146,7 @@ export async function getTradesPage(
     totalNet,
     page:    filters.page,
     pageCount,
-    instruments,
+    instruments: Array.from(instrSet).sort(),
+    tags:        Array.from(tagSet).sort(),
   })
 }
