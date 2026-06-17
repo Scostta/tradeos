@@ -9,7 +9,6 @@ export const COMMON = {
   OR:           "or",
   ALL_ACCOUNTS: "All accounts",
   OPEN_MENU:    "Open menu",
-  INSTALL_APP:  "Install app",
   NAV_LABELS: {
     DASHBOARD:  "Dashboard",
     TRADES:     "Trades",

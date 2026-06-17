@@ -3,7 +3,7 @@ import { getInsightsView } from "~/services/queries/insights"
 import { getAccounts } from "~/services/queries/accounts"
 import { InsightsCard } from "~/components/insights/insights-card.client"
 import { INSIGHTS } from "~/constants/copies/insights"
-import { DashboardHeader } from "../dashboard/components/dashboard-header"
+import { AccountSelector } from "~/components/account-selector.client"
 
 export default async function InsightsPage({
   searchParams,
@@ -21,12 +21,16 @@ export default async function InsightsPage({
 
   return (
     <div className="flex flex-col h-full">
-      <DashboardHeader accounts={accounts} accountId={accountId} />
-      <header className="flex items-center gap-4 px-4 md:px-7 py-3 border-b border-border bg-bg shrink-0">
+      <header className="flex flex-col md:flex-row md:items-center gap-3 px-4 md:px-7 py-3 border-b border-border bg-bg shrink-0">
         <div>
           <h1 className="text-xl font-semibold tracking-tight text-text">{INSIGHTS.TITLE}</h1>
           <div className="mono text-sm text-text-mute mt-0.5">{INSIGHTS.PAGE_SUBTITLE}</div>
         </div>
+        {accounts.length > 0 && (
+          <div className="md:ml-auto">
+            <AccountSelector accounts={accounts} value={accountId} />
+          </div>
+        )}
       </header>
 
       <div className="flex-1 overflow-auto page-pad flex flex-col gap-4">
