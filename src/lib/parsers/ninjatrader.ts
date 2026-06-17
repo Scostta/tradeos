@@ -1,5 +1,6 @@
 import type { ParsedRow, ParseError, ParseResult } from "~/types"
 import { parsedRowSchema } from "~/types/import"
+import { detectDelimiter, extractSymbol } from "~/lib/parsers/csv-utils"
 
 // Column name variants: [standard export, grid export]
 const COLUMN_ALIASES: Record<string, string[]> = {
@@ -83,16 +84,6 @@ function parseDate(raw: string): string | null {
 function parseNumber(raw: string): number {
   const cleaned = raw.trim().replace(/\s*\$$/, "").replace(",", ".")
   return parseFloat(cleaned)
-}
-
-function extractSymbol(instrument: string): string {
-  return instrument.trim().split(" ")[0] ?? instrument.trim()
-}
-
-function detectDelimiter(headerLine: string): ";" | "," {
-  const semis  = (headerLine.match(/;/g) ?? []).length
-  const commas = (headerLine.match(/,/g) ?? []).length
-  return semis > commas ? ";" : ","
 }
 
 function buildColumnIndex(

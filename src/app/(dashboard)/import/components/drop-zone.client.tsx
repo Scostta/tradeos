@@ -127,14 +127,20 @@ export function DropZone(props: Props): ReactElement {
         </span>
       </div>
 
-      <div className="flex items-center gap-2">
-        <span className="label-caps bg-surface-2 rounded-sm border border-border px-2 py-0.5">
-          {IMPORT.DROP.BADGE_NINJATRADER}
-        </span>
-        <span className="label-caps bg-surface-2 rounded-sm border border-border px-2 py-0.5">
-          {IMPORT.DROP.BADGE_TRADESTATION}
+      <div className="flex flex-wrap items-center justify-center gap-2 max-w-md">
+        {IMPORT.DROP.BROKERS.map((b) => (
+          <span key={b} className="label-caps bg-surface-2 rounded-sm border border-border px-2 py-0.5">
+            {b}
+          </span>
+        ))}
+        <span className="label-caps rounded-sm border border-accent/40 bg-accent/10 text-accent px-2 py-0.5">
+          {IMPORT.DROP.ANY}
         </span>
       </div>
+
+      <span className="text-xxs text-text-mute mono text-center max-w-sm">
+        {IMPORT.DROP.HINT}
+      </span>
     </div>
   );
 }

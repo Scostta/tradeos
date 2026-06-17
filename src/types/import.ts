@@ -58,3 +58,33 @@ export type ParseResult = {
 export type ImportSummary = {
   imported: number
 }
+
+// ── Generic (mapped) CSV import ───────────────────────────────────────────────
+// Canonical fields the user maps their CSV columns onto. `required` fields must
+// be mapped before parsing; the rest are optional.
+export const CANONICAL_IMPORT_FIELDS = [
+  { key: "instrument", label: "Instrument",            required: true },
+  { key: "side",       label: "Direction (long/short)", required: true },
+  { key: "contracts",  label: "Contracts",             required: true },
+  { key: "entryPrice", label: "Entry price",           required: true },
+  { key: "exitPrice",  label: "Exit price",            required: true },
+  { key: "entryTime",  label: "Entry time",            required: true },
+  { key: "exitTime",   label: "Exit time",             required: true },
+  { key: "pnl",        label: "Gross P&L",             required: true },
+  { key: "commission", label: "Commission",            required: false },
+  { key: "account",    label: "Account",               required: false },
+  { key: "tradeId",    label: "Trade # / ID",          required: false },
+  { key: "mae",        label: "MAE",                   required: false },
+  { key: "mfe",        label: "MFE",                   required: false },
+] as const
+
+export type CanonicalField = (typeof CANONICAL_IMPORT_FIELDS)[number]["key"]
+
+/** field → CSV header name. */
+export type ColumnMapping = Partial<Record<CanonicalField, string>>
+
+export type CsvInspection = {
+  headers:    string[]
+  sampleRows: string[][]
+  delimiter:  string
+}

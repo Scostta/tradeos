@@ -2,12 +2,14 @@
 
 import { useState, useTransition } from "react";
 import type { ReactElement } from "react";
-import { parseNinjaTraderCsv } from "~/lib/parsers/ninjatrader";
+import { detectKnownFormat } from "~/lib/parsers/registry";
+import { inspectCsv, guessMapping, parseWithMapping } from "~/lib/parsers/generic";
 import { findExistingTradeKeys, importTrades } from "~/actions/import";
-import type { ParseResult, PreviewRow } from "~/types";
+import type { ParseResult, PreviewRow, CsvInspection, ColumnMapping } from "~/types";
 import { IMPORT } from "~/constants/copies/import";
 import { cn } from "~/utils/cn";
 import { DropZone } from "./drop-zone.client";
+import { ColumnMapper } from "./column-mapper.client";
 import { ImportMetrics } from "./import-metrics";
 import { PreviewTable } from "./preview-table";
 import { ImportErrorsTable } from "./import-errors-table";
@@ -15,7 +17,7 @@ import { Button } from "~/lib/ui/button";
 import { Toast } from "~/lib/ui/toast";
 import type { ToastVariant } from "~/lib/ui/toast";
 
-type Phase = "drop" | "preview" | "importing" | "done";
+type Phase = "drop" | "mapping" | "preview" | "importing" | "done";
 
 type ToastState = {
   message: string;
@@ -30,30 +32,27 @@ export function ImportFlow(): ReactElement {
   const [importedCount, setImportedCount] = useState(0);
   const [toast, setToast]               = useState<ToastState | null>(null);
   const [isPending, startTransition]    = useTransition();
+  // Generic (mapped) import state
+  const [rawText, setRawText]           = useState<string>("");
+  const [inspection, setInspection]     = useState<CsvInspection | null>(null);
+  const [guessed, setGuessed]           = useState<ColumnMapping>({});
 
   function showToast(message: string, variant: ToastVariant) {
     setToast({ message, variant });
     setTimeout(() => setToast(null), 4000);
   }
 
-  async function handleFile(file: File) {
-    setFileName(file.name);
-    const text = await file.text();
-    const result = parseNinjaTraderCsv(text);
+  // Shared dedup + preview transition for both the auto-detected and mapped paths.
+  async function applyResult(result: ParseResult) {
     setParseResult(result);
 
     if (result.rows.length === 0) {
       showToast(IMPORT.TOAST.PARSE_ERROR, "error");
-      return;
+      return false;
     }
 
-    const keys = result.rows.map((r) => ({
-      tradeNumber: r.tradeNumber,
-      accountName: r.accountName,
-    }));
-
+    const keys = result.rows.map((r) => ({ tradeNumber: r.tradeNumber, accountName: r.accountName }));
     const dupResult = await findExistingTradeKeys(keys);
-
     const dupSet = dupResult.success
       ? new Set<number>(dupResult.data.map((k) => k.tradeNumber))
       : new Set<number>();
@@ -65,6 +64,39 @@ export function ImportFlow(): ReactElement {
 
     setPreviewRows(rows);
     setPhase("preview");
+    return true;
+  }
+
+  async function handleFile(file: File) {
+    setFileName(file.name);
+    const text = await file.text();
+
+    const known = detectKnownFormat(text);
+    if (known) {
+      await applyResult(known);
+      return;
+    }
+
+    // Unknown broker → let the user map columns.
+    const insp = inspectCsv(text);
+    if (insp.headers.length === 0) {
+      showToast(IMPORT.TOAST.PARSE_ERROR, "error");
+      return;
+    }
+    setRawText(text);
+    setInspection(insp);
+    setGuessed(guessMapping(insp.headers));
+    setPhase("mapping");
+  }
+
+  function handleMapping(mapping: ColumnMapping, accountFallback: string) {
+    const result = parseWithMapping(rawText, mapping, { accountFallback });
+    if (result.rows.length === 0) {
+      setParseResult(result);
+      showToast(IMPORT.MAPPING.ERR_NO_ROWS, "error");
+      return;
+    }
+    void applyResult(result);
   }
 
   function handleImport() {
@@ -105,6 +137,9 @@ export function ImportFlow(): ReactElement {
     setPreviewRows([]);
     setImportedCount(0);
     setToast(null);
+    setRawText("");
+    setInspection(null);
+    setGuessed({});
   }
 
   const newCount      = previewRows.filter((r) => r.status === "new").length;
@@ -140,6 +175,16 @@ export function ImportFlow(): ReactElement {
       {/* Drop zone — idle or compact */}
       {phase === "drop" ? (
         <DropZone mode="idle" onFile={handleFile} />
+      ) : phase === "mapping" && inspection ? (
+        <>
+          <DropZone mode="compact" fileName={fileName ?? undefined} onClear={handleClear} />
+          <ColumnMapper
+            inspection={inspection}
+            initialMapping={guessed}
+            onCancel={handleClear}
+            onContinue={handleMapping}
+          />
+        </>
       ) : (
         <>
           <DropZone

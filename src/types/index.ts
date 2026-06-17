@@ -6,9 +6,12 @@ export type {
   ParseResult,
   ImportSummary,
   DuplicateKey,
+  CanonicalField,
+  ColumnMapping,
+  CsvInspection,
 } from "./import"
 
-export { parsedRowSchema, importTradesInputSchema } from "./import"
+export { parsedRowSchema, importTradesInputSchema, CANONICAL_IMPORT_FIELDS } from "./import"
 
 export type { Trade } from "./trade"
 export { tradeSchema } from "./trade"
