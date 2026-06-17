@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="theme-color" content="#0a0a0f" />
+  <title>Offline · TradeOS</title>
+  <style>
+    :root { color-scheme: dark; }
+    * { box-sizing: border-box; }
+    html, body { height: 100%; margin: 0; }
+    body {
+      display: flex; align-items: center; justify-content: center;
+      background: #0a0a0f; color: #e5e7eb;
+      font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+      padding: 24px; text-align: center;
+    }
+    .card {
+      max-width: 360px; display: flex; flex-direction: column; align-items: center; gap: 16px;
+      background: #111118; border: 1px solid #1f2230; border-radius: 12px; padding: 32px;
+    }
+    .logo {
+      width: 44px; height: 44px; border-radius: 10px;
+      display: flex; align-items: center; justify-content: center;
+      background: #a3e635; color: #0a0a0f; font-weight: 700; font-size: 26px;
+      box-shadow: 0 0 24px rgba(163,230,53,.35);
+    }
+    h1 { font-size: 18px; margin: 0; }
+    p { font-size: 14px; color: #9ca3af; margin: 0; line-height: 1.5; }
+    button {
+      margin-top: 4px; cursor: pointer; border: none; border-radius: 8px;
+      background: #a3e635; color: #0a0a0f; font-weight: 600; font-size: 14px; padding: 10px 16px;
+    }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <div class="logo">T</div>
+    <h1>You're offline</h1>
+    <p>TradeOS needs a connection to load your trades. Check your network and try again.</p>
+    <button onclick="location.reload()">Retry</button>
+  </div>
+</body>
+</html>

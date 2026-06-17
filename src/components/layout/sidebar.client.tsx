@@ -20,6 +20,7 @@ import { TargetIcon } from "~/lib/ui/icons/target-icon";
 import { SparklesIcon } from "~/lib/ui/icons/sparkles-icon";
 import { SettingsIcon } from "~/lib/ui/icons/settings-icon";
 import { XIcon } from "~/lib/ui/icons/x-icon";
+import { InstallButton } from "~/components/pwa/install-button.client";
 
 interface NavItem {
   id: string;
@@ -135,6 +136,8 @@ export function Sidebar({
       </nav>
 
       <div className="flex-1" />
+
+      <InstallButton />
 
       {/* User footer */}
       <div className="flex items-center gap-2.5 px-2 pt-2.5 mt-3 border-t border-border">
