@@ -1,0 +1,4 @@
+Trade #,Account,Instrument,Market pos.,Quantity,Entry price,Exit price,Entry time,Exit time,Profit,Commission,MAE,MFE
+1,E2E Sim,NQ 03-25,Long,1,19850.00,19875.00,3/10/2025 9:32:01 AM,3/10/2025 9:45:22 AM,500.00,8.50,-120.00,620.00
+2,E2E Sim,NQ 03-25,Short,2,19900.00,19880.00,3/10/2025 10:05:00 AM,3/10/2025 10:20:00 AM,800.00,17.00,-60.00,900.00
+3,E2E Sim,ES 03-25,Long,1,5100.25,5095.00,3/11/2025 9:40:00 AM,3/11/2025 9:55:00 AM,-262.50,4.50,-300.00,50.00

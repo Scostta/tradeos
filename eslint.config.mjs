@@ -14,6 +14,9 @@ const eslintConfig = defineConfig([
     "next-env.d.ts",
     // Design reference mockups — not application code, not linted.
     ".claude-docs/**",
+    // E2E tests + Playwright config — handled by Playwright tooling, not Next lint.
+    "tests/**",
+    "playwright.config.ts",
   ]),
 ]);
 
