@@ -89,9 +89,7 @@ export default async function DashboardPage({
             initialBalance={prop.account.initialBalance}
           />
         )}
-        {goalsData && <GoalsCard set={goalsData.set} />}
         <MetricsRow metrics={metrics} />
-        {insightsView && <InsightsCard view={insightsView} accountId={accountId} />}
 
         <div className="flex flex-col lg:flex-row gap-3">
           <div className="flex-1 min-w-0">
@@ -101,6 +99,9 @@ export default async function DashboardPage({
             <PnlByDayCard data={pnlByDow} />
           </div>
         </div>
+
+        {goalsData && <GoalsCard set={goalsData.set} />}
+        {insightsView && <InsightsCard view={insightsView} accountId={accountId} />}
 
         <RecentTradesCard trades={recentTrades} />
       </div>
