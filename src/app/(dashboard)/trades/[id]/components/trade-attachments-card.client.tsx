@@ -7,7 +7,10 @@ import {
   uploadTradeAttachment,
   deleteTradeAttachment,
 } from "~/actions/attachments"
+import { TRADES } from "~/constants/copies/trades"
 import type { TradeAttachment } from "~/actions/attachments"
+
+const A = TRADES.ATTACHMENTS
 
 // ── Icons ─────────────────────────────────────────────────────────────────────
 const ChevronLeft  = () => <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
@@ -135,22 +138,22 @@ function Lightbox({
 
         <div className="flex-1" />
 
-        <IcoBtn onClick={() => applyZoom(zoom + ZOOM_STEP)} title="Zoom in (+)">
+        <IcoBtn onClick={() => applyZoom(zoom + ZOOM_STEP)} title={A.ZOOM_IN}>
           <ZoomInIcon />
         </IcoBtn>
-        <IcoBtn onClick={() => applyZoom(zoom - ZOOM_STEP)} title="Zoom out (-)">
+        <IcoBtn onClick={() => applyZoom(zoom - ZOOM_STEP)} title={A.ZOOM_OUT}>
           <ZoomOutIcon />
         </IcoBtn>
-        <IcoBtn onClick={() => applyZoom(1)} title="Reset zoom (0)">
+        <IcoBtn onClick={() => applyZoom(1)} title={A.RESET_ZOOM}>
           <FitIcon />
         </IcoBtn>
 
         <div style={{ width: 1, height: 16, background: "rgba(255,255,255,.12)", margin: "0 6px" }} />
 
-        <IcoBtn onClick={() => { onDelete(img) }} title="Delete" danger>
+        <IcoBtn onClick={() => { onDelete(img) }} title={A.DELETE} danger>
           <TrashIcon />
         </IcoBtn>
-        <IcoBtn onClick={onClose} title="Close (Esc)">
+        <IcoBtn onClick={onClose} title={A.CLOSE}>
           <XIcon />
         </IcoBtn>
       </div>
@@ -310,8 +313,8 @@ export function TradeAttachmentsCard({ tradeId }: { tradeId: string }) {
   if (isLoading) {
     return (
       <div className="card p-4">
-        <div className="label-caps mb-3">Attachments</div>
-        <div className="flex items-center justify-center h-24 text-xxs text-text-mute">Loading…</div>
+        <div className="label-caps mb-3">{A.TITLE}</div>
+        <div className="flex items-center justify-center h-24 text-xxs text-text-mute">{A.LOADING}</div>
       </div>
     )
   }
@@ -319,7 +322,7 @@ export function TradeAttachmentsCard({ tradeId }: { tradeId: string }) {
   return (
     <div className="card p-4">
       <div className="flex items-center justify-between mb-3">
-        <div className="label-caps">Attachments</div>
+        <div className="label-caps">{A.TITLE}</div>
         {images.length > 0 && (
           <span className="mono text-xxs text-text-mute">{current + 1} / {images.length}</span>
         )}
@@ -340,7 +343,7 @@ export function TradeAttachmentsCard({ tradeId }: { tradeId: string }) {
           }}
         >
           {isPending ? (
-            <span className="text-xs text-text-mute">Uploading…</span>
+            <span className="text-xs text-text-mute">{A.UPLOADING}</span>
           ) : (
             <>
               <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="text-text-mute">
@@ -348,8 +351,8 @@ export function TradeAttachmentsCard({ tradeId }: { tradeId: string }) {
                 <polyline points="17 8 12 3 7 8" />
                 <line x1="12" y1="3" x2="12" y2="15" />
               </svg>
-              <span className="text-xs text-text-mute">Drop screenshots or charts</span>
-              <span className="text-xxs text-text-mute opacity-60">PNG · JPG · WebP</span>
+              <span className="text-xs text-text-mute">{A.DROP}</span>
+              <span className="text-xxs text-text-mute opacity-60">{A.FORMATS}</span>
             </>
           )}
         </div>
@@ -407,7 +410,7 @@ export function TradeAttachmentsCard({ tradeId }: { tradeId: string }) {
             {/* Upload overlay */}
             {isPending && (
               <div className="absolute inset-0 flex items-center justify-center bg-bg/60">
-                <span className="text-xs text-text-mute">Uploading…</span>
+                <span className="text-xs text-text-mute">{A.UPLOADING}</span>
               </div>
             )}
 
@@ -454,7 +457,7 @@ export function TradeAttachmentsCard({ tradeId }: { tradeId: string }) {
             disabled={isPending}
             className="w-full py-1.5 text-xs text-text-mute border border-dashed border-border hover:border-border-hi hover:text-text-dim rounded-sm transition-colors disabled:opacity-50 cursor-pointer"
           >
-            + Add more
+            {A.ADD_MORE}
           </button>
         </div>
       )}

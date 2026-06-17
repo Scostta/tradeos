@@ -5,8 +5,10 @@ export const COMMON = {
     TAGLINE: "Trading Journal",
     VERSION: "v0.1 · dev",
   },
-  COMING_SOON: "Coming soon",
-  OR:          "or",
+  COMING_SOON:  "Coming soon",
+  OR:           "or",
+  ALL_ACCOUNTS: "All accounts",
+  OPEN_MENU:    "Open menu",
   NAV_LABELS: {
     DASHBOARD:  "Dashboard",
     TRADES:     "Trades",

@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation"
 import type { ReactElement } from "react"
 import type { Account } from "~/types"
 import { ChevronDownIcon } from "~/lib/ui/icons/chevron-down-icon"
+import { COMMON } from "~/constants/copies/common"
 
 type Props = {
   accounts: Account[]
@@ -72,7 +73,7 @@ export function AccountSelector({ accounts, value }: Props): ReactElement {
             </span>
           </>
         ) : (
-          <span style={{ color: "var(--color-text-mute)" }}>All accounts</span>
+          <span style={{ color: "var(--color-text-mute)" }}>{COMMON.ALL_ACCOUNTS}</span>
         )}
         <span
           style={{
@@ -102,7 +103,7 @@ export function AccountSelector({ accounts, value }: Props): ReactElement {
           }}
         >
           <Option
-            label="All accounts"
+            label={COMMON.ALL_ACCOUNTS}
             active={selected === null}
             onSelect={() => select(null)}
           />

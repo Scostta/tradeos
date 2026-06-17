@@ -7,8 +7,11 @@ import { TradeAttachmentsCard } from "./trade-attachments-card.client"
 import { parsePlaybookRules } from "~/helpers/playbook-rules"
 import { useTimezone } from "~/hooks/use-timezone"
 import { MISTAKE_PRESETS } from "~/constants/trade-mistakes"
+import { TRADES } from "~/constants/copies/trades"
 import type { Trade } from "~/types/trade"
 import type { Playbook } from "~/types/playbook"
+
+const SIDEBAR = TRADES.SIDEBAR
 
 type Props = {
   trade: Trade
@@ -54,9 +57,9 @@ export function TradeSidebar({ trade, playbooks }: Props) {
 
   const parsedRules = parsePlaybookRules(playbooks.find(p => p.id === playbookId)?.rules ?? null)
   const ruleGroups: { key: "entry" | "exit" | "conditions"; label: string }[] = [
-    { key: "entry",      label: "Entry" },
-    { key: "exit",       label: "Exit" },
-    { key: "conditions", label: "Conditions" },
+    { key: "entry",      label: SIDEBAR.GROUP_ENTRY },
+    { key: "exit",       label: SIDEBAR.GROUP_EXIT },
+    { key: "conditions", label: SIDEBAR.GROUP_CONDITIONS },
   ]
   const metInGroup = (g: "entry" | "exit" | "conditions") =>
     parsedRules[g].filter(r => followedRules.includes(r)).length
@@ -94,7 +97,7 @@ export function TradeSidebar({ trade, playbooks }: Props) {
   }, [trade.id, mistakes])
 
   const savedLabel = savedAt
-    ? `autosaved · ${savedAt.toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit", hour12: false, timeZone })}`
+    ? `${SIDEBAR.AUTOSAVED} · ${savedAt.toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit", hour12: false, timeZone })}`
     : null
 
   return (
@@ -102,13 +105,13 @@ export function TradeSidebar({ trade, playbooks }: Props) {
 
       {/* Playbook */}
       <div className="card p-4">
-        <div className="label-caps mb-2">Playbook</div>
+        <div className="label-caps mb-2">{SIDEBAR.PLAYBOOK}</div>
         <select
           value={playbookId}
           onChange={e => handlePlaybookChange(e.target.value)}
           className="w-full px-2.5 py-2 bg-surface-2 border border-border rounded-sm text-text text-base font-[inherit] outline-none focus:border-border-hi"
         >
-          <option value="">— None —</option>
+          <option value="">{SIDEBAR.NONE}</option>
           {playbooks.filter(s => s.active || s.id === playbookId).map(s => (
             <option key={s.id} value={s.id}>{s.name}</option>
           ))}
@@ -119,7 +122,7 @@ export function TradeSidebar({ trade, playbooks }: Props) {
       {parsedRules.all.length > 0 && (
         <div className="card p-4">
           <div className="flex justify-between items-center mb-3">
-            <div className="label-caps">Setup checklist</div>
+            <div className="label-caps">{SIDEBAR.SETUP_CHECKLIST}</div>
             <span
               className="text-xxs mono font-semibold tracking-wider rounded-sm px-2 py-0.5"
               style={{
@@ -127,7 +130,7 @@ export function TradeSidebar({ trade, playbooks }: Props) {
                 background: setupValid ? "color-mix(in srgb, var(--color-profit) 14%, transparent)" : "var(--color-surface-2)",
               }}
             >
-              {setupValid ? "VALID" : "INCOMPLETE"}
+              {setupValid ? SIDEBAR.VALID : SIDEBAR.INCOMPLETE}
             </span>
           </div>
 
@@ -142,7 +145,7 @@ export function TradeSidebar({ trade, playbooks }: Props) {
                   <div className="flex items-center justify-between">
                     <span className="text-xxs uppercase tracking-wider text-text-mute">{label}</span>
                     <span className="mono text-xxs" style={{ color: groupOk ? "var(--color-profit)" : "var(--color-text-mute)" }}>
-                      {met}/{parsedRules[key].length} · min {min}
+                      {met}/{parsedRules[key].length} · {SIDEBAR.MIN} {min}
                     </span>
                   </div>
                   {parsedRules[key].map(rule => {
@@ -188,7 +191,7 @@ export function TradeSidebar({ trade, playbooks }: Props) {
       {/* Notes — flex-1 fills remaining vertical space */}
       <div className="card p-4 flex flex-col flex-1 min-h-0">
         <div className="flex justify-between items-center mb-2">
-          <div className="label-caps">Notes</div>
+          <div className="label-caps">{SIDEBAR.NOTES}</div>
           {savedLabel && (
             <span className="mono text-xs text-text-mute">{savedLabel}</span>
           )}
@@ -203,7 +206,7 @@ export function TradeSidebar({ trade, playbooks }: Props) {
             }
           }}
           className="flex-1 min-h-0 bg-surface-2 border border-border rounded-sm p-2.5 text-text text-base leading-relaxed resize-none font-[inherit] outline-none focus:border-border-hi transition-colors"
-          placeholder="What happened? What did you learn?"
+          placeholder={SIDEBAR.NOTES_PLACEHOLDER}
         />
         <div className="mt-3 pt-3 flex items-center gap-2">
           <button
@@ -211,16 +214,16 @@ export function TradeSidebar({ trade, playbooks }: Props) {
             disabled={isPending}
             className="btn-accent py-1.75 px-3.5 disabled:opacity-60"
           >
-            Save
+            {SIDEBAR.SAVE}
           </button>
           <div className="flex-1" />
-          <span className="mono text-xs text-text-mute">⌘S</span>
+          <span className="mono text-xs text-text-mute">{SIDEBAR.SAVE_SHORTCUT}</span>
         </div>
       </div>
 
       {/* Tags */}
       <div className="card p-4">
-        <div className="label-caps mb-3">Tags</div>
+        <div className="label-caps mb-3">{SIDEBAR.TAGS}</div>
         <div className="flex flex-wrap gap-2">
           {tags.map(tag => (
             <button
@@ -252,7 +255,7 @@ export function TradeSidebar({ trade, playbooks }: Props) {
               onClick={() => setAddingTag(true)}
               className="text-sm px-2 py-0.5 rounded-xs text-text-mute border border-dashed border-border hover:border-border-hi hover:text-text-dim transition-colors cursor-pointer"
             >
-              + add
+              {SIDEBAR.ADD_TAG}
             </button>
           )}
         </div>
@@ -261,14 +264,14 @@ export function TradeSidebar({ trade, playbooks }: Props) {
       {/* Mistakes */}
       <div className="card p-4">
         <div className="flex justify-between items-center mb-3">
-          <div className="label-caps">Mistakes</div>
+          <div className="label-caps">{SIDEBAR.MISTAKES}</div>
           {mistakes.length > 0 && (
             <span className="mono text-xs text-loss">{mistakes.length}</span>
           )}
         </div>
         <div className="flex flex-wrap gap-2">
           {MISTAKE_PRESETS.filter(m => !mistakes.includes(m)).length === MISTAKE_PRESETS.length && mistakes.length === 0 && (
-            <span className="text-xs text-text-mute italic">Tag what went wrong (optional).</span>
+            <span className="text-xs text-text-mute italic">{SIDEBAR.MISTAKES_HINT}</span>
           )}
           {/* Selected mistakes */}
           {mistakes.map(m => (

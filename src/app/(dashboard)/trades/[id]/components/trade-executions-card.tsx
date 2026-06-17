@@ -6,7 +6,10 @@ import { formatDuration } from "~/helpers/duration"
 import { updateTradeStopPrice } from "~/actions/trades"
 import { useStopPrice } from "./stop-price-context.client"
 import { useTimezone } from "~/hooks/use-timezone"
+import { TRADES } from "~/constants/copies/trades"
 import type { Trade } from "~/types/trade"
+
+const X = TRADES.EXECUTIONS
 
 // ── MAE-based stop estimate ────────────────────────────────────────────────────
 const POINT_VALUES: Record<string, number> = { NQ: 20, MNQ: 2, ES: 50, MES: 5 }
@@ -65,13 +68,13 @@ export function TradeExecutionsCard({ trade }: { trade: Trade }): ReactElement {
 
   return (
     <div className="card p-4">
-      <div className="label-caps mb-3">Executions</div>
+      <div className="label-caps mb-3">{X.TITLE}</div>
 
       <div className="flex flex-col gap-1">
         {/* Entry */}
         <div className="flex items-center gap-2 bg-surface-2 rounded-sm px-3 py-2.5">
           <span className="mono text-xxs font-semibold shrink-0" style={{ color: "#3b82f6", minWidth: 34 }}>
-            ENTRY
+            {X.ENTRY}
           </span>
           <span className="mono text-xxs text-text-mute flex-1">{fmtTime(trade.entryTime)}</span>
           <span
@@ -82,7 +85,7 @@ export function TradeExecutionsCard({ trade }: { trade: Trade }): ReactElement {
               border:     `1px solid ${isLong ? "rgba(59,130,246,.3)" : "rgba(245,158,11,.3)"}`,
             }}
           >
-            {isLong ? "LONG" : "SHORT"}
+            {isLong ? X.LONG : X.SHORT}
           </span>
           <span className="mono text-sm font-semibold text-text shrink-0">
             {trade.entryPrice.toFixed(2)}
@@ -96,11 +99,11 @@ export function TradeExecutionsCard({ trade }: { trade: Trade }): ReactElement {
             className="mono text-xxs font-semibold shrink-0"
             style={{ color: isProfit ? "var(--color-profit)" : "var(--color-loss)", minWidth: 34 }}
           >
-            EXIT
+            {X.EXIT}
           </span>
           <span className="mono text-xxs text-text-mute flex-1">{fmtTime(trade.exitTime)}</span>
           <span className="mono text-xxs shrink-0" style={{ color: isProfit ? "var(--color-profit)" : "var(--color-loss)" }}>
-            {moveSign}{movePts} pts
+            {moveSign}{movePts} {X.PTS}
           </span>
           <span className="mono text-sm font-semibold text-text shrink-0">
             {trade.exitPrice.toFixed(2)}
@@ -112,16 +115,16 @@ export function TradeExecutionsCard({ trade }: { trade: Trade }): ReactElement {
         <div
           className="flex items-center gap-2 bg-surface-2 rounded-sm px-3 py-2.5 cursor-pointer group"
           onClick={!editing ? startEdit : undefined}
-          title={isEstimate ? "Estimado desde MAE · click para definir el stop real" : "Click para editar"}
+          title={isEstimate ? X.TITLE_EST : X.TITLE_EDIT}
         >
           <span className="mono text-xxs font-semibold shrink-0 text-loss" style={{ minWidth: 34 }}>
-            STOP
+            {X.STOP}
           </span>
 
           <span className="flex-1" />
 
           {isEstimate && !editing && (
-            <span className="text-xxs text-text-mute italic">est.</span>
+            <span className="text-xxs text-text-mute italic">{X.EST}</span>
           )}
 
           {editing ? (
@@ -144,7 +147,7 @@ export function TradeExecutionsCard({ trade }: { trade: Trade }): ReactElement {
                 opacity: isEstimate ? 0.6 : 1,
               }}
             >
-              {displayStop ? displayStop.toFixed(2) : "— set stop"}
+              {displayStop ? displayStop.toFixed(2) : X.SET_STOP}
             </span>
           )}
 
@@ -180,7 +183,7 @@ export function TradeExecutionsCard({ trade }: { trade: Trade }): ReactElement {
 
         {/* Hold time */}
         <div className="flex items-center justify-between mt-1 px-1">
-          <span className="text-xxs text-text-mute">Hold time</span>
+          <span className="text-xxs text-text-mute">{X.HOLD_TIME}</span>
           <span className="mono text-xs text-text-dim">{formatDuration(trade.entryTime, trade.exitTime)}</span>
         </div>
       </div>

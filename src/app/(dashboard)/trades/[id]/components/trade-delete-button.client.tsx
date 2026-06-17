@@ -4,6 +4,7 @@ import { useState, useTransition } from "react"
 import { useRouter } from "next/navigation"
 import { deleteTrade } from "~/actions/trades"
 import { APP_URLS } from "~/constants/app-urls"
+import { TRADES } from "~/constants/copies/trades"
 
 export function TradeDeleteButton({ tradeId }: { tradeId: string }) {
   const router = useRouter()
@@ -28,20 +29,20 @@ export function TradeDeleteButton({ tradeId }: { tradeId: string }) {
   if (confirming) {
     return (
       <div className="flex items-center gap-2 whitespace-nowrap">
-        <span className="text-sm text-text-dim">Delete trade?</span>
+        <span className="text-sm text-text-dim">{TRADES.DELETE.CONFIRM_Q}</span>
         <button
           onClick={handleDelete}
           disabled={isPending}
           className="px-3 h-7.5 rounded-sm text-base text-bg bg-loss hover:opacity-90 transition-opacity disabled:opacity-60"
         >
-          {isPending ? "Deleting…" : "Confirm"}
+          {isPending ? TRADES.DELETE.DELETING : TRADES.DELETE.CONFIRM}
         </button>
         <button
           onClick={() => setConfirming(false)}
           disabled={isPending}
           className="px-3 h-7.5 rounded-sm text-base text-text-dim border border-border hover:border-border-hi transition-colors disabled:opacity-60"
         >
-          Cancel
+          {TRADES.DELETE.CANCEL}
         </button>
       </div>
     )
@@ -50,10 +51,10 @@ export function TradeDeleteButton({ tradeId }: { tradeId: string }) {
   return (
     <button
       onClick={() => setConfirming(true)}
-      title={error ?? "Delete this trade"}
+      title={error ?? TRADES.DELETE.TITLE}
       className="flex items-center gap-1.5 px-3 h-7.5 rounded-sm text-base text-text-dim border border-border hover:border-loss hover:text-loss transition-colors whitespace-nowrap"
     >
-      Delete
+      {TRADES.DELETE.DELETE}
     </button>
   )
 }

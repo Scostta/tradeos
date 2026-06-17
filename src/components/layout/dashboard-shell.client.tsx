@@ -4,6 +4,7 @@ import { useState } from "react"
 import type { ReactNode } from "react"
 import { Sidebar } from "./sidebar.client"
 import { TimezoneContext } from "~/hooks/use-timezone"
+import { COMMON } from "~/constants/copies/common"
 
 export function DashboardShell({
   userEmail,
@@ -39,7 +40,7 @@ export function DashboardShell({
             type="button"
             onClick={() => setSidebarOpen(true)}
             className="p-1.5 rounded text-text-mute hover:text-text transition-colors"
-            aria-label="Open menu"
+            aria-label={COMMON.OPEN_MENU}
           >
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round">
               <line x1="3" y1="6" x2="21" y2="6" />

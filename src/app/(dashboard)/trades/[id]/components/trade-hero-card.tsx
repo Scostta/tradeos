@@ -3,7 +3,10 @@
 import type { ReactElement } from "react"
 import { formatCurrency } from "~/helpers/format"
 import { formatDuration } from "~/helpers/duration"
+import { TRADES } from "~/constants/copies/trades"
 import { useStopPrice } from "./stop-price-context.client"
+
+const H = TRADES.HERO
 import type { Trade } from "~/types/trade"
 import type { Account } from "~/types/account"
 import type { Playbook } from "~/types/playbook"
@@ -41,34 +44,34 @@ export function TradeHeroCard({ trade, account, playbook }: Props): ReactElement
   })()
 
   const specCells: Array<{ label: string; value: string; colorClass?: string }> = [
-    { label: "ENTRY PRICE", value: trade.entryPrice.toFixed(2) },
-    { label: "EXIT PRICE",  value: trade.exitPrice.toFixed(2) },
-    { label: "MOVE",        value: `${move} pts` },
-    { label: "RISK:REWARD", value: rr },
+    { label: H.ENTRY_PRICE, value: trade.entryPrice.toFixed(2) },
+    { label: H.EXIT_PRICE,  value: trade.exitPrice.toFixed(2) },
+    { label: H.MOVE,        value: `${move} ${H.PTS}` },
+    { label: H.RISK_REWARD, value: rr },
     {
-      label:      "GROSS P&L",
+      label:      H.GROSS_PNL,
       value:      formatCurrency(trade.pnl, { sign: false }),
       colorClass: trade.pnl >= 0 ? "text-profit" : "text-loss",
     },
     {
-      label:      "COMMISSION",
+      label:      H.COMMISSION,
       value:      `−$${trade.commission.toFixed(2)}`,
       colorClass: "text-text-dim",
     },
     {
-      label:      "MAE",
-      value:      trade.mae !== null ? formatCurrency(trade.mae, { sign: false }) : "—",
+      label:      H.MAE,
+      value:      trade.mae !== null ? formatCurrency(trade.mae, { sign: false }) : H.NONE,
       colorClass: "text-loss",
     },
     {
-      label:      "MFE",
-      value:      trade.mfe !== null ? formatCurrency(trade.mfe, { sign: false }) : "—",
+      label:      H.MFE,
+      value:      trade.mfe !== null ? formatCurrency(trade.mfe, { sign: false }) : H.NONE,
       colorClass: "text-profit",
     },
-    { label: "HOLD TIME", value: holdTime },
-    { label: "PLAYBOOK",  value: playbook?.name ?? "—" },
-    { label: "SESSION",   value: trade.session ?? "—" },
-    { label: "ACCOUNT",   value: account ? account.name : "—" },
+    { label: H.HOLD_TIME, value: holdTime },
+    { label: H.PLAYBOOK,  value: playbook?.name ?? H.NONE },
+    { label: H.SESSION,   value: trade.session ?? H.NONE },
+    { label: H.ACCOUNT,   value: account ? account.name : H.NONE },
   ]
 
   return (
@@ -87,15 +90,15 @@ export function TradeHeroCard({ trade, account, playbook }: Props): ReactElement
               border:     `1px solid ${isLong ? "rgba(59,130,246,.35)" : "rgba(245,158,11,.35)"}`,
             }}
           >
-            {isLong ? "LONG" : "SHORT"}
+            {isLong ? H.LONG : H.SHORT}
           </span>
           <span className="text-sm text-text-mute">
-            {trade.contracts} contract{trade.contracts > 1 ? "s" : ""}
+            {trade.contracts} {trade.contracts > 1 ? H.CONTRACTS : H.CONTRACT}
           </span>
         </div>
 
         <div className="text-right shrink-0">
-          <div className="label-caps mb-1">NET P&L</div>
+          <div className="label-caps mb-1">{H.NET_PNL}</div>
           <div
             className="mono text-4xl font-semibold tracking-tight"
             style={{ color: isProfit ? "var(--color-profit)" : "var(--color-loss)" }}

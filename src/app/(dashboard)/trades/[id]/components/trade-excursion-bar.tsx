@@ -1,6 +1,9 @@
 import type { ReactElement } from "react"
 import { formatCurrency } from "~/helpers/format"
+import { TRADES } from "~/constants/copies/trades"
 import type { Trade } from "~/types/trade"
+
+const E = TRADES.EXCURSION
 
 export function TradeExcursionBar({ trade }: { trade: Trade }): ReactElement | null {
   const mae = trade.mae ?? 0
@@ -25,7 +28,7 @@ export function TradeExcursionBar({ trade }: { trade: Trade }): ReactElement | n
 
   return (
     <div className="card p-5">
-      <div className="label-caps mb-4">EXCURSION · MAE / MFE</div>
+      <div className="label-caps mb-4">{E.TITLE}</div>
 
       <div style={{ position: "relative", height: 70 }}>
         {/* Horizontal axis */}
@@ -63,7 +66,7 @@ export function TradeExcursionBar({ trade }: { trade: Trade }): ReactElement | n
                 whiteSpace: "nowrap",
               }}
             >
-              MAE {formatCurrency(mae, { sign: false, decimals: 0 })}
+              {E.MAE} {formatCurrency(mae, { sign: false, decimals: 0 })}
             </div>
           </div>
         )}
@@ -86,7 +89,7 @@ export function TradeExcursionBar({ trade }: { trade: Trade }): ReactElement | n
                 whiteSpace: "nowrap",
               }}
             >
-              MFE {formatCurrency(mfe, { sign: false, decimals: 0 })}
+              {E.MFE} {formatCurrency(mfe, { sign: false, decimals: 0 })}
             </div>
           </div>
         )}
@@ -118,7 +121,7 @@ export function TradeExcursionBar({ trade }: { trade: Trade }): ReactElement | n
             whiteSpace: "nowrap",
           }}
         >
-          NET {formatCurrency(net, { sign: false, decimals: 0 })}
+          {E.NET} {formatCurrency(net, { sign: false, decimals: 0 })}
         </div>
       </div>
 
@@ -126,33 +129,33 @@ export function TradeExcursionBar({ trade }: { trade: Trade }): ReactElement | n
       <div className="mt-4 px-3 py-2.5 bg-surface-2 rounded-sm text-sm text-text-dim leading-relaxed">
         {isProfit && capturedPct !== null ? (
           <>
-            <span className="text-accent font-medium">Edge:</span>{" "}
-            You captured{" "}
+            <span className="text-accent font-medium">{E.EDGE}</span>{" "}
+            {E.CAPTURED}{" "}
             <span className="mono text-profit">{capturedPct}%</span>{" "}
-            of the best move
+            {E.OF_BEST_MOVE}
             {heatPct !== null && (
-              <> and gave back{" "}
+              <> {E.GAVE_BACK}{" "}
                 <span className="mono text-loss">{heatPct}%</span>{" "}
-                in heat before exit
+                {E.IN_HEAT}
               </>
             )}.
           </>
         ) : mfe > 0 ? (
           <>
-            <span className="text-loss font-medium">Loss:</span>{" "}
-            Price moved{" "}
+            <span className="text-loss font-medium">{E.LOSS}</span>{" "}
+            {E.PRICE_MOVED}{" "}
             <span className="mono text-profit">{formatCurrency(mfe, { sign: false, decimals: 0 })}</span>{" "}
-            in your favor before reversing —{" "}
-            max heat{" "}
+            {E.IN_FAVOR}{" "}
+            {E.MAX_HEAT}{" "}
             <span className="mono text-loss">{formatCurrency(mae, { sign: false, decimals: 0 })}</span>
             {mae > 0 && mfe > 0 && (
-              <>, {Math.round((mae / mfe) * 100)}% of MFE</>
+              <>, {Math.round((mae / mfe) * 100)}% {E.OF_MFE}</>
             )}.
           </>
         ) : (
           <>
-            <span className="text-loss font-medium">Loss:</span>{" "}
-            Price moved straight against you — max heat{" "}
+            <span className="text-loss font-medium">{E.LOSS}</span>{" "}
+            {E.PRICE_AGAINST}{" "}
             <span className="mono text-loss">{formatCurrency(mae, { sign: false, decimals: 0 })}</span>.
           </>
         )}

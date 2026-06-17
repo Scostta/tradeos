@@ -8,8 +8,12 @@ import {
   ColorType,
 } from "lightweight-charts"
 import type { IChartApi, UTCTimestamp } from "lightweight-charts"
+import { TRADES } from "~/constants/copies/trades"
 import type { Trade } from "~/types/trade"
 import type { PolygonBar, PolygonBarsResponse } from "~/app/api/polygon/bars/route"
+
+const C = TRADES.CHART
+const CHART_TYPE_LABELS = { candles: C.TYPE_CANDLES, line: C.TYPE_LINE, bars: C.TYPE_BARS } as const
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 const POINT_VALUES: Record<string, number> = { NQ: 20, MNQ: 2, ES: 50, MES: 5 }
@@ -269,11 +273,11 @@ export function TradeExecutionChart({ trade }: { trade: Trade }) {
       <div className="flex items-center gap-3 px-4 border-b border-border shrink-0" style={{ height: 36 }}>
         <span className="mono text-sm font-semibold text-text">{s}</span>
         <span className="text-border-hi select-none">|</span>
-        <span className="mono text-xs text-text-dim">1 min</span>
+        <span className="mono text-xs text-text-dim">{C.TIMEFRAME}</span>
 
         <div className="flex items-center gap-2 mono text-xs">
-          <span style={{ color: "#3b82f6" }}>O {trade.entryPrice.toFixed(2)}</span>
-          <span style={{ color: pnlColor }}>{isProfit ? "+" : ""}{movePts} pts</span>
+          <span style={{ color: "#3b82f6" }}>{C.OPEN} {trade.entryPrice.toFixed(2)}</span>
+          <span style={{ color: pnlColor }}>{isProfit ? "+" : ""}{movePts} {C.PTS}</span>
           <span className="font-semibold" style={{ color: pnlColor }}>
             {isProfit ? `+$${trade.netPnl.toFixed(2)}` : `−$${Math.abs(trade.netPnl).toFixed(2)}`}
           </span>
@@ -292,13 +296,13 @@ export function TradeExecutionChart({ trade }: { trade: Trade }) {
                 border: `1px solid ${state.source === "real" ? "rgba(163,230,53,.25)" : "rgba(107,114,128,.25)"}`,
               }}
             >
-              {state.source === "real" ? (state.label ?? "Real") : "Simulado"}
+              {state.source === "real" ? (state.label ?? C.SOURCE_REAL) : C.SOURCE_SYNTHETIC}
             </span>
             {state.source === "synthetic" && (
               <button
                 onClick={() => { setState({ status: "loading" }); setRetryCount(c => c + 1) }}
                 className="mono text-xxs text-text-mute hover:text-text-dim transition-colors"
-                title="Reintentar"
+                title={C.RETRY}
               >
                 ↺
               </button>
@@ -320,17 +324,17 @@ export function TradeExecutionChart({ trade }: { trade: Trade }) {
                 cursor: "pointer",
               }}
             >
-              {t}
+              {CHART_TYPE_LABELS[t]}
             </button>
           ))}
         </div>
 
         {/* Legend */}
         <div className="flex items-center gap-2 mono text-xxs">
-          <span style={{ color: "#3b82f6" }}>● Entry</span>
-          <span style={{ color: exitColor }}>● Exit</span>
-          <span className="text-loss">┄ Stop</span>
-          <span className="text-accent">┄ Target</span>
+          <span style={{ color: "#3b82f6" }}>● {C.LEGEND_ENTRY}</span>
+          <span style={{ color: exitColor }}>● {C.LEGEND_EXIT}</span>
+          <span className="text-loss">┄ {C.LEGEND_STOP}</span>
+          <span className="text-accent">┄ {C.LEGEND_TARGET}</span>
         </div>
       </div>
 
@@ -338,7 +342,7 @@ export function TradeExecutionChart({ trade }: { trade: Trade }) {
       <div className="relative flex-1 min-h-0" style={{ minHeight: 560 }}>
         {state.status === "loading" && (
           <div className="absolute inset-0 flex items-center justify-center text-xxs text-text-mute bg-surface z-10">
-            Cargando datos…
+            {C.LOADING}
           </div>
         )}
         <div ref={containerRef} className="absolute inset-0" />

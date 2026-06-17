@@ -3,6 +3,7 @@ import Link from "next/link"
 import { formatDateTime } from "~/helpers/format"
 import { formatDuration } from "~/helpers/duration"
 import { APP_URLS } from "~/constants/app-urls"
+import { TRADES } from "~/constants/copies/trades"
 import { TradeFormModal } from "~/components/trades/trade-form-modal.client"
 import { parsePlaybookRules } from "~/helpers/playbook-rules"
 import { meetsSetup } from "~/lib/calculations/playbook-adherence"
@@ -31,7 +32,7 @@ export function TradeViewHeader({ trade, accounts, playbooks, timezone }: {
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-2.5">
           <h1 className="text-xl font-semibold tracking-tight text-text">
-            Trade #{num}
+            {TRADES.VIEW.TRADE_NUM_PREFIX}{num}
           </h1>
           {showAdherence && (
             <span
@@ -41,12 +42,12 @@ export function TradeViewHeader({ trade, accounts, playbooks, timezone }: {
                 background: setupOk ? "color-mix(in srgb, var(--color-profit) 14%, transparent)" : "color-mix(in srgb, #f59e0b 14%, transparent)",
               }}
             >
-              {setupOk ? "SETUP MET" : "SETUP BROKEN"}
+              {setupOk ? TRADES.VIEW.SETUP_MET : TRADES.VIEW.SETUP_BROKEN}
             </span>
           )}
         </div>
         <div className="mono text-sm text-text-mute mt-0.5">
-          {formatDateTime(trade.entryTime, timezone)} · held {formatDuration(trade.entryTime, trade.exitTime)}
+          {formatDateTime(trade.entryTime, timezone)} · {TRADES.VIEW.HELD} {formatDuration(trade.entryTime, trade.exitTime)}
         </div>
       </div>
       <TradeFormModal

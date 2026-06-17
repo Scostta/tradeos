@@ -35,6 +35,14 @@ export const IMPORT = {
     MAPPING_LABEL:  "Mapping:",
     MAPPING_VALUE:  "NinjaTrader v8",
   },
+  ERRORS: {
+    TITLE:      "Errors · {count} rows skipped",
+    LINE:       "Line",
+    ACCOUNT:    "Account",
+    INSTRUMENT: "Instrument",
+    REASON:     "Reason",
+    NONE:       "—",
+  },
   STATUS: {
     IMPORTING: "Importing…",
     DONE:      "✓ Imported {count} trades",
