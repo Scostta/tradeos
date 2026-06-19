@@ -1,6 +1,7 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useRef } from "react"
+import { createPortal } from "react-dom"
 import type { ReactElement } from "react"
 import type { ReportsData } from "~/types/reports"
 import { REPORTS } from "~/constants/copies/reports"
@@ -41,6 +42,18 @@ export function ReportsShell({ data, accountId }: Props): ReactElement {
   const [tab,       setTab]      = useState<ActiveTab>("performance")
   const [reportKey, setReportKey]= useState<ReportKey>("dayTime")
   const [menuOpen,  setMenuOpen] = useState(false)
+  const [menuRect,  setMenuRect] = useState<{ top: number; left: number } | null>(null)
+  const triggerRef = useRef<HTMLDivElement>(null)
+
+  // The tab strip scrolls horizontally on mobile, which would clip an absolutely
+  // positioned dropdown — so the Reports▾ menu is portaled to <body> at the
+  // trigger's measured position instead.
+  function toggleMenu() {
+    if (menuOpen) { setMenuOpen(false); return }
+    const r = triggerRef.current?.getBoundingClientRect()
+    if (r) setMenuRect({ top: r.bottom + 4, left: r.left })
+    setMenuOpen(true)
+  }
 
   const reportsLabel = tab === "reports"
     ? `${REPORTS.TABS.REPORTS} · ${REPORT_LABEL.get(reportKey) ?? ""}`
@@ -63,14 +76,15 @@ export function ReportsShell({ data, accountId }: Props): ReactElement {
       {/* Tab strip */}
       <div
         style={{
-          display:      "flex",
-          alignItems:   "center",
-          flexWrap:     "wrap",
-          gap:          4,
-          padding:      "10px 16px",
-          borderBottom: "1px solid var(--color-border)",
-          position:     "relative",
-          flexShrink:   0,
+          display:                 "flex",
+          alignItems:              "center",
+          flexWrap:                "nowrap",
+          gap:                     4,
+          padding:                 "10px 16px",
+          borderBottom:            "1px solid var(--color-border)",
+          flexShrink:              0,
+          overflowX:               "auto",
+          WebkitOverflowScrolling: "touch",
         }}
       >
         {/* Performance tab */}
@@ -91,68 +105,68 @@ export function ReportsShell({ data, accountId }: Props): ReactElement {
         />
 
         {/* Reports▾ dropdown tab */}
-        <div style={{ position: "relative" }}>
+        <div ref={triggerRef} style={{ flexShrink: 0 }}>
           <TabButton
             id="reports"
             label={reportsLabel}
             active={tab === "reports"}
-            onClick={() => setMenuOpen(o => !o)}
+            onClick={toggleMenu}
             dropdown
             badge={tab === "reports"}
           />
-
-          {menuOpen && (
-            <>
-              {/* Click-away overlay */}
-              <div
-                style={{ position: "fixed", inset: 0, zIndex: 20 }}
-                onClick={() => setMenuOpen(false)}
-              />
-              {/* Dropdown menu */}
-              <div
-                style={{
-                  position:     "absolute",
-                  top:          "100%",
-                  left:         0,
-                  marginTop:    4,
-                  background:   "var(--color-surface)",
-                  border:       "1px solid var(--color-border-hi)",
-                  borderRadius: 8,
-                  padding:      5,
-                  minWidth:     200,
-                  zIndex:       30,
-                  boxShadow:    "0 16px 44px rgba(0,0,0,.55)",
-                }}
-              >
-                {REPORT_MENU.map(m => {
-                  const isActive = tab === "reports" && reportKey === m.key
-                  return (
-                    <button
-                      key={m.key}
-                      onClick={() => selectReport(m.key)}
-                      style={{
-                        display:      "block",
-                        width:        "100%",
-                        textAlign:    "left",
-                        padding:      "8px 12px",
-                        borderRadius: 5,
-                        border:       "none",
-                        cursor:       "pointer",
-                        background:   isActive ? "var(--color-surface-2)" : "transparent",
-                        color:        isActive ? "var(--color-text)" : "var(--color-text-mute)",
-                        fontFamily:   "inherit",
-                        fontSize:     13,
-                        fontWeight:   500,
-                      }}
-                    >
-                      {m.label}
-                    </button>
-                  )
-                })}
-              </div>
-            </>
-          )}
         </div>
+
+        {menuOpen && menuRect && createPortal(
+          <>
+            {/* Click-away overlay */}
+            <div
+              style={{ position: "fixed", inset: 0, zIndex: 60 }}
+              onClick={() => setMenuOpen(false)}
+            />
+            {/* Dropdown menu — fixed to the trigger so the scroll strip can't clip it */}
+            <div
+              style={{
+                position:     "fixed",
+                top:          menuRect.top,
+                left:         menuRect.left,
+                background:   "var(--color-surface)",
+                border:       "1px solid var(--color-border-hi)",
+                borderRadius: 8,
+                padding:      5,
+                minWidth:     200,
+                zIndex:       61,
+                boxShadow:    "0 16px 44px rgba(0,0,0,.55)",
+              }}
+            >
+              {REPORT_MENU.map(m => {
+                const isActive = tab === "reports" && reportKey === m.key
+                return (
+                  <button
+                    key={m.key}
+                    onClick={() => selectReport(m.key)}
+                    style={{
+                      display:      "block",
+                      width:        "100%",
+                      textAlign:    "left",
+                      padding:      "8px 12px",
+                      borderRadius: 5,
+                      border:       "none",
+                      cursor:       "pointer",
+                      background:   isActive ? "var(--color-surface-2)" : "transparent",
+                      color:        isActive ? "var(--color-text)" : "var(--color-text-mute)",
+                      fontFamily:   "inherit",
+                      fontSize:     13,
+                      fontWeight:   500,
+                    }}
+                  >
+                    {m.label}
+                  </button>
+                )
+              })}
+            </div>
+          </>,
+          document.body,
+        )}
 
         {/* Time tab */}
         <TabButton
@@ -271,6 +285,7 @@ function TabButton(props: TabButtonProps): ReactElement {
         fontWeight:   active ? 600 : 500,
         cursor:       "pointer",
         whiteSpace:   "nowrap",
+        flexShrink:   0,
       }}
     >
       {label}

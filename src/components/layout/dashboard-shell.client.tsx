@@ -25,7 +25,9 @@ export function DashboardShell({
 
   return (
     <TimezoneContext.Provider value={timezone}>
-    <div className="flex h-screen overflow-hidden bg-bg">
+    {/* h-dvh (dynamic viewport) instead of h-screen: on mobile, 100vh sits
+        behind the browser chrome and cuts off the bottom of every page. */}
+    <div className="flex h-dvh overflow-hidden bg-bg">
       {sidebarOpen && (
         <div
           className="fixed inset-0 z-40 bg-black/50 md:hidden"
@@ -55,7 +57,12 @@ export function DashboardShell({
           <span className="ml-3 font-semibold text-text tracking-tight">TradeOS</span>
         </div>
         <PropFirmAlertBanner alerts={propFirmAlerts} />
-        {children}
+        {/* Wrapper so each page's `h-full` measures the space LEFT below the
+            mobile topbar + alert banner — without it the page is as tall as
+            <main> and its bottom is clipped by overflow-hidden on mobile. */}
+        <div className="flex-1 min-h-0 flex flex-col">
+          {children}
+        </div>
       </main>
     </div>
     </TimezoneContext.Provider>

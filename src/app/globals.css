@@ -130,6 +130,8 @@ button:disabled        { cursor: not-allowed; }
 
 @utility page-pad {
   padding: 1rem;
+  /* Clear the iOS home indicator / PWA safe area so content isn't cut at the bottom. */
+  padding-bottom: calc(1rem + env(safe-area-inset-bottom));
   @media (min-width: 768px) {
     padding: 1.75rem;
   }

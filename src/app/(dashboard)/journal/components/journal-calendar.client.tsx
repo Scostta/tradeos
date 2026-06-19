@@ -134,9 +134,20 @@ export function JournalCalendar({
       <div className="flex-1 overflow-hidden page-pad">
         <style>{`
           @media (max-width: 767px) {
-            .jcal-grid { grid-template-columns: repeat(7, 1fr) !important; }
+            .jcal-grid { grid-template-columns: repeat(7, 1fr) !important; gap: 4px !important; }
             .jcal-week-col { display: none !important; }
-            .jcal-day-cell { min-height: 58px !important; }
+            .jcal-week { flex: none !important; }
+            /* Compact, near-square day cells: size by width via aspect-ratio. */
+            .jcal-day-cell {
+              min-height: 0 !important;
+              aspect-ratio: 1 / 1;
+              padding: 3px !important;
+              gap: 1px !important;
+              justify-content: space-between;
+            }
+            .jcal-daynum { font-size: 12px !important; line-height: 1; }
+            .jcal-pnl { font-size: 9.5px !important; line-height: 1.15; }
+            .jcal-sub { display: none !important; }
           }
         `}</style>
         {/* Day-of-week header */}
@@ -158,7 +169,7 @@ export function JournalCalendar({
             return (
               <div
                 key={wi}
-                className="grid min-h-0 jcal-grid"
+                className="grid min-h-0 jcal-grid jcal-week"
                 style={{ gridTemplateColumns: "repeat(7, 1fr) 88px", gap: 6, flex: "1 1 0" }}
               >
                 {week.map((day, di) => {
@@ -184,11 +195,11 @@ export function JournalCalendar({
                         )}
                         style={{ minHeight: 92 }}
                       >
-                        <span className="mono text-lg font-semibold text-text-mute">
+                        <span className="mono text-lg font-semibold text-text-mute jcal-daynum">
                           {day.day}
                         </span>
                         <div className="flex-1" />
-                        <div className="text-xxs text-text-mute">
+                        <div className="text-xxs text-text-mute jcal-sub">
                           {day.isWeekend ? "closed" : "—"}
                         </div>
                       </div>
@@ -211,7 +222,7 @@ export function JournalCalendar({
                       <div className="flex items-start justify-between">
                         <span
                           className={cn(
-                            "mono text-lg font-semibold",
+                            "mono text-lg font-semibold jcal-daynum",
                             isSelected ? "text-text" : "text-text-dim"
                           )}
                         >
@@ -229,7 +240,7 @@ export function JournalCalendar({
 
                       <div>
                         <div
-                          className="mono text-md font-semibold"
+                          className="mono text-md font-semibold jcal-pnl"
                           style={{
                             color: day.net >= 0
                               ? "var(--color-profit)"
@@ -241,7 +252,7 @@ export function JournalCalendar({
                             maximumFractionDigits: 0,
                           })}
                         </div>
-                        <div className="mono text-xxs text-text-mute mt-0.5">
+                        <div className="mono text-xxs text-text-mute mt-0.5 jcal-sub">
                           {day.tradeCount} trade{day.tradeCount !== 1 ? "s" : ""}
                         </div>
                       </div>

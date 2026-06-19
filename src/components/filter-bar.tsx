@@ -6,25 +6,17 @@ type Props = {
 }
 
 export function FilterBar({ filters, actions }: Props): ReactElement {
-  // With filters present (trades), keep everything on one row even on mobile so
-  // the range selector sits next to the Filters launcher. Without filters
-  // (dashboard/reports), preserve the centered range selector on mobile.
-  if (filters) {
-    return (
-      <div className="flex flex-wrap items-center gap-2 px-4 md:px-7 py-2.5 border-b border-border bg-bg shrink-0">
+  // Single consistent layout across pages: one row, filters (if any) on the left
+  // and the range selector pinned right — identical on mobile and desktop so the
+  // range control sits in the same place on /trades, /dashboard and /reports.
+  return (
+    <div className="flex flex-wrap items-center gap-2 px-4 md:px-7 py-2.5 border-b border-border bg-bg shrink-0">
+      {filters && (
         <div className="flex flex-wrap items-center gap-2">
           {filters}
         </div>
-        <div className="flex ml-auto">
-          {actions}
-        </div>
-      </div>
-    )
-  }
-
-  return (
-    <div className="flex flex-col md:flex-row md:items-center gap-2 px-4 md:px-7 py-2.5 border-b border-border bg-bg shrink-0">
-      <div className="flex justify-center md:ml-auto">
+      )}
+      <div className="flex ml-auto">
         {actions}
       </div>
     </div>
