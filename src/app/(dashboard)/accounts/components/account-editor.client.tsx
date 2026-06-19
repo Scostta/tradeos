@@ -56,6 +56,7 @@ export function AccountEditor({ account, renderTrigger }: Props): ReactElement {
   const [profitTarget, setProfitTarget]   = useState<string>(account.profitTarget != null ? String(account.profitTarget) : "");
   const [minTradingDays, setMinTradingDays] = useState<string>(account.minTradingDays != null ? String(account.minTradingDays) : "");
   const [riskPerTrade, setRiskPerTrade]   = useState<string>(account.riskPerTrade != null ? String(account.riskPerTrade) : "");
+  const [presetId, setPresetId]           = useState<string>("");
   const [archiveArmed, setArchiveArmed]   = useState(false);
   const [toast, setToast]                 = useState<ToastState | null>(null);
   const [isPending, startTransition]      = useTransition();
@@ -79,6 +80,7 @@ export function AccountEditor({ account, renderTrigger }: Props): ReactElement {
     setProfitTarget(account.profitTarget != null ? String(account.profitTarget) : "");
     setMinTradingDays(account.minTradingDays != null ? String(account.minTradingDays) : "");
     setRiskPerTrade(account.riskPerTrade != null ? String(account.riskPerTrade) : "");
+    setPresetId("");
     setArchiveArmed(false);
     setEditorTab("general");
     setIsOpen(true);
@@ -312,9 +314,11 @@ export function AccountEditor({ account, renderTrigger }: Props): ReactElement {
               <div className="flex flex-col gap-1.5">
                 <label className="label-caps">{PROP_FIRM.PRESET_LABEL}</label>
                 <select
-                  value=""
+                  value={presetId}
                   onChange={(e) => {
-                    const preset = PROP_FIRM_PRESETS.find((p) => p.id === e.target.value);
+                    const id = e.target.value;
+                    setPresetId(id);
+                    const preset = PROP_FIRM_PRESETS.find((p) => p.id === id);
                     if (preset) applyPreset(preset);
                   }}
                   className="bg-surface-2 border border-border rounded-sm px-2.5 py-2 text-base text-text w-full outline-none focus:border-border-hi"
