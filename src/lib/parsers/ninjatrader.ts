@@ -31,8 +31,9 @@ const CANONICAL_COLUMNS = Object.keys(COLUMN_ALIASES) as Array<keyof typeof COLU
 // "3/10/2025 9:32:01 AM" (MM/DD/YYYY AM/PM — US NinjaTrader export)
 const DATE_AMPM_REGEX = /^(\d{1,2})\/(\d{1,2})\/(\d{4})\s+(\d{1,2}):(\d{2}):(\d{2})\s+(AM|PM)$/i
 
-// "11/05/2026 15:31:05" (DD/MM/YYYY 24h — European NinjaTrader Grid export)
-const DATE_24H_REGEX = /^(\d{1,2})\/(\d{1,2})\/(\d{4})\s+(\d{2}):(\d{2}):(\d{2})$/
+// "11/05/2026 15:31:05" or "18/06/2026 9:12:55" (DD/MM/YYYY 24h — European
+// NinjaTrader Grid export; hour may be 1 digit before 10:00, no leading zero)
+const DATE_24H_REGEX = /^(\d{1,2})\/(\d{1,2})\/(\d{4})\s+(\d{1,2}):(\d{2}):(\d{2})$/
 
 function parseAmPmDate(raw: string): string | null {
   const m = raw.trim().match(DATE_AMPM_REGEX)

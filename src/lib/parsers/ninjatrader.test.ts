@@ -83,6 +83,17 @@ describe("parseNinjaTraderCsv — Grid export (semicolon, EU format)", () => {
     expect(result.rows[0]!.pnl).toBeCloseTo(137.5)
     expect(result.rows[0]!.netPnl).toBeCloseTo(133.5)
   })
+
+  it("parses 24h dates with a single-digit hour (no leading zero before 10:00)", () => {
+    const header = "Trade number;Account;Instrument;Market pos.;Qty;Entry price;Exit price;Entry time;Exit time;Profit;Commission;MAE;MFE"
+    const row    = "1;APEX;MNQ 09-26;Short;1;30407,00;30397,00;18/06/2026 9:12:55;18/06/2026 9:18:50;20,00 $;0,00 $;0,50 $;48,50 $"
+
+    const result = parseNinjaTraderCsv([header, row].join("\n"))
+
+    expect(result.errors).toHaveLength(0)
+    expect(result.rows).toHaveLength(1)
+    expect(() => new Date(result.rows[0]!.entryTime).toISOString()).not.toThrow()
+  })
 })
 
 describe("parseNinjaTraderCsv — malformed input", () => {
