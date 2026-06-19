@@ -32,6 +32,13 @@ import {
   sortByDayOfWeek,
   sortByMonth,
 } from "~/lib/calculations/reports"
+import {
+  byHourOfDay,
+  bySession,
+  sortByHour,
+  buildHourBars,
+  computeHourWeekdayMatrix,
+} from "~/lib/calculations/time-of-day"
 import { computeRStats } from "~/lib/calculations/r-multiples"
 import { computePortfolioAdherence } from "~/lib/calculations/playbook-adherence"
 import { computeMistakeStats } from "~/lib/calculations/mistakes"
@@ -181,6 +188,7 @@ export const getReportsData = cache(async function getReportsData(
       avgWinLoss:         [],
       dayTime:            emptyBreakdown,
       months:             emptyBreakdown,
+      timeOfDay:          { hourBars: [], hourBreakdown: emptyBreakdown, weekdayMatrix: { hours: [], rows: [] }, session: emptyBreakdown },
       symbols:            emptyBreakdown,
       playbooks:         emptyBreakdown,
       winsLosses:         emptyBreakdown,
@@ -214,6 +222,12 @@ export const getReportsData = cache(async function getReportsData(
     avgWinLoss:         buildAvgWinLoss(trades, timeZone),
     dayTime:            buildBreakdown(trades, byDayOfWeek(timeZone), sortByDayOfWeek),
     months:             buildBreakdown(trades, byMonth(timeZone), sortByMonth),
+    timeOfDay:          {
+      hourBars:      buildHourBars(trades, timeZone),
+      hourBreakdown: buildBreakdown(trades, byHourOfDay(timeZone), sortByHour),
+      weekdayMatrix: computeHourWeekdayMatrix(trades, timeZone),
+      session:       buildBreakdown(trades, bySession),
+    },
     symbols:            buildBreakdown(trades, bySymbol),
     playbooks:         buildBreakdown(trades, byPlaybookName),
     winsLosses:         buildBreakdown(trades, byOutcome),

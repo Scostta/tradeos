@@ -18,9 +18,20 @@ export const REPORTS = {
     PERFORMANCE: "Performance",
     OVERVIEW:    "Overview",
     REPORTS:     "Reports",
+    TIME:        "Time",
     COMPARE:     "Compare",
     R_MULTIPLES: "R-Multiples",
     MISTAKES:    "Mistakes",
+  },
+
+  TIME: {
+    HOUR_CHART_LABEL: "Net P&L by hour",
+    HEATMAP_LABEL:    "Net P&L · weekday × hour",
+    HOUR_COL:         "Hour",
+    SESSION_LABEL:    "By session",
+    SESSION_COL:      "Session",
+    TZ_NOTE:          "Times shown in your timezone — change it in Settings.",
+    NO_DATA:          "No data for this period",
   },
 
   MISTAKES: {

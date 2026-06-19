@@ -270,6 +270,38 @@ export type RStats = {
   distribution: RBucket[]
 }
 
+// ── Time tab (hour-of-day & session) ──────────────────────────────────────────
+//
+// hourBreakdown / session reuse the shared ReportBreakdown shape (insights +
+// rows + cross) so they render with the same InsightCard/SummaryTable/heatmap
+// components as the other sub-reports.
+
+/** One cell in the hour × weekday matrix: net P&L and trade count. */
+export type HourWeekdayCell = {
+  hour:   number   // 0–23 (in the user's timezone)
+  v:      number   // net P&L at this (weekday, hour) intersection
+  trades: number
+}
+
+export type HourWeekdayRow = {
+  weekday: number   // 0=Sunday … 6=Saturday
+  label:   string   // "Mon", "Tue", …
+  cells:   HourWeekdayCell[]
+}
+
+/** Net P&L matrix: weekday rows × hour columns. Only populated hours/weekdays. */
+export type HourWeekdayMatrix = {
+  hours: number[]          // sorted ascending; the column order
+  rows:  HourWeekdayRow[]
+}
+
+export type TimeOfDayData = {
+  hourBars:      { label: string; v: number }[]   // net P&L per hour, chronological
+  hourBreakdown: ReportBreakdown                   // insights + table for hour-of-day
+  weekdayMatrix: HourWeekdayMatrix                 // hour × weekday heatmap
+  session:       ReportBreakdown                   // RTH / ETH / Overnight / Unspecified
+}
+
 // ── Mistakes tab ──────────────────────────────────────────────────────────────
 // Per-tagged-mistake aggregation. A trade can carry several mistakes and is
 // counted in each. Sorted most-costly (most negative net P&L) first.
@@ -296,6 +328,7 @@ export type ReportsData = {
   avgWinLoss:         AvgWinLossPoint[]   // for the avg daily win/loss bar chart
   dayTime:            ReportBreakdown     // Day & Time sub-report (grouped by weekday)
   months:             ReportBreakdown     // Day & Time / Months sub-tab
+  timeOfDay:          TimeOfDayData       // Time tab: hour-of-day, session, hour×weekday heatmap
   symbols:            ReportBreakdown     // Symbols sub-report
   playbooks:         ReportBreakdown     // Playbooks (Playbooks) sub-report
   winsLosses:         ReportBreakdown     // Wins vs Losses sub-report

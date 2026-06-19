@@ -6,13 +6,14 @@ import type { ReportsData } from "~/types/reports"
 import { REPORTS } from "~/constants/copies/reports"
 import { PerformanceTab } from "./performance-tab"
 import { OverviewTab } from "./overview-tab"
+import { TimeTab } from "./time-tab"
 import { CompareTab } from "./compare-tab.client"
 import { RMultiplesTab } from "./r-multiples-tab"
 import { MistakesTab } from "./mistakes-tab"
 import { ReportDetail } from "./report-detail.client"
 import type { ReportKey } from "./report-detail.client"
 
-type ActiveTab = "performance" | "overview" | "reports" | "compare" | "rmultiples" | "mistakes"
+type ActiveTab = "performance" | "overview" | "reports" | "time" | "compare" | "rmultiples" | "mistakes"
 
 type ReportMenuItem = {
   key:   ReportKey
@@ -153,6 +154,15 @@ export function ReportsShell({ data, accountId }: Props): ReactElement {
           )}
         </div>
 
+        {/* Time tab */}
+        <TabButton
+          id="time"
+          label={REPORTS.TABS.TIME}
+          active={tab === "time"}
+          onClick={() => setTab("time")}
+          badge
+        />
+
         {/* Compare tab */}
         <TabButton
           id="compare"
@@ -198,6 +208,10 @@ export function ReportsShell({ data, accountId }: Props): ReactElement {
 
         {tab === "overview" && (
           <OverviewTab data={data.overview} />
+        )}
+
+        {tab === "time" && (
+          <TimeTab data={data.timeOfDay} />
         )}
 
         {tab === "compare" && (
