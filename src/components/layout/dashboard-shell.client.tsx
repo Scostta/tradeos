@@ -3,18 +3,22 @@
 import { useState } from "react"
 import type { ReactNode } from "react"
 import { Sidebar } from "./sidebar.client"
+import { PropFirmAlertBanner } from "./prop-firm-alert-banner.client"
 import { TimezoneContext } from "~/hooks/use-timezone"
 import { COMMON } from "~/constants/copies/common"
+import type { PropFirmAlertItem } from "~/types/prop-firm"
 
 export function DashboardShell({
   userEmail,
   userName,
   timezone = "UTC",
+  propFirmAlerts = [],
   children,
 }: {
   userEmail?: string
   userName?: string
   timezone?: string
+  propFirmAlerts?: PropFirmAlertItem[]
   children: ReactNode
 }) {
   const [sidebarOpen, setSidebarOpen] = useState(false)
@@ -50,6 +54,7 @@ export function DashboardShell({
           </button>
           <span className="ml-3 font-semibold text-text tracking-tight">TradeOS</span>
         </div>
+        <PropFirmAlertBanner alerts={propFirmAlerts} />
         {children}
       </main>
     </div>

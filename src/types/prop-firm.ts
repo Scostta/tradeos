@@ -65,3 +65,14 @@ export type PropFirmStatus = {
 export type AccountWithPropStatus = AccountWithStats & {
   propStatus: PropFirmStatus | null
 }
+
+// Compact alert payload for the global prop-firm banner. Only accounts at
+// `danger` or `breached` are surfaced, so the level is narrowed to those two.
+export type PropFirmAlertItem = {
+  id:         string
+  name:       string
+  color:      string
+  alertLevel: Extract<AlertLevel, "danger" | "breached">
+  roomLeft:   number | null   // drawdown distance to the floor, if a DD rule is set
+  dailyLeft:  number | null   // remaining daily-loss room, if that rule is set
+}

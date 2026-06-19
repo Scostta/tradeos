@@ -1,9 +1,10 @@
+import { cache } from "react"
 import { createClient } from "~/utils/supabase/server"
 import { mapAccountFromDb } from "~/services/mappers/accounts"
 import { computePropFirmStatus } from "~/lib/calculations/prop-firm"
 import { getUserTimezone } from "~/services/queries/profile"
 import type { Account } from "~/types/account"
-import type { AccountWithPropStatus, PropFirmConfig, PropFirmTrade } from "~/types/prop-firm"
+import type { AccountWithPropStatus, PropFirmAlertItem, PropFirmConfig, PropFirmTrade } from "~/types/prop-firm"
 import { createDataResult, createErrorResult } from "~/helpers/result"
 import type { ResultType } from "~/helpers/result"
 
@@ -39,7 +40,7 @@ export async function getAccounts(): Promise<ResultType<Account[], string>> {
   return createDataResult((data ?? []).map(mapAccountFromDb))
 }
 
-export async function getAccountsWithStats(): Promise<ResultType<AccountWithPropStatus[], string>> {
+export const getAccountsWithStats = cache(async (): Promise<ResultType<AccountWithPropStatus[], string>> => {
   const supabase = await createClient()
 
   const { data: { user } } = await supabase.auth.getUser()
@@ -89,6 +90,29 @@ export async function getAccountsWithStats(): Promise<ResultType<AccountWithProp
   })
 
   return createDataResult(accounts)
+})
+
+/**
+ * Active prop-firm accounts currently at `danger` or `breached`, for the
+ * global alert banner. Reuses (and dedupes via React.cache) the same fetch as
+ * the accounts page. Returns an empty list on any error — the banner is a
+ * non-critical surface and should never break a page render.
+ */
+export async function getPropFirmAlerts(): Promise<PropFirmAlertItem[]> {
+  const result = await getAccountsWithStats()
+  if (!result.success) return []
+
+  return result.data
+    .filter((a) => a.active && a.propStatus != null &&
+      (a.propStatus.alertLevel === "danger" || a.propStatus.alertLevel === "breached"))
+    .map((a) => ({
+      id:         a.id,
+      name:       a.name,
+      color:      a.color,
+      alertLevel: a.propStatus!.alertLevel as "danger" | "breached",
+      roomLeft:   a.propStatus!.drawdown?.distance ?? null,
+      dailyLeft:  a.propStatus!.dailyLoss?.remaining ?? null,
+    }))
 }
 
 /**

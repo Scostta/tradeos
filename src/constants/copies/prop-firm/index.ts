@@ -15,6 +15,10 @@ export const PROP_FIRM = {
   RISK_PER_TRADE: "Risk per trade ($)",
   RISK_HINT:      "Fallback for R-multiples when a trade has no stop set.",
 
+  PRESET_LABEL: "Load preset",
+  PRESET_NONE:  "— Choose a prop firm preset —",
+  PRESET_HINT:  "Fills the rules below with the firm's standard plan. Verify against your current account — firms change specs.",
+
   PHASE_LABELS: {
     evaluation: "Evaluation",
     funded:     "Funded",
@@ -43,5 +47,12 @@ export const PROP_FIRM = {
     danger:   "Close to breach",
     warning:  "Watch your risk",
     safe:     "Within limits",
+  },
+
+  // ── Global alert banner ───────────────────────────────────────────────────────
+  BANNER: {
+    TITLE:   "Prop firm alert",
+    BLOWN:   "blown",
+    DISMISS: "Dismiss",
   },
 } as const

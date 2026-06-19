@@ -7,6 +7,8 @@ import type { AccountWithStats, AccountType, PropPhase, DrawdownType } from "~/t
 import { updateAccount, setAccountActive } from "~/actions/accounts";
 import { ACCOUNTS } from "~/constants/copies/accounts";
 import { PROP_FIRM } from "~/constants/copies/prop-firm";
+import { PROP_FIRM_PRESETS, PROP_FIRM_PRESET_FIRMS } from "~/constants/prop-firm-presets";
+import type { PropFirmPreset } from "~/constants/prop-firm-presets";
 import { cn } from "~/utils/cn";
 import { Button } from "~/lib/ui/button";
 import { Toast } from "~/lib/ui/toast";
@@ -85,6 +87,19 @@ export function AccountEditor({ account, renderTrigger }: Props): ReactElement {
   function closeModal() {
     setIsOpen(false);
     setArchiveArmed(false);
+  }
+
+  function applyPreset(preset: PropFirmPreset) {
+    setInitialBalance(String(preset.initialBalance));
+    setPropPhase(preset.propPhase);
+    setDrawdownType(preset.drawdownType);
+    setDrawdownAmount(String(preset.drawdownAmount));
+    setDrawdownLockAt(preset.drawdownLockAt != null ? String(preset.drawdownLockAt) : "");
+    setDailyLossLimit(preset.dailyLossLimit != null ? String(preset.dailyLossLimit) : "");
+    setProfitTarget(preset.profitTarget != null ? String(preset.profitTarget) : "");
+    setMinTradingDays(preset.minTradingDays != null ? String(preset.minTradingDays) : "");
+    // Only fill the broker if the user hasn't set one — don't clobber their input.
+    setBroker((current) => (current.trim() === "" ? preset.firm : current));
   }
 
   function handleSave() {
@@ -292,6 +307,29 @@ export function AccountEditor({ account, renderTrigger }: Props): ReactElement {
 
             {editorTab === "prop" && (
             <div className="flex flex-col gap-3">
+
+              {/* Preset loader */}
+              <div className="flex flex-col gap-1.5">
+                <label className="label-caps">{PROP_FIRM.PRESET_LABEL}</label>
+                <select
+                  value=""
+                  onChange={(e) => {
+                    const preset = PROP_FIRM_PRESETS.find((p) => p.id === e.target.value);
+                    if (preset) applyPreset(preset);
+                  }}
+                  className="bg-surface-2 border border-border rounded-sm px-2.5 py-2 text-base text-text w-full outline-none focus:border-border-hi"
+                >
+                  <option value="">{PROP_FIRM.PRESET_NONE}</option>
+                  {PROP_FIRM_PRESET_FIRMS.map((firm) => (
+                    <optgroup key={firm} label={firm}>
+                      {PROP_FIRM_PRESETS.filter((p) => p.firm === firm).map((p) => (
+                        <option key={p.id} value={p.id}>{p.label}</option>
+                      ))}
+                    </optgroup>
+                  ))}
+                </select>
+                <p className="text-xxs text-text-mute">{PROP_FIRM.PRESET_HINT}</p>
+              </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div className="flex flex-col gap-1.5">
