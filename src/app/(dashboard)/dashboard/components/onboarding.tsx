@@ -1,9 +1,9 @@
 import type { ReactElement } from "react"
 import Link from "next/link"
 import { DASHBOARD } from "~/constants/copies/dashboard"
-import { COMMON } from "~/constants/copies/common"
 import { APP_URLS } from "~/constants/app-urls"
 import { cn } from "~/utils/cn"
+import { BrandMark } from "~/lib/ui/icons/brand-mark"
 
 type Step = {
   title:    string
@@ -37,11 +37,8 @@ export function Onboarding({ playbookDone, prefsDone }: { playbookDone: boolean;
 
         {/* Welcome header */}
         <div className="flex flex-col items-center text-center gap-3">
-          <div
-            className="flex items-center justify-center w-12 h-12 rounded-lg mono font-semibold text-2xl text-bg"
-            style={{ background: "var(--color-accent)", boxShadow: "0 0 24px var(--accent-glow)" }}
-          >
-            {COMMON.BRAND.LOGO}
+          <div className="rounded-lg" style={{ boxShadow: "0 0 24px var(--accent-glow)" }}>
+            <BrandMark size={48} />
           </div>
           <div>
             <h2 className="text-2xl font-semibold tracking-tight text-text">{O.WELCOME}</h2>

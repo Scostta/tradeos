@@ -20,6 +20,7 @@ import { TargetIcon } from "~/lib/ui/icons/target-icon";
 import { SparklesIcon } from "~/lib/ui/icons/sparkles-icon";
 import { SettingsIcon } from "~/lib/ui/icons/settings-icon";
 import { XIcon } from "~/lib/ui/icons/x-icon";
+import { BrandMark } from "~/lib/ui/icons/brand-mark";
 
 interface NavItem {
   id: string;
@@ -90,10 +91,10 @@ export function Sidebar({
       {/* Brand */}
       <div className="flex items-center gap-2.5 px-2 pb-4">
         <div
-          className="flex items-center justify-center w-6 h-6 rounded-md mono font-semibold text-lg text-bg shrink-0"
-          style={{ background: "var(--color-accent)", boxShadow: "0 0 16px var(--accent-glow)" }}
+          className="rounded-md shrink-0"
+          style={{ boxShadow: "0 0 16px var(--accent-glow)" }}
         >
-          {COMMON.BRAND.LOGO}
+          <BrandMark size={24} />
         </div>
         <div>
           <div className="font-semibold text-md text-text tracking-mono">{COMMON.BRAND.NAME}</div>

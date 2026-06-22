@@ -9,6 +9,7 @@ import { AUTH } from "~/constants/copies/auth";
 import { Button } from "~/lib/ui/button";
 import { Toaster } from "~/lib/ui/toaster.client";
 import { GoogleIcon } from "~/lib/ui/icons/google-icon";
+import { BrandMark } from "~/lib/ui/icons/brand-mark";
 import { APP_URLS } from "~/constants/app-urls";
 import { useToast } from "~/hooks/use-toast";
 
@@ -23,11 +24,8 @@ export function LoginForm() {
       <div className="card p-8 flex flex-col gap-6">
         {/* Brand */}
         <div className="flex items-center gap-3">
-          <div
-            className="flex items-center justify-center w-8 h-8 rounded-md mono font-semibold text-lg text-bg shrink-0"
-            style={{ background: "var(--color-accent)", boxShadow: "0 0 16px var(--accent-glow)" }}
-          >
-            {COMMON.BRAND.LOGO}
+          <div className="rounded-md shrink-0" style={{ boxShadow: "0 0 16px var(--accent-glow)" }}>
+            <BrandMark size={32} />
           </div>
           <div>
             <div className="font-semibold text-md text-text tracking-mono">{COMMON.BRAND.NAME}</div>

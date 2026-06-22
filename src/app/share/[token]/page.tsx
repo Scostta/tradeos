@@ -8,6 +8,7 @@ import { SignedAreaChart } from "~/components/charts/signed-area-chart.client"
 import { SHARE } from "~/constants/copies/share"
 import { COMMON } from "~/constants/copies/common"
 import { APP_URLS } from "~/constants/app-urls"
+import { BrandMark } from "~/lib/ui/icons/brand-mark"
 import type { ShareBreakdownRow } from "~/types/report-share"
 
 export const metadata: Metadata = {
@@ -79,11 +80,8 @@ export default async function PublicSharePage({
         {/* Brand header */}
         <header className="flex items-center justify-between gap-4">
           <div className="flex items-center gap-3">
-            <div
-              className="flex items-center justify-center w-9 h-9 rounded-md mono font-semibold text-xl text-bg shrink-0"
-              style={{ background: "var(--color-accent)", boxShadow: "0 0 16px var(--accent-glow)" }}
-            >
-              {COMMON.BRAND.LOGO}
+            <div className="rounded-md shrink-0" style={{ boxShadow: "0 0 16px var(--accent-glow)" }}>
+              <BrandMark size={36} />
             </div>
             <div>
               <div className="font-semibold text-md text-text tracking-tight">{snapshot.accountLabel}</div>

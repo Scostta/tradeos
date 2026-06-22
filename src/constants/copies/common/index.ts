@@ -1,7 +1,6 @@
 export const COMMON = {
   BRAND: {
     NAME:    "TradeOS",
-    LOGO:    "T",
     TAGLINE: "Trading Journal",
     VERSION: "v0.1 · dev",
   },
