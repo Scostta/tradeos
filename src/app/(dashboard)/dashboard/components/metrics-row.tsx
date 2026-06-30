@@ -13,10 +13,18 @@ function pfSub(pf: number): string {
   return DASHBOARD.METRICS.PF_REVIEW
 }
 
+function sharpeSub(s: number): string {
+  if (s === 0)   return DASHBOARD.METRICS.SHARPE_NA
+  if (s >= 2)    return DASHBOARD.METRICS.SHARPE_STRONG
+  if (s >= 1)    return DASHBOARD.METRICS.SHARPE_GOOD
+  return DASHBOARD.METRICS.SHARPE_WEAK
+}
+
 export function MetricsRow({ metrics }: Props): ReactElement {
-  const { netPnl, winRate, profitFactor, maxDrawdown, avgWin, avgLoss, winners, losers } = metrics
+  const { netPnl, winRate, profitFactor, maxDrawdown, avgWin, avgLoss, sharpeRatio, winners, losers } = metrics
+  const sharpeClass = sharpeRatio > 0 ? "text-profit" : sharpeRatio < 0 ? "text-loss" : "text-text"
   return (
-    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-7 gap-3">
       <MetricCard
         label={DASHBOARD.METRICS.NET_PNL}
         value={formatCurrency(netPnl, { sign: false, decimals: 0 })}
@@ -50,6 +58,12 @@ export function MetricsRow({ metrics }: Props): ReactElement {
         value={formatCurrency(avgLoss, { sign: false, decimals: 0 })}
         valueClass="text-loss"
         sub={`${losers} ${DASHBOARD.METRICS.SUB_LOSERS}`}
+      />
+      <MetricCard
+        label={DASHBOARD.METRICS.SHARPE}
+        value={sharpeRatio === 0 ? "—" : sharpeRatio.toFixed(2)}
+        valueClass={sharpeClass}
+        sub={sharpeSub(sharpeRatio)}
       />
     </div>
   )

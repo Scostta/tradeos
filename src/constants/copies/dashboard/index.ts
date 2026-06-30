@@ -16,12 +16,17 @@ export const DASHBOARD = {
     MAX_DRAWDOWN:  "Max Drawdown",
     AVG_WIN:       "Avg Win",
     AVG_LOSS:      "Avg Loss",
+    SHARPE:        "Sharpe",
     SUB_PEAK:      "peak-to-trough",
     SUB_WINNERS:   "winners",
     SUB_LOSERS:    "losers",
     PF_HEALTHY:    "healthy",
     PF_POSITIVE:   "positive",
     PF_REVIEW:     "review",
+    SHARPE_STRONG: "strong",
+    SHARPE_GOOD:   "solid",
+    SHARPE_WEAK:   "weak",
+    SHARPE_NA:     "need 2+ days",
   },
 
   EQUITY: {

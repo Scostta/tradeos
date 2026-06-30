@@ -1,4 +1,4 @@
-import { zonedWeekday } from "~/helpers/tz"
+import { zonedWeekday, zonedDateKey } from "~/helpers/tz"
 import type { Trade } from "~/types/trade"
 import type { EquityPoint, DowBucket, DashboardMetrics } from "~/types/metrics"
 
@@ -75,7 +75,39 @@ export function pnlByDayOfWeek(trades: Trade[], timeZone = "UTC"): DowBucket[] {
   return DOW_KEYS.map(k => ({ key: k, ...(map.get(k) ?? { net: 0, trades: 0 }) }))
 }
 
-export function computeDashboardMetrics(trades: Trade[]): DashboardMetrics {
+// Trading days in a year — the standard factor for annualizing a daily Sharpe.
+const TRADING_DAYS_PER_YEAR = 252
+
+/**
+ * Annualized Sharpe ratio over daily net P&L (risk-free rate assumed 0, the
+ * convention for trading journals). Trades are grouped into trading days in the
+ * user's timezone, then Sharpe = mean(dailyPnl) / sampleStdDev(dailyPnl) × √252.
+ *
+ * Using dollar P&L instead of % returns is scale-invariant here: the ratio is
+ * unchanged whether daily figures are dollars or fractions of a fixed balance,
+ * so it needs no `initial_balance`. Returns 0 when fewer than 2 trading days
+ * exist or when daily P&L has no variance (Sharpe undefined).
+ */
+export function sharpeRatio(trades: Trade[], timeZone = "UTC"): number {
+  const byDay = new Map<string, number>()
+  for (const t of trades) {
+    const key = zonedDateKey(t.entryTime, timeZone)
+    byDay.set(key, (byDay.get(key) ?? 0) + t.netPnl)
+  }
+
+  const daily = [...byDay.values()]
+  const n = daily.length
+  if (n < 2) return 0
+
+  const mean = daily.reduce((s, v) => s + v, 0) / n
+  const variance = daily.reduce((s, v) => s + (v - mean) ** 2, 0) / (n - 1)
+  const stdDev = Math.sqrt(variance)
+  if (stdDev === 0) return 0
+
+  return (mean / stdDev) * Math.sqrt(TRADING_DAYS_PER_YEAR)
+}
+
+export function computeDashboardMetrics(trades: Trade[], timeZone = "UTC"): DashboardMetrics {
   const winners = trades.filter(t => t.netPnl > 0).length
   const totalTrades = trades.length
   return {
@@ -85,6 +117,7 @@ export function computeDashboardMetrics(trades: Trade[]): DashboardMetrics {
     maxDrawdown:  maxDrawdown(trades),
     avgWin:       avgWin(trades),
     avgLoss:      avgLoss(trades),
+    sharpeRatio:  sharpeRatio(trades, timeZone),
     totalTrades,
     winners,
     losers:       totalTrades - winners,

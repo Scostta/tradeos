@@ -38,7 +38,7 @@ export async function getDashboardData(
   const trades = data.map(row => mapTradeFromDb(row as Record<string, unknown>))
 
   const dashboardData: DashboardData = {
-    metrics:      computeDashboardMetrics(trades),
+    metrics:      computeDashboardMetrics(trades, timeZone),
     equityCurve:  equityCurve(trades),
     pnlByDow:     pnlByDayOfWeek(trades, timeZone),
     recentTrades: [...trades].slice(-5).reverse(),

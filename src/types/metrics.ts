@@ -23,6 +23,7 @@ export type DashboardMetrics = {
   maxDrawdown:  number
   avgWin:       number
   avgLoss:      number
+  sharpeRatio:  number
   totalTrades:  number
   winners:      number
   losers:       number

@@ -9,6 +9,7 @@ import {
   avgLoss,
   equityCurve,
   pnlByDayOfWeek,
+  sharpeRatio,
   computeDashboardMetrics,
 } from "./metrics"
 
@@ -118,6 +119,38 @@ describe("pnlByDayOfWeek", () => {
     const tue = buckets.find(b => b.key === "Tue")!
     expect(mon).toMatchObject({ net: 80, trades: 2 })
     expect(tue).toMatchObject({ net: 40, trades: 1 })
+  })
+})
+
+describe("sharpeRatio", () => {
+  it("annualizes daily Sharpe and groups trades into trading days", () => {
+    // Day 1 (Mar 10): 200 + 100 = 300; Day 2 (Mar 11): 100 → daily = [300, 100]
+    // mean = 200, sample stdDev = √20000 = 141.4214, daily Sharpe = 1.41421
+    // annualized = 1.41421 × √252 ≈ 22.45
+    const s = sharpeRatio([
+      trade(200, "2025-03-10T13:00:00.000Z"),
+      trade(100, "2025-03-10T15:00:00.000Z"),
+      trade(100, "2025-03-11T13:00:00.000Z"),
+    ])
+    expect(s).toBeCloseTo(22.45, 1)
+  })
+  it("is negative when the average trading day loses money", () => {
+    expect(sharpeRatio([
+      trade(-300, "2025-03-10T13:00:00.000Z"),
+      trade(-100, "2025-03-11T13:00:00.000Z"),
+    ])).toBeLessThan(0)
+  })
+  it("returns 0 with fewer than two trading days", () => {
+    expect(sharpeRatio([
+      trade(100, "2025-03-10T13:00:00.000Z"),
+      trade(50,  "2025-03-10T15:00:00.000Z"),
+    ])).toBe(0)
+  })
+  it("returns 0 when daily P&L has no variance", () => {
+    expect(sharpeRatio([
+      trade(100, "2025-03-10T13:00:00.000Z"),
+      trade(100, "2025-03-11T13:00:00.000Z"),
+    ])).toBe(0)
   })
 })
 
