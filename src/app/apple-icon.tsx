@@ -1,9 +1,16 @@
 import { ImageResponse } from "next/og"
+import {
+  BRAND_ACCENT,
+  BRAND_CURVE,
+  BRAND_CURVE_WIDTH,
+  BRAND_DOT,
+  BRAND_TILE,
+} from "~/lib/ui/icons/brand"
 
 export const size = { width: 180, height: 180 }
 export const contentType = "image/png"
 
-// TradeOS "Candlestick T" mark — full-bleed lime tile (iOS rounds the corners).
+// TradeOS "Equity curve" mark — full-bleed dark tile (iOS rounds the corners).
 export default function AppleIcon() {
   return new ImageResponse(
     (
@@ -12,13 +19,20 @@ export default function AppleIcon() {
           width: "100%",
           height: "100%",
           display: "flex",
-          background: "#a3e635",
+          alignItems: "center",
+          justifyContent: "center",
+          background: BRAND_TILE,
         }}
       >
-        <svg width="180" height="180" viewBox="0 0 64 64" fill="none">
-          <rect x="13" y="15" width="38" height="6" rx="3" fill="#0a0a0f" />
-          <rect x="30.25" y="18" width="3.5" height="34" rx="1.75" fill="#0a0a0f" />
-          <rect x="24" y="28" width="16" height="18" rx="3.5" fill="#0a0a0f" />
+        <svg width="140" height="140" viewBox="0 0 64 64" fill="none">
+          <path
+            d={BRAND_CURVE}
+            stroke={BRAND_ACCENT}
+            strokeWidth={BRAND_CURVE_WIDTH}
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
+          <circle cx={BRAND_DOT.cx} cy={BRAND_DOT.cy} r={BRAND_DOT.r} fill={BRAND_ACCENT} />
         </svg>
       </div>
     ),

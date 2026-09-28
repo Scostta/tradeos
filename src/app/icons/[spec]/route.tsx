@@ -1,11 +1,15 @@
 import { ImageResponse } from "next/og"
+import {
+  BRAND_ACCENT,
+  BRAND_CURVE,
+  BRAND_CURVE_WIDTH,
+  BRAND_DOT,
+  BRAND_TILE,
+} from "~/lib/ui/icons/brand"
 
 export const runtime = "edge"
 
-const ACCENT = "#a3e635"
-const INK    = "#0a0a0f"
-
-// Generates the TradeOS "Candlestick T" brand icon at the requested spec:
+// Generates the TradeOS "Equity curve" brand icon at the requested spec:
 //   /icons/192  /icons/512  /icons/maskable  (maskable = full-bleed + safe-zone padding)
 export async function GET(
   _req: Request,
@@ -17,7 +21,7 @@ export async function GET(
 
   // Maskable icons must keep their content inside the safe zone (~60% of the
   // canvas) since launchers crop the edges; "any" icons get a rounded tile.
-  const glyph = Math.round(size * (maskable ? 0.6 : 0.78))
+  const glyph = Math.round(size * (maskable ? 0.6 : 0.82))
 
   return new ImageResponse(
     (
@@ -28,14 +32,19 @@ export async function GET(
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
-          background: ACCENT,
+          background: BRAND_TILE,
           borderRadius: maskable ? 0 : Math.round(size * 0.22),
         }}
       >
         <svg width={glyph} height={glyph} viewBox="0 0 64 64" fill="none">
-          <rect x="13" y="15" width="38" height="6" rx="3" fill={INK} />
-          <rect x="30.25" y="18" width="3.5" height="34" rx="1.75" fill={INK} />
-          <rect x="24" y="28" width="16" height="18" rx="3.5" fill={INK} />
+          <path
+            d={BRAND_CURVE}
+            stroke={BRAND_ACCENT}
+            strokeWidth={BRAND_CURVE_WIDTH}
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
+          <circle cx={BRAND_DOT.cx} cy={BRAND_DOT.cy} r={BRAND_DOT.r} fill={BRAND_ACCENT} />
         </svg>
       </div>
     ),
