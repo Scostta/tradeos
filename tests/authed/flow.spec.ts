@@ -29,6 +29,28 @@ test.describe.serial("Authenticated journey", () => {
     await expect(page.getByText("NQ").first()).toBeVisible()
   })
 
+  test("an excluded break-even trade does not come back on re-import", async ({ page }) => {
+    await page.goto("/import")
+    await page.locator('input[type="file"]').setInputFiles(fixture("ninjatrader-be.csv"))
+
+    // Fixture: one real trade (+$91.50) and one scratch (+$0.75) under the $2 default.
+    const excludeBtn = page.getByRole("button", { name: "Exclude 1 trades" })
+    await expect(excludeBtn).toBeVisible()
+    await excludeBtn.click()
+
+    const importBtn = page.getByRole("button", { name: /Import 1 trades/ })
+    await expect(importBtn).toBeEnabled()
+    await importBtn.click()
+    await expect(page.getByText("Import another file")).toBeVisible({ timeout: 15_000 })
+
+    // Same file again: the scratch comes back as SKIPPED and there is nothing to do.
+    await page.goto("/import")
+    await page.locator('input[type="file"]').setInputFiles(fixture("ninjatrader-be.csv"))
+
+    await expect(page.getByText("SKIPPED")).toBeVisible()
+    await expect(page.getByRole("button", { name: /Import \d+ trades/ })).toBeDisabled()
+  })
+
   test("an unknown CSV opens the column mapper", async ({ page }) => {
     await page.goto("/import")
     await page.locator('input[type="file"]').setInputFiles(fixture("custom.csv"))
