@@ -91,6 +91,29 @@ create policy "Users see own trades" on trades
   for all using (auth.uid() = user_id);
 
 -- ------------------------------------------------------------
+-- IMPORT EXCLUSIONS
+-- Trades del CSV que el usuario descarta a mano en el preview del import
+-- (scratches / BE que ensucian metricas). El import los salta, asi un
+-- re-import del mismo fichero no los vuelve a insertar.
+-- ------------------------------------------------------------
+create table if not exists import_exclusions (
+  id           uuid primary key default gen_random_uuid(),
+  user_id      uuid references auth.users on delete cascade not null,
+  account_id   uuid references accounts(id) on delete cascade not null,
+  trade_number integer not null,
+  created_at   timestamptz default now(),
+  unique (account_id, trade_number)
+);
+
+create index if not exists import_exclusions_user_idx
+  on import_exclusions (user_id);
+
+alter table import_exclusions enable row level security;
+
+create policy "Users manage own import exclusions" on import_exclusions
+  for all using (auth.uid() = user_id);
+
+-- ------------------------------------------------------------
 -- DAILY JOURNAL
 -- ------------------------------------------------------------
 create table if not exists daily_journal (

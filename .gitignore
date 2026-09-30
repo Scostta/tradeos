@@ -55,3 +55,6 @@ next-env.d.ts
 
 # crash artifacts
 *.stackdump
+
+# supabase CLI scratch
+supabase/.temp

@@ -6,12 +6,14 @@ export type {
   ParseResult,
   ImportSummary,
   DuplicateKey,
+  ExclusionKey,
+  ImportKeyCheck,
   CanonicalField,
   ColumnMapping,
   CsvInspection,
 } from "./import"
 
-export { parsedRowSchema, importTradesInputSchema, CANONICAL_IMPORT_FIELDS } from "./import"
+export { parsedRowSchema, importTradesInputSchema, exclusionKeySchema, CANONICAL_IMPORT_FIELDS } from "./import"
 
 export type { Trade } from "./trade"
 export { tradeSchema } from "./trade"

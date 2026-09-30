@@ -6,11 +6,12 @@ type Props = {
   detected: number;
   newCount: number;
   duplicates: number;
+  excluded: number;
   errors: number;
 };
 
 export function ImportMetrics(props: Props): ReactElement {
-  const { detected, newCount, duplicates, errors } = props;
+  const { detected, newCount, duplicates, excluded, errors } = props;
 
   const metrics = [
     {
@@ -29,6 +30,11 @@ export function ImportMetrics(props: Props): ReactElement {
       valueClass: "text-text-dim",
     },
     {
+      label: IMPORT.PREVIEW.METRIC_EXCLUDED,
+      value: excluded,
+      valueClass: excluded > 0 ? "text-loss" : "text-text-mute",
+    },
+    {
       label: IMPORT.PREVIEW.METRIC_ERRORS,
       value: errors,
       valueClass: errors > 0 ? "text-loss" : "text-text-mute",
@@ -36,7 +42,7 @@ export function ImportMetrics(props: Props): ReactElement {
   ] as const;
 
   return (
-    <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+    <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
       {metrics.map((metric) => (
         <div key={metric.label} className="card p-4">
           <div className="label-caps mb-1">{metric.label}</div>

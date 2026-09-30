@@ -27,20 +27,48 @@ export const parsedRowSchema = tradeSchema
     accountName: z.string().min(1),
   })
 
-export const importTradesInputSchema = z.object({
-  rows: z.array(parsedRowSchema).min(1),
+// Clave natural de un trade del CSV: la misma que dedupe en BD
+// (account_id, trade_number), pero con el nombre de cuenta sin resolver.
+export const exclusionKeySchema = z.object({
+  tradeNumber: z.number().int(),
+  accountName: z.string().min(1),
 })
+
+export const importTradesInputSchema = z
+  .object({
+    rows:      z.array(parsedRowSchema).default([]),
+    // Trades que el usuario descarto en el preview: se guardan en
+    // import_exclusions y se borran de trades si ya estaban importados.
+    exclude:   z.array(exclusionKeySchema).default([]),
+    // Trades antes excluidos que el usuario vuelve a querer: se borra su
+    // exclusion y entran por `rows` como cualquier otro.
+    unexclude: z.array(exclusionKeySchema).default([]),
+  })
+  .refine((v) => v.rows.length > 0 || v.exclude.length > 0, {
+    message: "Nothing to import or exclude",
+  })
 
 export type ParsedRow = z.infer<typeof parsedRowSchema>
 
-export type DuplicateKey = {
-  tradeNumber: number
-  accountName: string
+export type ExclusionKey = z.infer<typeof exclusionKeySchema>
+
+export type DuplicateKey = ExclusionKey
+
+/**
+ * new     → no esta en BD, se importa
+ * dup     → ya existe en trades
+ * skipped → esta en import_exclusions: se excluyo en un import anterior
+ */
+export type RowStatus = "new" | "dup" | "skipped"
+
+/** Resultado de cruzar las filas del CSV con lo que ya hay en BD. */
+export type ImportKeyCheck = {
+  duplicates: DuplicateKey[]
+  excluded:   DuplicateKey[]
 }
 
-export type RowStatus = "new" | "dup"
-
-export type PreviewRow = ParsedRow & { status: RowStatus }
+/** `excluded` = estado del checkbox en el preview, editable por el usuario. */
+export type PreviewRow = ParsedRow & { status: RowStatus; excluded: boolean }
 
 export type ParseError = {
   line:         number
@@ -57,6 +85,12 @@ export type ParseResult = {
 
 export type ImportSummary = {
   imported: number
+  /** Trades marcados como excluidos (no vuelven en futuros imports). */
+  excluded: number
+  /** Trades excluidos que ya estaban en BD y se han borrado. */
+  deleted:  number
+  /** Exclusiones levantadas: vuelven a importarse. */
+  restored: number
 }
 
 // ── Generic (mapped) CSV import ───────────────────────────────────────────────
