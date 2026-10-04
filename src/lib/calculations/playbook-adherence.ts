@@ -1,15 +1,24 @@
 import { winRate, totalNetPnl } from "~/lib/calculations/metrics"
 import { computeRStats } from "~/lib/calculations/r-multiples"
+import { gradeForRules } from "~/lib/calculations/trade-grade"
+import { GRADE_SCALE, LOWEST_GRADE } from "~/constants/grades"
 import type { Trade } from "~/types/trade"
-import type { AdherenceGroup, PlaybookAdherence } from "~/types/playbook"
-import type { ParsedRules, RuleGroup } from "~/helpers/playbook-rules"
+import type { AdherenceGroup, GradeGroup, PlaybookAdherence } from "~/types/playbook"
+import type { ParsedRules } from "~/helpers/playbook-rules"
 
-const GROUPS: RuleGroup[] = ["entry", "exit", "conditions"]
-
-/** Did the trade meet every group's minimum for the given rules? */
+/**
+ * Did the trade follow the setup? Entry is judged by grade (above the lowest,
+ * "out of plan" grade — or no entry criteria at all); exit and conditions keep
+ * their per-group minimums.
+ */
 export function meetsSetup(rules: ParsedRules, t: Trade): boolean {
   const followed = t.followedRules ?? []
-  return GROUPS.every(g => rules[g].filter(r => followed.includes(r)).length >= rules.min[g])
+  const grade    = gradeForRules(rules, followed)
+  if (grade === LOWEST_GRADE) return false
+  const ticked = new Set(followed)
+  return (["exit", "conditions"] as const).every(
+    g => rules[g].filter(c => ticked.has(c.id)).length >= rules.min[g],
+  )
 }
 
 function groupStats(ts: Trade[], riskByAccount: Map<string, number | null>): AdherenceGroup {
@@ -24,9 +33,9 @@ function groupStats(ts: Trade[], riskByAccount: Map<string, number | null>): Adh
 }
 
 /**
- * Splits a playbook's trades by whether the trader met the setup's per-group
- * minimums (e.g. entry 3 of 6, exit 1 of 2). Untracked trades (no followed-rules
- * record) are excluded. Returns null when there are no rules.
+ * Splits a playbook's trades by whether the trader met the setup (see
+ * `meetsSetup`). Untracked trades (no followed-rules record) are excluded.
+ * Returns null when there are no rules.
  */
 export function computeAdherence(
   rules: ParsedRules,
@@ -46,8 +55,8 @@ export function computeAdherence(
 
 /**
  * Portfolio-wide adherence: across every trade whose playbook defines rules,
- * each evaluated against its own playbook's minimums. `totalRules` is reused to
- * carry the count of eligible (playbook-with-rules) trades for the coverage line.
+ * each evaluated against its own playbook. `totalRules` is reused to carry the
+ * count of eligible (playbook-with-rules) trades for the coverage line.
  * Returns null when no eligible trades exist.
  */
 export function computePortfolioAdherence(
@@ -70,4 +79,21 @@ export function computePortfolioAdherence(
     followed:   groupStats(tracked.filter(isFull), riskByAccount),
     broke:      groupStats(tracked.filter(t => !isFull(t)), riskByAccount),
   }
+}
+
+/**
+ * A playbook's trades split by setup grade: one group per grade of the scale,
+ * best first, plus a trailing `grade: null` group for ungraded trades.
+ */
+export function computeGradeBreakdown(
+  rules: ParsedRules,
+  trades: Trade[],
+  riskByAccount: Map<string, number | null> = new Map(),
+): GradeGroup[] {
+  const graded = trades.map(t => ({ t, grade: gradeForRules(rules, t.followedRules) }))
+  const pick   = (g: GradeGroup["grade"]): Trade[] => graded.filter(x => x.grade === g).map(x => x.t)
+  return [...GRADE_SCALE.map(g => g.id).reverse(), null].map(grade => ({
+    grade,
+    ...groupStats(pick(grade), riskByAccount),
+  }))
 }

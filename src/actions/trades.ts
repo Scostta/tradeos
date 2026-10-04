@@ -7,6 +7,9 @@ import { createServerClient } from "~/utils/supabase/service"
 import { createTradeSchema, updateTradeSchema } from "~/types/trade"
 import { parseTradeFilters } from "~/types/trade-filters"
 import { tradeFilterOps } from "~/services/queries/trades"
+import { parsePlaybookRules } from "~/helpers/playbook-rules"
+import { gradeForTrade, matchesGradeFilter } from "~/lib/calculations/trade-grade"
+import { gradeDef } from "~/constants/grades"
 import { mapTradeFromDb } from "~/services/mappers/trades"
 import { getUserTimezone } from "~/services/queries/profile"
 import { resolveDateRange } from "~/helpers/date-range"
@@ -95,6 +98,9 @@ export async function updateTrade(
     .single()
   if (!account) return createErrorResult("ACCOUNT_NOT_FOUND")
 
+  const resetChecklist = await isPlaybookChange(supabase, user.id, t.id, t.playbookId)
+  if (resetChecklist === null) return createErrorResult("NOT_FOUND")
+
   // Only the form fields are updated; mae/mfe/tags are preserved.
   const { error } = await supabase
     .from("trades")
@@ -114,6 +120,7 @@ export async function updateTrade(
       session:     t.session,
       notes:       t.notes,
       stop_price:  t.stopPrice,
+      ...(resetChecklist ? { followed_rules: null } : {}),
     })
     .eq("id", t.id)
     .eq("user_id", user.id)
@@ -135,7 +142,7 @@ export async function updateTrade(
 const CSV_COLUMNS = [
   "Entry", "Exit", "Account", "Instrument", "Direction", "Contracts",
   "Entry Price", "Exit Price", "Stop", "Gross P&L", "Commission", "Net P&L",
-  "MAE", "MFE", "Session", "Playbook", "Tags", "Mistakes", "Notes",
+  "MAE", "MFE", "Session", "Playbook", "Grade", "Tags", "Mistakes", "Notes",
 ] as const
 
 /** Quotes a CSV cell when it contains a comma, quote or newline. */
@@ -182,7 +189,7 @@ export async function exportTradesCsv(
   const [tradesRes, accountsRes, playbooksRes] = await Promise.all([
     query,
     supabase.from("accounts").select("id, name").eq("user_id", user.id),
-    supabase.from("playbooks").select("id, name").eq("user_id", user.id),
+    supabase.from("playbooks").select("id, name, rules").eq("user_id", user.id),
   ])
 
   if (tradesRes.error)    { console.error(tradesRes.error);    return createErrorResult(tradesRes.error.message) }
@@ -191,10 +198,18 @@ export async function exportTradesCsv(
 
   const accountName  = new Map((accountsRes.data ?? []).map(a => [a.id as string, a.name as string]))
   const playbookName = new Map((playbooksRes.data ?? []).map(p => [p.id as string, p.name as string]))
+  const rulesByPlaybook = new Map(
+    (playbooksRes.data ?? []).map(p => [p.id as string, parsePlaybookRules(p.rules as string | null)] as const),
+  )
 
-  const trades = (tradesRes.data ?? []).map(r => mapTradeFromDb(r as Record<string, unknown>))
+  // Grade is computed, not stored — applied here like the table does.
+  const graded = (tradesRes.data ?? [])
+    .map(r => mapTradeFromDb(r as Record<string, unknown>))
+    .map(t => ({ t, grade: gradeForTrade(t, rulesByPlaybook) }))
+  const grade  = filters.grade
+  const trades = grade ? graded.filter(x => matchesGradeFilter(x.grade, grade)) : graded
 
-  const rows = trades.map(t => [
+  const rows = trades.map(({ t, grade }) => [
     localStamp(t.entryTime, timeZone),
     localStamp(t.exitTime, timeZone),
     accountName.get(t.accountId) ?? "",
@@ -211,6 +226,7 @@ export async function exportTradesCsv(
     t.mfe ?? "",
     t.session ?? "",
     t.playbookId ? (playbookName.get(t.playbookId) ?? "") : "",
+    grade ? gradeDef(grade).label : "",
     (t.tags ?? []).join("; "),
     (t.mistakes ?? []).join("; "),
     t.notes ?? "",
@@ -256,6 +272,26 @@ export async function updateTradeNotes(
   return createDataResult({ id })
 }
 
+// The setup checklist (followed_rules) stores criterion ids of the trade's
+// playbook — meaningless for any other playbook — so changing the playbook
+// clears it and the trade is ungraded until re-ticked. The UI warns first.
+// Returns null when the trade doesn't exist for this user.
+async function isPlaybookChange(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  userId: string,
+  tradeId: string,
+  nextPlaybookId: string | null,
+): Promise<boolean | null> {
+  const { data } = await supabase
+    .from("trades")
+    .select("playbook_id")
+    .eq("id", tradeId)
+    .eq("user_id", userId)
+    .maybeSingle()
+  if (!data) return null
+  return (data.playbook_id ?? null) !== nextPlaybookId
+}
+
 const updatePlaybookSchema = z.object({
   id:         z.string().uuid(),
   playbookId: z.string().uuid().nullable(),
@@ -272,9 +308,12 @@ export async function updateTradePlaybook(
   if (!user) return createErrorResult("UNAUTHENTICATED")
 
   const { id, playbookId } = parsed.data
+  const resetChecklist = await isPlaybookChange(supabase, user.id, id, playbookId)
+  if (resetChecklist === null) return createErrorResult("NOT_FOUND")
+
   const { error } = await supabase
     .from("trades")
-    .update({ playbook_id: playbookId })
+    .update({ playbook_id: playbookId, ...(resetChecklist ? { followed_rules: null } : {}) })
     .eq("id", id)
     .eq("user_id", user.id)
 
@@ -284,6 +323,8 @@ export async function updateTradePlaybook(
   }
 
   revalidatePath(`/trades/${id}`)
+  revalidatePath("/trades")
+  revalidatePath("/playbooks")
   return createDataResult({ id })
 }
 
@@ -378,6 +419,7 @@ export async function updateTradeFollowedRules(
   }
 
   revalidatePath(`/trades/${id}`)
+  revalidatePath("/trades")
   revalidatePath("/playbooks")
   return createDataResult({ id })
 }

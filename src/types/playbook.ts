@@ -1,6 +1,7 @@
 import { z } from "zod"
 import type { DashboardMetrics, EquityPoint } from "./metrics"
 import type { RStats, ReportRow } from "./reports"
+import type { GradeId } from "~/constants/grades"
 
 export const playbookSchema = z.object({
   id:          z.string().uuid(),
@@ -52,8 +53,13 @@ export type AdherenceGroup = {
 export type PlaybookAdherence = {
   totalRules: number
   tracked:    number   // trades with a followed-rules record
-  followed:   AdherenceGroup   // every rule checked
-  broke:      AdherenceGroup   // tracked but missing ≥1 rule
+  followed:   AdherenceGroup   // graded above the lowest grade + exit/conditions minimums met
+  broke:      AdherenceGroup   // tracked but out of plan
+}
+
+// Setup grade breakdown: one group per grade (null = ungraded trades).
+export type GradeGroup = AdherenceGroup & {
+  grade: GradeId | null
 }
 
 // Full per-playbook detail (route /playbooks/[id]).
@@ -63,5 +69,5 @@ export type PlaybookDetail = {
   rStats:       RStats
   equityCurve:  EquityPoint[]
   byInstrument: ReportRow[]
-  adherence:    PlaybookAdherence | null
+  byGrade:      GradeGroup[] | null   // null when the playbook has no entry criteria
 }

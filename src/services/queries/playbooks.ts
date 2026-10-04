@@ -5,7 +5,7 @@ import { computePlaybookStats } from "~/lib/calculations/playbook-stats"
 import { computeRStats } from "~/lib/calculations/r-multiples"
 import { computeDashboardMetrics, equityCurve } from "~/lib/calculations/metrics"
 import { buildBreakdown, bySymbol } from "~/lib/calculations/reports"
-import { computeAdherence } from "~/lib/calculations/playbook-adherence"
+import { computeGradeBreakdown } from "~/lib/calculations/playbook-adherence"
 import { parsePlaybookRules } from "~/helpers/playbook-rules"
 import { createDataResult, createErrorResult } from "~/helpers/result"
 import type { ResultType } from "~/helpers/result"
@@ -102,6 +102,6 @@ export async function getPlaybookDetail(
     rStats:       computeRStats(trades, riskByAccount),
     equityCurve:  equityCurve(trades),
     byInstrument: buildBreakdown(trades, bySymbol).rows,
-    adherence:    computeAdherence(rules, trades, riskByAccount),
+    byGrade:      rules.entry.length > 0 ? computeGradeBreakdown(rules, trades, riskByAccount) : null,
   })
 }

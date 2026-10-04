@@ -5,6 +5,10 @@ import { updateTradeNotes, updateTradePlaybook, updateTradeTags, updateTradeFoll
 import { TradeExecutionsCard } from "./trade-executions-card"
 import { TradeAttachmentsCard } from "./trade-attachments-card.client"
 import { parsePlaybookRules } from "~/helpers/playbook-rules"
+import { toggleFollowed } from "~/helpers/followed-rules"
+import { gradeForRules } from "~/lib/calculations/trade-grade"
+import { GradeBadge } from "~/components/grade-badge"
+import { useTradeSetup } from "./trade-setup-context.client"
 import { useTimezone } from "~/hooks/use-timezone"
 import { MISTAKE_PRESETS } from "~/constants/trade-mistakes"
 import { TRADES } from "~/constants/copies/trades"
@@ -21,8 +25,8 @@ type Props = {
 export function TradeSidebar({ trade, playbooks }: Props) {
   const timeZone = useTimezone()
   const [notes, setNotes] = useState(trade.notes ?? "")
-  const [playbookId, setPlaybookId] = useState(trade.playbookId ?? "")
-  const [followedRules, setFollowedRules] = useState<string[]>(trade.followedRules ?? [])
+  const { playbookId, followedRules, setPlaybookId, setFollowedRules } = useTradeSetup()
+  const [pendingPlaybookId, setPendingPlaybookId] = useState<string | null>(null)
   const [tags, setTags] = useState<string[]>(trade.tags ?? [])
   const [newTag, setNewTag] = useState("")
   const [addingTag, setAddingTag] = useState(false)
@@ -38,22 +42,31 @@ export function TradeSidebar({ trade, playbooks }: Props) {
     })
   }, [trade.id, notes])
 
-  const handlePlaybookChange = useCallback((newId: string) => {
+  // The checklist holds the current playbook's criterion ids, so a playbook
+  // change clears it (server-side too). Ask first when there is one to lose.
+  const applyPlaybookChange = useCallback((newId: string | null) => {
+    setPendingPlaybookId(null)
     setPlaybookId(newId)
+    setFollowedRules(null)
     startTransition(async () => {
-      await updateTradePlaybook({ id: trade.id, playbookId: newId || null })
+      await updateTradePlaybook({ id: trade.id, playbookId: newId })
     })
-  }, [trade.id])
+  }, [trade.id, setPlaybookId, setFollowedRules])
 
-  const toggleRule = useCallback((rule: string) => {
-    const next = followedRules.includes(rule)
-      ? followedRules.filter(r => r !== rule)
-      : [...followedRules, rule]
+  const handlePlaybookChange = useCallback((value: string) => {
+    const newId = value || null
+    if (newId === playbookId) { setPendingPlaybookId(null); return }
+    if (followedRules !== null) { setPendingPlaybookId(value); return }
+    applyPlaybookChange(newId)
+  }, [playbookId, followedRules, applyPlaybookChange])
+
+  const toggleRule = useCallback((id: string) => {
+    const next = toggleFollowed(followedRules, id)
     setFollowedRules(next)
     startTransition(async () => {
-      await updateTradeFollowedRules({ id: trade.id, followedRules: next.length ? next : null })
+      await updateTradeFollowedRules({ id: trade.id, followedRules: next })
     })
-  }, [trade.id, followedRules])
+  }, [trade.id, followedRules, setFollowedRules])
 
   const parsedRules = parsePlaybookRules(playbooks.find(p => p.id === playbookId)?.rules ?? null)
   const ruleGroups: { key: "entry" | "exit" | "conditions"; label: string }[] = [
@@ -61,10 +74,10 @@ export function TradeSidebar({ trade, playbooks }: Props) {
     { key: "exit",       label: SIDEBAR.GROUP_EXIT },
     { key: "conditions", label: SIDEBAR.GROUP_CONDITIONS },
   ]
-  const metInGroup = (g: "entry" | "exit" | "conditions") =>
-    parsedRules[g].filter(r => followedRules.includes(r)).length
-  const setupValid = parsedRules.all.length > 0 &&
-    ruleGroups.every(({ key }) => metInGroup(key) >= parsedRules.min[key])
+  const ticked           = new Set(followedRules ?? [])
+  const confirmations    = parsedRules.entry.filter(c => !c.required)
+  const metConfirmations = confirmations.filter(c => ticked.has(c.id)).length
+  const grade            = gradeForRules(parsedRules, followedRules)
 
   const commitTag = useCallback(() => {
     const trimmed = newTag.trim()
@@ -107,7 +120,7 @@ export function TradeSidebar({ trade, playbooks }: Props) {
       <div className="card p-4">
         <div className="label-caps mb-2">{SIDEBAR.PLAYBOOK}</div>
         <select
-          value={playbookId}
+          value={pendingPlaybookId ?? playbookId ?? ""}
           onChange={e => handlePlaybookChange(e.target.value)}
           className="w-full px-2.5 py-2 bg-surface-2 border border-border rounded-sm text-text text-base font-[inherit] outline-none focus:border-border-hi"
         >
@@ -116,6 +129,28 @@ export function TradeSidebar({ trade, playbooks }: Props) {
             <option key={s.id} value={s.id}>{s.name}</option>
           ))}
         </select>
+        {pendingPlaybookId !== null && (
+          <div className="mt-2 rounded-sm border border-short/40 bg-short/10 p-2.5 flex flex-col gap-2">
+            <p className="text-xs text-text-dim">{SIDEBAR.PLAYBOOK_CHANGE_WARNING}</p>
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => applyPlaybookChange(pendingPlaybookId || null)}
+                disabled={isPending}
+                className="btn-accent py-1 px-2.5 text-xs disabled:opacity-60"
+              >
+                {SIDEBAR.PLAYBOOK_CHANGE_CONFIRM}
+              </button>
+              <button
+                type="button"
+                onClick={() => setPendingPlaybookId(null)}
+                className="text-xs text-text-mute hover:text-text transition-colors cursor-pointer"
+              >
+                {SIDEBAR.PLAYBOOK_CHANGE_CANCEL}
+              </button>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Setup checklist — grouped, with per-group minimums */}
@@ -123,38 +158,39 @@ export function TradeSidebar({ trade, playbooks }: Props) {
         <div className="card p-4">
           <div className="flex justify-between items-center mb-3">
             <div className="label-caps">{SIDEBAR.SETUP_CHECKLIST}</div>
-            <span
-              className="text-xxs mono font-semibold tracking-wider rounded-sm px-2 py-0.5"
-              style={{
-                color:      setupValid ? "var(--color-profit)" : "var(--color-text-mute)",
-                background: setupValid ? "color-mix(in srgb, var(--color-profit) 14%, transparent)" : "var(--color-surface-2)",
-              }}
-            >
-              {setupValid ? SIDEBAR.VALID : SIDEBAR.INCOMPLETE}
-            </span>
+            {parsedRules.entry.length > 0 && <GradeBadge grade={grade} showUngraded />}
           </div>
 
           <div className="flex flex-col gap-3">
             {ruleGroups.map(({ key, label }) => {
               if (parsedRules[key].length === 0) return null
-              const met      = metInGroup(key)
-              const min      = parsedRules.min[key]
-              const groupOk  = met >= min
+              // Entry is graded (required + confirmations); exit/conditions keep their minimum.
+              const isEntry = key === "entry"
+              const met     = parsedRules[key].filter(c => ticked.has(c.id)).length
+              const min     = key === "entry" ? 0 : parsedRules.min[key]
+              const groupOk = met >= min
               return (
                 <div key={key} className="flex flex-col gap-1.5">
                   <div className="flex items-center justify-between">
                     <span className="text-xxs uppercase tracking-wider text-text-mute">{label}</span>
-                    <span className="mono text-xxs" style={{ color: groupOk ? "var(--color-profit)" : "var(--color-text-mute)" }}>
-                      {met}/{parsedRules[key].length} · {SIDEBAR.MIN} {min}
-                    </span>
+                    {isEntry ? (
+                      <span className="mono text-xxs text-text-mute">
+                        {metConfirmations}/{confirmations.length} {SIDEBAR.CONFIRMATIONS}
+                      </span>
+                    ) : (
+                      <span className="mono text-xxs" style={{ color: groupOk ? "var(--color-profit)" : "var(--color-text-mute)" }}>
+                        {met}/{parsedRules[key].length} · {SIDEBAR.MIN} {min}
+                      </span>
+                    )}
                   </div>
                   {parsedRules[key].map(rule => {
-                    const checked = followedRules.includes(rule)
+                    const checked  = ticked.has(rule.id)
+                    const required = isEntry && parsedRules.entry.some(c => c.id === rule.id && c.required)
                     return (
                       <button
-                        key={rule}
+                        key={rule.id}
                         type="button"
-                        onClick={() => toggleRule(rule)}
+                        onClick={() => toggleRule(rule.id)}
                         disabled={isPending}
                         className="flex items-start gap-2 text-left disabled:opacity-60 cursor-pointer group"
                       >
@@ -173,7 +209,10 @@ export function TradeSidebar({ trade, playbooks }: Props) {
                           )}
                         </span>
                         <span className={checked ? "text-sm text-text" : "text-sm text-text-dim group-hover:text-text"}>
-                          {rule}
+                          {rule.text}
+                          {required && (
+                            <span className="ml-1.5 text-xxs mono uppercase tracking-wider text-short">{SIDEBAR.REQUIRED}</span>
+                          )}
                         </span>
                       </button>
                     )

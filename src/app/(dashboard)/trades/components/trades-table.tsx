@@ -1,11 +1,14 @@
 import type { ReactElement } from "react"
 import { TRADES } from "~/constants/copies/trades"
 import type { Trade } from "~/types/trade"
+import type { Playbook } from "~/types/playbook"
+import { parsePlaybookRules } from "~/helpers/playbook-rules"
+import { gradeForTrade } from "~/lib/calculations/trade-grade"
 import { TradesTableRow } from "./trades-table-row"
 
 type Props = {
   trades:     Trade[]
-  playbooks: { id: string; name: string }[]
+  playbooks: Pick<Playbook, "id" | "name" | "rules">[]
 }
 
 const HEADERS = [
@@ -20,11 +23,13 @@ const HEADERS = [
   { label: TRADES.LIST.HEADERS.COMM,       align: "right" },
   { label: TRADES.LIST.HEADERS.NET_PNL,    align: "right" },
   { label: TRADES.LIST.HEADERS.PLAYBOOK,   align: "left"  },
+  { label: TRADES.LIST.HEADERS.GRADE,      align: "left"  },
   { label: TRADES.LIST.HEADERS.HOLD,       align: "right" },
 ] as const
 
 export function TradesTable(props: Props): ReactElement {
   const { trades, playbooks } = props
+  const rulesByPlaybook = new Map(playbooks.map(p => [p.id, parsePlaybookRules(p.rules)] as const))
 
   return (
     <div className="card p-0 overflow-hidden">
@@ -47,7 +52,7 @@ export function TradesTable(props: Props): ReactElement {
           {trades.length === 0 ? (
             <tr>
               <td
-                colSpan={12}
+                colSpan={HEADERS.length}
                 className="py-16 text-text-mute text-sm text-center"
               >
                 {TRADES.LIST.EMPTY}
@@ -59,6 +64,7 @@ export function TradesTable(props: Props): ReactElement {
                 key={trade.id}
                 trade={trade}
                 playbooks={playbooks}
+                grade={gradeForTrade(trade, rulesByPlaybook)}
               />
             ))
           )}

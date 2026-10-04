@@ -1,5 +1,8 @@
 import { createClient } from "~/utils/supabase/server"
 import { mapTradeFromDb } from "~/services/mappers/trades"
+import { mapPlaybookFromDb } from "~/services/mappers/playbooks"
+import { parsePlaybookRules } from "~/helpers/playbook-rules"
+import { gradeForTrade, matchesGradeFilter } from "~/lib/calculations/trade-grade"
 import { resolveDateRange } from "~/helpers/date-range"
 import { getUserTimezone } from "~/services/queries/profile"
 import { createDataResult, createErrorResult } from "~/helpers/result"
@@ -7,6 +10,7 @@ import { PAGE_SIZE } from "~/types/trade-filters"
 import type { ResultType } from "~/helpers/result"
 import type { Trade } from "~/types/trade"
 import type { TradeFilters, TradesPageData } from "~/types/trade-filters"
+import type { GradeFilter } from "~/lib/calculations/trade-grade"
 
 export async function getTradeById(
   id: string,
@@ -72,6 +76,64 @@ export function tradeFilterOps(
   return ops
 }
 
+const FETCH_CHUNK = 1000   // PostgREST's default max rows per request
+
+/**
+ * Grade-filtered page. The grade is computed on the fly (never stored), so the
+ * grade filter can't run in SQL: fetch every trade matching the other filters,
+ * grade it with the single grade function, then count / total / paginate here.
+ */
+async function getGradeFilteredPage(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  userId: string,
+  grade: GradeFilter,
+  ops: ((q: FilterBuilderLike) => FilterBuilderLike)[],
+  offset: number,
+): Promise<ResultType<{ trades: Trade[]; totalCount: number; totalNet: number }, string>> {
+  const { data: pbRows, error: pbError } = await supabase
+    .from("playbooks")
+    .select("*")
+    .eq("user_id", userId)
+  if (pbError) {
+    console.error(pbError)
+    return createErrorResult(pbError.message)
+  }
+  const rulesByPlaybook = new Map(
+    (pbRows ?? []).map(mapPlaybookFromDb).map(p => [p.id, parsePlaybookRules(p.rules)] as const),
+  )
+
+  const matched: Trade[] = []
+  for (let from = 0; ; from += FETCH_CHUNK) {
+    let q = supabase
+      .from("trades")
+      .select("*")
+      .eq("user_id", userId)
+    for (const op of ops) q = op(q as unknown as FilterBuilderLike) as unknown as typeof q
+    // A graded trade needs a playbook and a recorded checklist.
+    if (grade !== "none") q = q.not("playbook_id", "is", null).not("followed_rules", "is", null)
+
+    const { data, error } = await q
+      .order("entry_time", { ascending: false })
+      .order("id", { ascending: true })
+      .range(from, from + FETCH_CHUNK - 1)
+    if (error) {
+      console.error(error)
+      return createErrorResult(error.message)
+    }
+    for (const row of data ?? []) {
+      const t = mapTradeFromDb(row as Record<string, unknown>)
+      if (matchesGradeFilter(gradeForTrade(t, rulesByPlaybook), grade)) matched.push(t)
+    }
+    if ((data ?? []).length < FETCH_CHUNK) break
+  }
+
+  return createDataResult({
+    trades:     matched.slice(offset, offset + PAGE_SIZE),
+    totalCount: matched.length,
+    totalNet:   matched.reduce((sum, t) => sum + t.netPnl, 0),
+  })
+}
+
 export async function getTradesPage(
   filters: TradeFilters,
 ): Promise<ResultType<TradesPageData, string>> {
@@ -83,6 +145,27 @@ export async function getTradesPage(
 
   const dateRange = filters.range !== "all" ? resolveDateRange(filters.range, await getUserTimezone()) : null
   const ops = tradeFilterOps(filters, dateRange)
+
+  if (filters.grade) {
+    let optionsQuery = supabase.from("trades").select("instrument, tags").eq("user_id", user.id)
+    if (filters.accountId) optionsQuery = optionsQuery.eq("account_id", filters.accountId)
+
+    const [graded, optionsResult] = await Promise.all([
+      getGradeFilteredPage(supabase, user.id, filters.grade, ops, offset),
+      optionsQuery,
+    ])
+    if (!graded.success) return graded
+    if (optionsResult.error) {
+      console.error(optionsResult.error)
+      return createErrorResult(optionsResult.error.message)
+    }
+    return createDataResult({
+      ...graded.data,
+      page:      filters.page,
+      pageCount: Math.max(1, Math.ceil(graded.data.totalCount / PAGE_SIZE)),
+      ...collectOptions(optionsResult.data ?? []),
+    })
+  }
 
   let pageQuery = supabase
     .from("trades")
@@ -131,22 +214,26 @@ export async function getTradesPage(
   )
   const pageCount  = Math.max(1, Math.ceil(totalCount / PAGE_SIZE))
 
-  const instrSet = new Set<string>()
-  const tagSet   = new Set<string>()
-  for (const row of optionsResult.data ?? []) {
-    if (typeof row.instrument === "string") instrSet.add(row.instrument)
-    if (Array.isArray(row.tags)) {
-      for (const t of row.tags) if (typeof t === "string") tagSet.add(t)
-    }
-  }
-
   return createDataResult({
     trades,
     totalCount,
     totalNet,
     page:    filters.page,
     pageCount,
-    instruments: Array.from(instrSet).sort(),
-    tags:        Array.from(tagSet).sort(),
+    ...collectOptions(optionsResult.data ?? []),
   })
+}
+
+function collectOptions(
+  rows: { instrument: unknown; tags: unknown }[],
+): { instruments: string[]; tags: string[] } {
+  const instrSet = new Set<string>()
+  const tagSet   = new Set<string>()
+  for (const row of rows) {
+    if (typeof row.instrument === "string") instrSet.add(row.instrument)
+    if (Array.isArray(row.tags)) {
+      for (const t of row.tags) if (typeof t === "string") tagSet.add(t)
+    }
+  }
+  return { instruments: Array.from(instrSet).sort(), tags: Array.from(tagSet).sort() }
 }

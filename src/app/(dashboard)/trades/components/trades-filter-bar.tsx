@@ -1,6 +1,7 @@
 import type { ReactElement } from "react"
 import { TRADES } from "~/constants/copies/trades"
 import { MISTAKE_PRESETS } from "~/constants/trade-mistakes"
+import { GRADE_SCALE } from "~/constants/grades"
 import type { TradeFilters } from "~/types/trade-filters"
 import { FilterBar } from "~/components/filter-bar"
 import { FilterPill } from "~/components/filter-pill.client"
@@ -53,6 +54,12 @@ export function TradesFilterBar(props: Props): ReactElement {
     ...MISTAKE_PRESETS.map(m => ({ value: m as string, label: m })),
   ]
 
+  const gradeOptions = [
+    ALL,
+    ...GRADE_SCALE.slice().reverse().map(g => ({ value: g.id as string, label: g.label })),
+    { value: "none" as string, label: TRADES.LIST.FILTERS.UNGRADED },
+  ]
+
   // Active filters that live in the pill set (range is excluded — it stays visible
   // as its own selector, so it isn't collapsed into the mobile sheet).
   const activeCount = [
@@ -61,6 +68,7 @@ export function TradesFilterBar(props: Props): ReactElement {
     filters.outcome,
     filters.playbookId,
     filters.mistake,
+    filters.grade,
     filters.tag,
     filters.pnlMin !== null || filters.pnlMax !== null ? "pnl" : null,
   ].filter(Boolean).length
@@ -74,6 +82,7 @@ export function TradesFilterBar(props: Props): ReactElement {
       <FilterPill label={TRADES.LIST.FILTERS.OUTCOME}    paramKey="outcome"    value={filters.outcome}    options={outcomeOptions} />
       <FilterPill label={TRADES.LIST.FILTERS.PLAYBOOK}   paramKey="playbook"   value={filters.playbookId} options={playbookOptions} />
       <FilterPill label={TRADES.LIST.FILTERS.MISTAKES}   paramKey="mistake"    value={filters.mistake}    options={mistakeOptions} />
+      <FilterPill label={TRADES.LIST.FILTERS.GRADE}      paramKey="grade"      value={filters.grade}      options={gradeOptions} />
       {tags.length > 0 && (
         <FilterPill label={TRADES.LIST.FILTERS.TAG} paramKey="tag" value={filters.tag} options={tagOptions} />
       )}

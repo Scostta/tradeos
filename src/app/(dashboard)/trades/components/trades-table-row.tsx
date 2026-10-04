@@ -7,6 +7,8 @@ import { formatDuration } from "~/helpers/duration"
 import { useTimezone } from "~/hooks/use-timezone"
 import { TRADES } from "~/constants/copies/trades"
 import type { Trade } from "~/types/trade"
+import type { GradeId } from "~/constants/grades"
+import { GradeBadge } from "~/components/grade-badge"
 
 function pnlColorVar(n: number): string {
   if (n > 0) return "var(--color-profit)"
@@ -17,10 +19,11 @@ function pnlColorVar(n: number): string {
 type Props = {
   trade:      Trade
   playbooks: { id: string; name: string }[]
+  grade:      GradeId | null
 }
 
 export function TradesTableRow(props: Props): ReactElement {
-  const { trade, playbooks } = props
+  const { trade, playbooks, grade } = props
   const router = useRouter()
   const tz = useTimezone()
 
@@ -86,6 +89,9 @@ export function TradesTableRow(props: Props): ReactElement {
       </td>
       <td className="px-3 py-2.5 text-text-dim text-xs">
         {playbookName}
+      </td>
+      <td className="px-3 py-2.5 text-xs">
+        <GradeBadge grade={grade} />
       </td>
       <td className="px-3 py-2.5 mono text-text-mute text-xs text-right">
         {formatDuration(trade.entryTime, trade.exitTime)}

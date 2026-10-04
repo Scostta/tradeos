@@ -1,6 +1,8 @@
 import { z } from "zod"
 import { rangeKeySchema } from "~/types/metrics"
 import type { Trade } from "~/types/trade"
+import { isGradeId } from "~/constants/grades"
+import type { GradeFilter } from "~/lib/calculations/trade-grade"
 
 export const PAGE_SIZE = 14 as const
 
@@ -21,6 +23,7 @@ export type TradeFilters = {
   outcome:    TradeOutcome | null
   mistake:    string | null   // "clean" | "any" | a specific mistake preset
   tag:        string | null
+  grade:      GradeFilter | null   // a grade id, or "none" for ungraded trades
   pnlMin:     number | null
   pnlMax:     number | null
   range:      TradesRange
@@ -62,6 +65,8 @@ export function parseTradeFilters(
   const direction = rawDir === "long" || rawDir === "short" ? rawDir : null
 
   const outcome = tradeOutcomeSchema.safeParse(params["outcome"])
+  const rawGrade = params["grade"]
+  const grade: GradeFilter | null = rawGrade === "none" || isGradeId(rawGrade) ? rawGrade : null
 
   return {
     accountId:  params["account"]    ?? null,
@@ -71,6 +76,7 @@ export function parseTradeFilters(
     outcome:    outcome.success ? outcome.data : null,
     mistake:    parseStr(params["mistake"]),
     tag:        parseStr(params["tag"]),
+    grade,
     pnlMin:     parseNum(params["pnlMin"]),
     pnlMax:     parseNum(params["pnlMax"]),
     range,

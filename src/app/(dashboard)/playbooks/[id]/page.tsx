@@ -10,8 +10,11 @@ import { cn } from "~/utils/cn"
 import { SignedAreaChart } from "~/components/charts/signed-area-chart.client"
 import { RDistribution } from "~/components/charts/r-distribution"
 import { parsePlaybookRules } from "~/helpers/playbook-rules"
+import { GRADE_SCALE } from "~/constants/grades"
+import { COMMON } from "~/constants/copies/common"
+import { GradeBadge } from "~/components/grade-badge"
 import { PlaybookEditButton } from "./components/playbook-edit-button.client"
-import type { AdherenceGroup } from "~/types/playbook"
+import type { GradeGroup } from "~/types/playbook"
 
 const fmtR = (r: number): string => `${r >= 0 ? "+" : "−"}${Math.abs(r).toFixed(2)}R`
 
@@ -24,12 +27,17 @@ export default async function PlaybookDetailPage({
   const [result, timezone] = await Promise.all([getPlaybookDetail(id), getUserTimezone()])
   if (!result.success) notFound()
 
-  const { playbook, metrics, rStats, equityCurve, byInstrument, adherence } = result.data
+  const { playbook, metrics, rStats, equityCurve, byInstrument, byGrade } = result.data
   const hasTrades = metrics.totalTrades > 0
   const hasR      = rStats.coverage.withR > 0
   const avgWL     = metrics.avgLoss !== 0 ? metrics.avgWin / Math.abs(metrics.avgLoss) : 0
   const rules     = parsePlaybookRules(playbook.rules)
   const hasRules  = rules.all.length > 0
+  const graded    = byGrade ? byGrade.filter(g => g.grade !== null).reduce((n, g) => n + g.count, 0) : 0
+  // Thresholds best grade first, e.g. "A ≥ 3 · B ≥ 2".
+  const thresholds = GRADE_SCALE.slice(1).reverse()
+    .map(g => `${g.label} ≥ ${rules.gradeMin[g.id] ?? 0}`)
+    .join(" · ")
 
   const cumData = equityCurve.map(p => ({
     label: formatDate(p.date, timezone),
@@ -85,7 +93,25 @@ export default async function PlaybookDetailPage({
                 : <p className="text-sm text-text-mute italic">{PLAYBOOKS.DETAIL.NO_RULES}</p>
             ) : (
               <div className="flex flex-col gap-2">
-                {(["entry", "exit", "conditions"] as const).map((k) =>
+                {rules.entry.length > 0 && (
+                  <div>
+                    <div className="flex items-center gap-2 mb-1">
+                      <span className="text-xxs uppercase tracking-wider text-text-mute">entry</span>
+                      <span className="text-xxs text-text-mute">· {thresholds} {PLAYBOOKS.DETAIL.CONFIRMATIONS}</span>
+                    </div>
+                    <ul className="list-disc list-inside text-sm text-text-dim">
+                      {rules.entry.map(r => (
+                        <li key={r.id}>
+                          {r.text}
+                          {r.required && (
+                            <span className="ml-1.5 text-xxs mono uppercase tracking-wider text-short">{PLAYBOOKS.DETAIL.REQUIRED}</span>
+                          )}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+                {(["exit", "conditions"] as const).map((k) =>
                   rules[k].length ? (
                     <div key={k}>
                       <div className="flex items-center gap-2 mb-1">
@@ -93,7 +119,7 @@ export default async function PlaybookDetailPage({
                         <span className="text-xxs text-text-mute">· {PLAYBOOKS.DETAIL.REQUIRE} {rules.min[k]} {PLAYBOOKS.DETAIL.OF} {rules[k].length}</span>
                       </div>
                       <ul className="list-disc list-inside text-sm text-text-dim">
-                        {rules[k].map((r, i) => <li key={i}>{r}</li>)}
+                        {rules[k].map(r => <li key={r.id}>{r.text}</li>)}
                       </ul>
                     </div>
                   ) : null
@@ -151,21 +177,20 @@ export default async function PlaybookDetailPage({
           </div>
         </div>
 
-        {/* Setup adherence */}
-        {adherence && (
+        {/* By grade */}
+        {byGrade && (
           <div className="card p-4">
             <div className="flex justify-between items-center mb-3">
-              <div className="label-caps">{PLAYBOOKS.DETAIL.ADHERENCE}</div>
+              <div className="label-caps">{PLAYBOOKS.DETAIL.BY_GRADE}</div>
               <span className="mono text-xs text-text-mute">
-                {adherence.tracked}/{metrics.totalTrades} {PLAYBOOKS.DETAIL.TRACKED}
+                {graded}/{metrics.totalTrades} {PLAYBOOKS.DETAIL.GRADED}
               </span>
             </div>
-            {adherence.tracked === 0 ? (
-              <p className="text-sm text-text-mute italic">{PLAYBOOKS.DETAIL.ADH_NONE}</p>
+            {graded === 0 ? (
+              <p className="text-sm text-text-mute italic">{PLAYBOOKS.DETAIL.GRADE_NONE}</p>
             ) : (
-              <div className="grid grid-cols-2 gap-px bg-border rounded-sm border border-border overflow-hidden">
-                <AdherenceCol label={PLAYBOOKS.DETAIL.FOLLOWED} accent="var(--color-profit)" group={adherence.followed} />
-                <AdherenceCol label={PLAYBOOKS.DETAIL.BROKE}    accent="var(--color-loss)"   group={adherence.broke} />
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-px bg-border rounded-sm border border-border overflow-hidden">
+                {byGrade.map(g => <GradeCol key={g.grade ?? "none"} group={g} />)}
               </div>
             )}
           </div>
@@ -198,21 +223,21 @@ export default async function PlaybookDetailPage({
   )
 }
 
-function AdherenceCol({ label, accent, group }: {
-  label:  string
-  accent: string
-  group:  AdherenceGroup
-}): ReactElement {
+function GradeCol({ group }: { group: GradeGroup }): ReactElement {
   const hasR = group.rCoverage.withR > 0
   const rows = [
-    { k: PLAYBOOKS.DETAIL.ADH_STATS.TRADES,       v: String(group.count) },
-    { k: PLAYBOOKS.DETAIL.ADH_STATS.WIN_RATE,     v: group.count ? formatPct(group.winRate) : "—" },
-    { k: PLAYBOOKS.DETAIL.ADH_STATS.NET_PNL,      v: group.count ? formatCurrency(group.netPnl) : "—" },
-    { k: PLAYBOOKS.DETAIL.ADH_STATS.EXPECTANCY_R, v: hasR ? fmtR(group.expectancyR) : "—" },
+    { k: PLAYBOOKS.DETAIL.GRADE_STATS.TRADES,       v: String(group.count) },
+    { k: PLAYBOOKS.DETAIL.GRADE_STATS.WIN_RATE,     v: group.count ? formatPct(group.winRate) : "—" },
+    { k: PLAYBOOKS.DETAIL.GRADE_STATS.NET_PNL,      v: group.count ? formatCurrency(group.netPnl) : "—" },
+    { k: PLAYBOOKS.DETAIL.GRADE_STATS.EXPECTANCY_R, v: hasR ? fmtR(group.expectancyR) : "—" },
   ]
   return (
     <div className="bg-surface p-4">
-      <div className="text-xs font-semibold mb-3" style={{ color: accent }}>{label}</div>
+      <div className="mb-3">
+        {group.grade === null
+          ? <span className="text-xs font-semibold text-text-mute">{COMMON.GRADES.UNGRADED}</span>
+          : <GradeBadge grade={group.grade} />}
+      </div>
       <div className="flex flex-col gap-2">
         {rows.map(r => (
           <div key={r.k} className="flex justify-between text-sm">

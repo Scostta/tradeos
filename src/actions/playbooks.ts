@@ -69,6 +69,7 @@ export async function updatePlaybook(
 
   revalidatePath("/playbooks")
   revalidatePath(`/playbooks/${id}`)
+  revalidatePath("/trades")
   revalidatePath("/reports")
   return createDataResult(mapPlaybookFromDb(data))
 }

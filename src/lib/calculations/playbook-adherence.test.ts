@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest"
-import { computeAdherence } from "./playbook-adherence"
+import { computeAdherence, computeGradeBreakdown } from "./playbook-adherence"
 import type { Trade } from "~/types/trade"
+import { legacyGradeMin } from "~/helpers/playbook-rules"
 import type { ParsedRules } from "~/helpers/playbook-rules"
 
 function trade(over: Partial<Trade>): Trade {
@@ -15,14 +16,23 @@ function trade(over: Partial<Trade>): Trade {
   }
 }
 
+// v1-style rules (criterion id = text): `min.entry` becomes the grade thresholds
+// exactly as the migration derives them.
 function rules(
   entry: string[], exit: string[], conditions: string[],
   min: { entry: number; exit: number; conditions: number },
 ): ParsedRules {
-  return { entry, exit, conditions, all: [...entry, ...exit, ...conditions], min }
+  const c = (t: string) => ({ id: t, text: t })
+  const e = entry.map(t => ({ ...c(t), required: false }))
+  const x = exit.map(c), k = conditions.map(c)
+  return {
+    entry: e, exit: x, conditions: k, all: [...e, ...x, ...k],
+    min: { exit: min.exit, conditions: min.conditions },
+    gradeMin: legacyGradeMin(entry.length, min.entry),
+  }
 }
 
-describe("computeAdherence — per-group minimums", () => {
+describe("computeAdherence — entry grade + exit/conditions minimums", () => {
   // Entry: need 2 of 3; Exit: need 1 of 2.
   const r = rules(["A", "B", "C"], ["X", "Y"], [], { entry: 2, exit: 1, conditions: 0 })
 
@@ -57,5 +67,54 @@ describe("computeAdherence — per-group minimums", () => {
     expect(a.tracked).toBe(1)
     expect(a.broke.count).toBe(1)
     expect(a.followed.count).toBe(0)
+  })
+})
+
+describe("computeAdherence — required criteria", () => {
+  const r: ParsedRules = {
+    ...rules(["T", "C1", "C2"], ["X"], [], { entry: 0, exit: 1, conditions: 0 }),
+    entry: [{ id: "T", text: "T", required: true }, { id: "C1", text: "C1", required: false }, { id: "C2", text: "C2", required: false }],
+    gradeMin: { b: 1, a: 2 },
+  }
+
+  it("missing the required trigger breaks the setup even with every confirmation", () => {
+    const a = computeAdherence(r, [trade({ followedRules: ["C1", "C2", "X"] })])!
+    expect(a.broke.count).toBe(1)
+  })
+
+  it("a graded entry still needs the exit minimum", () => {
+    const a = computeAdherence(r, [
+      trade({ followedRules: ["T", "C1", "X"] }),   // B + exit → followed
+      trade({ followedRules: ["T", "C1", "C2"] }),  // A, exit 0/1 → broke
+    ])!
+    expect(a.followed.count).toBe(1)
+    expect(a.broke.count).toBe(1)
+  })
+})
+
+describe("computeGradeBreakdown", () => {
+  // Entry 4 criteria, legacy "require 4 of 4" → B = 3, A = 4.
+  const r = rules(["a", "b", "c", "d"], [], [], { entry: 4, exit: 0, conditions: 0 })
+
+  it("groups trades per grade, best first, with ungraded last", () => {
+    const groups = computeGradeBreakdown(r, [
+      trade({ netPnl: 300,  followedRules: ["a", "b", "c", "d"] }),  // A
+      trade({ netPnl: 100,  followedRules: ["a", "b", "c"] }),       // B
+      trade({ netPnl: -50,  followedRules: ["b", "c", "d"] }),       // B
+      trade({ netPnl: -200, followedRules: ["a"] }),                 // D
+      trade({ netPnl: 40,   followedRules: null }),                  // ungraded
+    ])
+
+    expect(groups.map(g => g.grade)).toEqual(["a", "b", "d", null])
+    expect(groups.map(g => g.count)).toEqual([1, 2, 1, 1])
+    expect(groups[1]!.netPnl).toBe(50)
+    expect(groups[1]!.winRate).toBe(0.5)
+    expect(groups[2]!.netPnl).toBe(-200)
+  })
+
+  it("returns empty groups for every grade when there are no trades", () => {
+    const groups = computeGradeBreakdown(r, [])
+    expect(groups).toHaveLength(4)
+    expect(groups.every(g => g.count === 0)).toBe(true)
   })
 })

@@ -20,6 +20,7 @@ export default async function TradesPage({
     outcome?:    string
     mistake?:    string
     tag?:        string
+    grade?:      string
     pnlMin?:     string
     pnlMax?:     string
     range?:      string

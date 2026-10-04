@@ -343,6 +343,9 @@ export function TradeFormModal({ mode, accounts, playbooks, defaultAccountId, in
             </div>
 
             {/* Net P&L (derived) + Playbook */}
+            {mode === "edit" && initialTrade?.followedRules != null && (playbookId || null) !== initialTrade.playbookId && (
+              <p className="text-xs text-short">{TRADES.FORM.PLAYBOOK_CHANGE_WARNING}</p>
+            )}
             <div className="grid grid-cols-2 gap-3 items-end">
               <Field label={TRADES.FORM.PLAYBOOK}>
                 <select value={playbookId} onChange={(e) => setPlaybookId(e.target.value)} className={INPUT_CLS}>

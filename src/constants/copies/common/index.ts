@@ -25,6 +25,11 @@ export const COMMON = {
     TRADES:   "Trades",
     WIN_RATE: "Win rate",
   },
+  GRADES: {
+    UNGRADED:    "Ungraded",
+    OUT_OF_PLAN: "OUT OF PLAN",
+    GRADE:       "Grade",
+  },
   USER_FOOTER: {
     ACCOUNT:    "Account",
     INSTRUMENT: "NQ · live",

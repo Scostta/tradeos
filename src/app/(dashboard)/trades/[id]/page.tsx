@@ -10,6 +10,7 @@ import { TradeExcursionBar } from "./components/trade-excursion-bar"
 import { TradeExecutionChart } from "./components/trade-execution-chart.client"
 import { TradeSidebar } from "./components/trade-sidebar.client"
 import { StopPriceProvider } from "./components/stop-price-context.client"
+import { TradeSetupProvider } from "./components/trade-setup-context.client"
 
 export default async function TradeViewPage({
   params,
@@ -35,6 +36,9 @@ export default async function TradeViewPage({
   const playbook = playbooks.find(s => s.id === trade.playbookId) ?? null
 
   return (
+    // Keyed by playbook: a playbook change from the edit modal clears the
+    // checklist server-side, so the shared setup state must start over.
+    <TradeSetupProvider key={trade.playbookId ?? "none"} playbookId={trade.playbookId} followedRules={trade.followedRules}>
     <div className="flex flex-col h-full">
       <TradeViewHeader trade={trade} accounts={accounts} playbooks={playbooks} timezone={timezone} />
 
@@ -56,5 +60,6 @@ export default async function TradeViewPage({
         </div>
       </StopPriceProvider>
     </div>
+    </TradeSetupProvider>
   )
 }
