@@ -82,18 +82,27 @@ export function computePortfolioAdherence(
 }
 
 /**
- * A playbook's trades split by setup grade: one group per grade of the scale,
- * best first, plus a trailing `grade: null` group for ungraded trades.
+ * Trades split by setup grade: one group per grade of the scale, best first,
+ * plus a trailing `grade: null` group for ungraded trades.
  */
-export function computeGradeBreakdown(
-  rules: ParsedRules,
+export function groupByGrade(
   trades: Trade[],
+  gradeOf: (t: Trade) => GradeGroup["grade"],
   riskByAccount: Map<string, number | null> = new Map(),
 ): GradeGroup[] {
-  const graded = trades.map(t => ({ t, grade: gradeForRules(rules, t.followedRules) }))
+  const graded = trades.map(t => ({ t, grade: gradeOf(t) }))
   const pick   = (g: GradeGroup["grade"]): Trade[] => graded.filter(x => x.grade === g).map(x => x.t)
   return [...GRADE_SCALE.map(g => g.id).reverse(), null].map(grade => ({
     grade,
     ...groupStats(pick(grade), riskByAccount),
   }))
+}
+
+/** A playbook's trades split by setup grade (see `groupByGrade`). */
+export function computeGradeBreakdown(
+  rules: ParsedRules,
+  trades: Trade[],
+  riskByAccount: Map<string, number | null> = new Map(),
+): GradeGroup[] {
+  return groupByGrade(trades, t => gradeForRules(rules, t.followedRules), riskByAccount)
 }

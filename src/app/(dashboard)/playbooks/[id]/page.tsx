@@ -11,10 +11,8 @@ import { SignedAreaChart } from "~/components/charts/signed-area-chart.client"
 import { RDistribution } from "~/components/charts/r-distribution"
 import { parsePlaybookRules } from "~/helpers/playbook-rules"
 import { GRADE_SCALE } from "~/constants/grades"
-import { COMMON } from "~/constants/copies/common"
-import { GradeBadge } from "~/components/grade-badge"
+import { GradeGroupCard } from "~/components/grade-group-card"
 import { PlaybookEditButton } from "./components/playbook-edit-button.client"
-import type { GradeGroup } from "~/types/playbook"
 
 const fmtR = (r: number): string => `${r >= 0 ? "+" : "−"}${Math.abs(r).toFixed(2)}R`
 
@@ -190,7 +188,7 @@ export default async function PlaybookDetailPage({
               <p className="text-sm text-text-mute italic">{PLAYBOOKS.DETAIL.GRADE_NONE}</p>
             ) : (
               <div className="grid grid-cols-2 md:grid-cols-4 gap-px bg-border rounded-sm border border-border overflow-hidden">
-                {byGrade.map(g => <GradeCol key={g.grade ?? "none"} group={g} />)}
+                {byGrade.map(g => <GradeGroupCard key={g.grade ?? "none"} group={g} />)}
               </div>
             )}
           </div>
@@ -218,33 +216,6 @@ export default async function PlaybookDetailPage({
             </div>
           </div>
         )}
-      </div>
-    </div>
-  )
-}
-
-function GradeCol({ group }: { group: GradeGroup }): ReactElement {
-  const hasR = group.rCoverage.withR > 0
-  const rows = [
-    { k: PLAYBOOKS.DETAIL.GRADE_STATS.TRADES,       v: String(group.count) },
-    { k: PLAYBOOKS.DETAIL.GRADE_STATS.WIN_RATE,     v: group.count ? formatPct(group.winRate) : "—" },
-    { k: PLAYBOOKS.DETAIL.GRADE_STATS.NET_PNL,      v: group.count ? formatCurrency(group.netPnl) : "—" },
-    { k: PLAYBOOKS.DETAIL.GRADE_STATS.EXPECTANCY_R, v: hasR ? fmtR(group.expectancyR) : "—" },
-  ]
-  return (
-    <div className="bg-surface p-4">
-      <div className="mb-3">
-        {group.grade === null
-          ? <span className="text-xs font-semibold text-text-mute">{COMMON.GRADES.UNGRADED}</span>
-          : <GradeBadge grade={group.grade} />}
-      </div>
-      <div className="flex flex-col gap-2">
-        {rows.map(r => (
-          <div key={r.k} className="flex justify-between text-sm">
-            <span className="text-text-mute">{r.k}</span>
-            <span className="mono text-text">{r.v}</span>
-          </div>
-        ))}
       </div>
     </div>
   )

@@ -99,15 +99,18 @@ export const REPORTS = {
     },
   },
 
-  PLAYBOOK_ADHERENCE: {
-    TITLE:        "Setup adherence",
-    FOLLOWED:     "Followed setup",
-    BROKE:        "Broke rules",
-    TRACKED:      "tracked",
-    TRADES:       "Trades",
-    WIN_RATE:     "Win %",
-    NET_PNL:      "Net P&L",
-    EXPECTANCY_R: "Expectancy (R)",
+  GRADES: {
+    TITLE:                 "Setup grades",
+    GRADED:                "graded",
+    COVERAGE:              "Grading coverage",
+    COVERAGE_GRADED:       "Graded",
+    COVERAGE_NO_CHECKLIST: "Checklist missing",
+    COVERAGE_NO_PLAYBOOK:  "No playbook / entry criteria",
+    COVERAGE_HINT:         "Grade every trade — losers included — or the comparison between grades is biased.",
+    BY_GRADE:              "By grade",
+    BY_MONTH:              "Grade mix by month",
+    MONTH_NONE:            "No graded trades this month",
+    NONE:                  "No graded trades in this range yet. Tick the entry criteria in each trade's setup checklist.",
   },
 
   REPORT_DETAIL: {

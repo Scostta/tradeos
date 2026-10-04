@@ -33,12 +33,6 @@ export const PLAYBOOKS = {
     BY_GRADE:       "By grade",
     GRADED:         "graded",
     GRADE_NONE:     "Tick the entry criteria on each trade (in the trade view) to grade it and compare results by grade.",
-    GRADE_STATS: {
-      TRADES:       "Trades",
-      WIN_RATE:     "Win %",
-      NET_PNL:      "Net P&L",
-      EXPECTANCY_R: "Expectancy (R)",
-    },
     STATS: {
       NET_PNL:      "Net P&L",
       WIN_RATE:     "Win %",

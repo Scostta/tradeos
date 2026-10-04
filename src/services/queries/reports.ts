@@ -40,7 +40,7 @@ import {
   computeHourWeekdayMatrix,
 } from "~/lib/calculations/time-of-day"
 import { computeRStats } from "~/lib/calculations/r-multiples"
-import { computePortfolioAdherence } from "~/lib/calculations/playbook-adherence"
+import { computeGradeReport } from "~/lib/calculations/grade-report"
 import { computeMistakeStats } from "~/lib/calculations/mistakes"
 import { parsePlaybookRules } from "~/helpers/playbook-rules"
 import type { ParsedRules } from "~/helpers/playbook-rules"
@@ -195,7 +195,7 @@ export const getReportsData = cache(async function getReportsData(
       overview:           computeOverview([], timeZone),
       compare:            { a: emptyComparePeriod("this-month"), b: emptyComparePeriod("last-month") },
       rStats:             computeRStats([]),
-      playbookAdherence:  null,
+      grades:             computeGradeReport(new Map(), []),
       mistakes:           [],
     })
   }
@@ -234,7 +234,7 @@ export const getReportsData = cache(async function getReportsData(
     overview:           computeOverview(trades, timeZone),
     compare:            { a: compareA.data, b: compareB.data },
     rStats:             computeRStats(trades, riskByAccount),
-    playbookAdherence:  computePortfolioAdherence(rulesById, trades, riskByAccount),
+    grades:             computeGradeReport(rulesById, trades, riskByAccount, timeZone),
     mistakes:           computeMistakeStats(trades),
   }
 

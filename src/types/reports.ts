@@ -152,7 +152,8 @@ export type PerformanceSummary = {
 //     undefined in the "all accounts" aggregate view)
 
 import type { ComparePeriodKey } from "~/helpers/compare-period"
-import type { PlaybookAdherence } from "./playbook"
+import type { GradeGroup } from "./playbook"
+import type { GradeId } from "~/constants/grades"
 
 /** A headline figure (best/lowest/average month) with a contextual sub-label. */
 export type OverviewHighlight = {
@@ -335,6 +336,31 @@ export type ReportsData = {
   overview:           OverviewData        // Overview tab (all-time snapshot)
   compare:            CompareData         // Compare tab default (this vs last month)
   rStats:             RStats              // R-multiples tab (expectancy, SQN, distribution)
-  playbookAdherence:  PlaybookAdherence | null  // portfolio-wide setup adherence (Playbooks sub-report)
+  grades:             GradeReport         // portfolio-wide setup grades (Playbooks sub-report)
   mistakes:           MistakeRow[]        // Mistakes tab (per-tag cost)
+}
+
+// ── Setup grades (Playbooks sub-report) ──────────────────────────────────────
+
+/** How many trades in range could be / were graded — a discipline metric. */
+export type GradeCoverage = {
+  total:       number   // trades in range
+  noPlaybook:  number   // no playbook, or a playbook without entry criteria → can't be graded
+  noChecklist: number   // gradeable, but the setup checklist was never recorded
+  graded:      number
+}
+
+/** Grade mix of one calendar month (user timezone). */
+export type GradeMonth = {
+  key:    string                    // "2026-10" — sort key
+  label:  string                    // "Oct 2026"
+  counts: Record<GradeId, number>
+  graded: number
+  total:  number                    // every trade that month, graded or not
+}
+
+export type GradeReport = {
+  coverage: GradeCoverage
+  groups:   GradeGroup[]            // best grade first, ungraded last
+  months:   GradeMonth[]            // chronological
 }

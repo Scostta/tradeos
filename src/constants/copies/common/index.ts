@@ -29,6 +29,11 @@ export const COMMON = {
     UNGRADED:    "Ungraded",
     OUT_OF_PLAN: "OUT OF PLAN",
     GRADE:       "Grade",
+    TRADES:       "Trades",
+    WIN_RATE:     "Win %",
+    NET_PNL:      "Net P&L",
+    EXPECTANCY_R: "Expectancy (R)",
+    WITH_R:       "with R",
   },
   USER_FOOTER: {
     ACCOUNT:    "Account",
