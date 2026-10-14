@@ -116,9 +116,11 @@ create table trades (
   created_at timestamptz default now()
 );
 
--- Constraint de unicidad ahora incluye account_id
-create unique index trades_no_duplicates
-  on trades (account_id, instrument, entry_time);
+-- Dedupe del import por huella del trade (src/helpers/trade-fingerprint.ts):
+-- import_key = instrument|direction|contracts|entry epoch|exit epoch|entry price|exit price#n
+-- NO usar trade_number: NinjaTrader lo reinicia en 1 en cada export.
+create unique index trades_import_key_unique
+  on trades (account_id, import_key);
 
 alter table trades enable row level security;
 create policy "Users see own trades" on trades
@@ -202,7 +204,7 @@ El parser vive en `lib/parsers/ninjatrader.ts` y debe:
 5. Extraer el símbolo limpio del instrumento (`NQ 03-25` → `NQ`)
 6. Calcular `net_pnl = profit - commission`
 7. Convertir fechas al formato ISO 8601
-8. Hacer upsert de trades en Supabase evitando duplicados por `(account_id, instrument, entry_time)`
+8. Hacer upsert de trades en Supabase evitando duplicados por `(account_id, import_key)` (ver `withImportKeys()`)
 9. Ignorar filas sin `Exit time` (trades parcialmente cerrados)
 
 ### Lógica de upsert de cuentas en el parser

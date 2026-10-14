@@ -1,5 +1,6 @@
 export type {
   ParsedRow,
+  ImportRow,
   PreviewRow,
   RowStatus,
   ParseError,
@@ -13,7 +14,7 @@ export type {
   CsvInspection,
 } from "./import"
 
-export { parsedRowSchema, importTradesInputSchema, exclusionKeySchema, CANONICAL_IMPORT_FIELDS } from "./import"
+export { parsedRowSchema, importRowSchema, importTradesInputSchema, exclusionKeySchema, CANONICAL_IMPORT_FIELDS } from "./import"
 
 export type { Trade } from "./trade"
 export { tradeSchema } from "./trade"

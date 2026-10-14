@@ -121,8 +121,8 @@ export function parseFlexibleDate(raw: string): string | null {
 
 /**
  * Deterministic positive 31-bit trade number from a stable natural key, for CSVs
- * that don't carry a trade id. Same input → same number, so re-imports dedup
- * idempotently against the (account_id, trade_number) constraint.
+ * that don't carry a trade id. Display only: dedup goes by import_key
+ * (see helpers/trade-fingerprint.ts).
  */
 export function stableTradeNumber(parts: string[]): number {
   const s = parts.join("|")

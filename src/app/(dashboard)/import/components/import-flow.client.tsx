@@ -13,6 +13,7 @@ import {
   splitImportActions,
   toExclusionKey,
 } from "~/helpers/import-exclusions";
+import { withImportKeys } from "~/helpers/trade-fingerprint";
 import { IMPORT } from "~/constants/copies/import";
 import { cn } from "~/utils/cn";
 import { DropZone } from "./drop-zone.client";
@@ -63,7 +64,8 @@ export function ImportFlow(): ReactElement {
       return false;
     }
 
-    const check = await checkImportKeys(result.rows.map(toExclusionKey));
+    const keyed = withImportKeys(result.rows);
+    const check = await checkImportKeys(keyed.map(toExclusionKey));
     const dupSet = new Set<string>(
       check.success ? check.data.duplicates.map(previewRowKey) : []
     );
@@ -71,7 +73,7 @@ export function ImportFlow(): ReactElement {
       check.success ? check.data.excluded.map(previewRowKey) : []
     );
 
-    const rows: PreviewRow[] = result.rows.map((r) => {
+    const rows: PreviewRow[] = keyed.map((r) => {
       const key = previewRowKey(r);
       const status = excludedSet.has(key)
         ? ("skipped" as const)

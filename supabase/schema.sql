@@ -60,7 +60,8 @@ create table if not exists trades (
   id           uuid primary key default gen_random_uuid(),
   user_id      uuid references auth.users not null,
   account_id   uuid references accounts(id) on delete cascade not null,
-  trade_number integer,
+  trade_number integer,                         -- solo display: NinjaTrader lo reinicia en cada export
+  import_key   text,                            -- dedupe del import (helpers/trade-fingerprint.ts); null en manuales
   instrument   text not null,
   direction    text check (direction in ('long', 'short')) not null,
   contracts    integer not null,
@@ -82,8 +83,8 @@ create table if not exists trades (
   created_at   timestamptz default now()
 );
 
-create unique index if not exists trades_no_duplicates
-  on trades (account_id, trade_number);
+create unique index if not exists trades_import_key_unique
+  on trades (account_id, import_key);
 
 alter table trades enable row level security;
 
@@ -100,9 +101,10 @@ create table if not exists import_exclusions (
   id           uuid primary key default gen_random_uuid(),
   user_id      uuid references auth.users on delete cascade not null,
   account_id   uuid references accounts(id) on delete cascade not null,
-  trade_number integer not null,
+  trade_number integer,
+  import_key   text not null,
   created_at   timestamptz default now(),
-  unique (account_id, trade_number)
+  unique (account_id, import_key)
 );
 
 create index if not exists import_exclusions_user_idx

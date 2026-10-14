@@ -7,16 +7,16 @@ import type { ExclusionKey, PreviewRow } from "~/types"
 /** Clave natural de un trade del CSV: la misma que dedupe en BD. */
 export function previewRowKey(row: {
   accountName: string
-  tradeNumber: number
+  importKey:   string
 }): string {
-  return `${row.accountName}||${row.tradeNumber}`
+  return `${row.accountName}||${row.importKey}`
 }
 
 export function toExclusionKey(row: {
   accountName: string
-  tradeNumber: number
+  importKey:   string
 }): ExclusionKey {
-  return { tradeNumber: row.tradeNumber, accountName: row.accountName }
+  return { importKey: row.importKey, accountName: row.accountName }
 }
 
 /** Cuántas filas aún marcadas caen bajo el umbral de break-even. */

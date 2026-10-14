@@ -28,15 +28,21 @@ export const parsedRowSchema = tradeSchema
   })
 
 // Clave natural de un trade del CSV: la misma que dedupe en BD
-// (account_id, trade_number), pero con el nombre de cuenta sin resolver.
+// (account_id, import_key), pero con el nombre de cuenta sin resolver.
+// importKey sale de withImportKeys() en helpers/trade-fingerprint.ts.
 export const exclusionKeySchema = z.object({
-  tradeNumber: z.number().int(),
+  importKey:   z.string().min(1),
   accountName: z.string().min(1),
+})
+
+// Fila lista para importar: ParsedRow + su clave de dedupe.
+export const importRowSchema = parsedRowSchema.extend({
+  importKey: z.string().min(1),
 })
 
 export const importTradesInputSchema = z
   .object({
-    rows:      z.array(parsedRowSchema).default([]),
+    rows:      z.array(importRowSchema).default([]),
     // Trades que el usuario descarto en el preview: se guardan en
     // import_exclusions y se borran de trades si ya estaban importados.
     exclude:   z.array(exclusionKeySchema).default([]),
@@ -49,6 +55,8 @@ export const importTradesInputSchema = z
   })
 
 export type ParsedRow = z.infer<typeof parsedRowSchema>
+
+export type ImportRow = z.infer<typeof importRowSchema>
 
 export type ExclusionKey = z.infer<typeof exclusionKeySchema>
 
@@ -68,7 +76,7 @@ export type ImportKeyCheck = {
 }
 
 /** `excluded` = estado del checkbox en el preview, editable por el usuario. */
-export type PreviewRow = ParsedRow & { status: RowStatus; excluded: boolean }
+export type PreviewRow = ImportRow & { status: RowStatus; excluded: boolean }
 
 export type ParseError = {
   line:         number

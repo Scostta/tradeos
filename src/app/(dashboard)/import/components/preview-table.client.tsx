@@ -100,7 +100,7 @@ export function PreviewTable(props: Props): ReactElement {
 
             return (
               <tr
-                key={`${row.accountName}-${row.tradeNumber}-${i}`}
+                key={`${row.accountName}-${row.importKey}`}
                 className={cn(
                   "border-b border-border hover:bg-surface-2 transition-colors",
                   row.status === "dup" && !row.excluded && "opacity-60",

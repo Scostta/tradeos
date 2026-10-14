@@ -16,6 +16,7 @@ function row(
 ): PreviewRow {
   return {
     tradeNumber,
+    importKey:   `fp-${tradeNumber}#1`,
     accountName: "Sim101",
     instrument:  "NQ",
     direction:   "long",
@@ -39,16 +40,16 @@ function row(
 }
 
 describe("previewRowKey / toExclusionKey", () => {
-  it("keys by account + trade number so numbers can repeat across accounts", () => {
-    expect(previewRowKey({ accountName: "Sim101", tradeNumber: 7 })).toBe("Sim101||7")
-    expect(previewRowKey({ accountName: "Live42", tradeNumber: 7 })).not.toBe(
-      previewRowKey({ accountName: "Sim101", tradeNumber: 7 })
+  it("keys by account + import key so the same trade can live in two accounts", () => {
+    expect(previewRowKey({ accountName: "Sim101", importKey: "fp#1" })).toBe("Sim101||fp#1")
+    expect(previewRowKey({ accountName: "Live42", importKey: "fp#1" })).not.toBe(
+      previewRowKey({ accountName: "Sim101", importKey: "fp#1" })
     )
   })
 
   it("reduces a row to its natural key", () => {
     expect(toExclusionKey(row(3, 500))).toEqual({
-      tradeNumber: 3,
+      importKey:   "fp-3#1",
       accountName: "Sim101",
     })
   })
