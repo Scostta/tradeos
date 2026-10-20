@@ -4,7 +4,7 @@
 
 Aplicación web de diario y tracking de trading estilo Tradezella, orientada a traders de futuros (NQ/ES). Permite importar trades desde NinjaTrader vía CSV, visualizar métricas de rendimiento y gestionar estrategias y journal diario.
 
-Un usuario puede tener **múltiples cuentas de trading**. Las cuentas se crean automáticamente al importar un CSV de NinjaTrader — el parser detecta la columna `Account` y hace upsert de la cuenta si no existe. No hay paso de creación manual obligatorio. Toda la app filtra por la cuenta activa seleccionada en el selector global del sidebar.
+Un usuario puede tener **múltiples cuentas de trading**. Las cuentas se crean automáticamente al importar un CSV de NinjaTrader — el parser detecta la columna `Account` y hace upsert de la cuenta si no existe — o al llegar el primer trade del add-on de NinjaTrader (ver *Sincronización NinjaTrader*). No hay paso de creación manual obligatorio. Toda la app filtra por la cuenta activa seleccionada en el selector global del sidebar.
 
 ---
 
@@ -309,6 +309,13 @@ pnlByAccount(trades, accounts)         // { accountName: X, ... }  ⬅️ para v
 
 ---
 
+## Sincronización NinjaTrader (add-on)
+
+- `public/downloads/TradeOSSync.cs` — AddOn de NT8 (C# 5, sin dependencias). Por cada posición cerrada (flat → flat) manda los trades emparejados FIFO por ejecución, el stop inicial, MAE/MFE y una captura PNG del chart. Cola en disco + reintentos.
+- `POST /api/ingest/ninjatrader` — auth `Bearer tos_...` (tabla `api_tokens`, solo se guarda el sha256). Sin sesión: usa el service-role client filtrando siempre por el `user_id` del token. Es pública en el middleware (`APP_URLS.INGEST_PREFIX`).
+- Dedupe con la misma huella que el CSV (`withImportKeys()`), respeta `import_exclusions`. Los trades entran con `source = 'sync'`. La captura se recodifica a WebP (`lib/images/compress-screenshot.ts`) y solo se adjunta a trades recién insertados.
+- Tokens y descarga de `tradeos.json` en `/settings` → NinjaTrader sync.
+
 ## Variables de entorno requeridas
 
 ```env
@@ -373,7 +380,7 @@ SUPABASE_SERVICE_ROLE_KEY=   # solo para API routes
 - El CSV de NinjaTrader puede tener trades parcialmente cerrados — ignorar filas sin `Exit time`.
 - Los contratos de NQ tienen valor de tick $5 (0.25 pts). El CSV ya exporta el P&L en USD, no recalcular.
 - Para futuros el `commission` es crítico (suele ser $8-10 por contrato RT). Siempre mostrar net_pnl.
-- **Cuentas auto-creadas**: el parser es la única fuente de creación de cuentas. Usar `upsert` con `ignoreDuplicates: true` para no sobreescribir configuración manual del usuario (color, tipo, balance).
+- **Cuentas auto-creadas**: el import CSV y el ingest del add-on (`/api/ingest/ninjatrader`) son las únicas fuentes de creación de cuentas. Usar `upsert` con `ignoreDuplicates: true` para no sobreescribir configuración manual del usuario (color, tipo, balance).
 - **AccountContext**: crear en `contexts/AccountContext.tsx`. Provee `activeAccount: Account | null` y `setActiveAccount`. Persiste en `localStorage` con la key `"active_account_id"`. El layout del dashboard lo wrappea.
 - **Vista "Todas las cuentas"**: cuando `activeAccount === null`, las queries usan `.in('account_id', userAccountIds)` en lugar de `.eq('account_id', id)`.
 - **Primera vez sin trades**: si el usuario entra al dashboard sin haber importado nada, mostrar un estado vacío con CTA directo a `/import`. No redirigir a `/accounts`.

@@ -13,6 +13,10 @@ export const APP_URLS = {
 
   SHARE_PREFIX:    "/share/",
 
+  // Add-on de NinjaTrader: auth por Bearer token (api_tokens), sin sesión.
+  INGEST_PREFIX:   "/api/ingest/",
+  ADDON_DOWNLOAD:  "/downloads/TradeOSSync.cs",
+
   LOGIN:           "/login",
   REGISTER:        "/register",
   FORGOT_PASSWORD: "/forgot-password",

@@ -79,7 +79,7 @@ create table if not exists trades (
   session      text check (session in ('RTH', 'ETH', 'overnight')),
   notes        text,
   tags         text[],
-  source       text not null default 'import',  -- 'import' | 'manual'
+  source       text not null default 'import',  -- 'import' | 'manual' | 'sync' (add-on NT8)
   created_at   timestamptz default now()
 );
 
@@ -281,4 +281,27 @@ create index if not exists report_shares_token_idx on report_shares (token);
 alter table report_shares enable row level security;
 
 create policy "Users manage own shares" on report_shares
+  for all using (auth.uid() = user_id);
+
+-- ------------------------------------------------------------
+-- API TOKENS — auth del add-on de NinjaTrader 8 (POST /api/ingest/ninjatrader).
+-- Solo se guarda el sha256; el token en claro se muestra una vez al crearlo.
+-- La ruta de ingest lo resuelve con service role y escribe con su user_id.
+-- ------------------------------------------------------------
+create table if not exists api_tokens (
+  id            uuid primary key default gen_random_uuid(),
+  user_id       uuid references auth.users on delete cascade not null,
+  name          text not null,
+  token_hash    text unique not null,
+  token_prefix  text not null,
+  last_used_at  timestamptz,
+  revoked_at    timestamptz,
+  created_at    timestamptz default now()
+);
+
+create index if not exists api_tokens_user_id_idx on api_tokens (user_id);
+
+alter table api_tokens enable row level security;
+
+create policy "Users manage own api tokens" on api_tokens
   for all using (auth.uid() = user_id);

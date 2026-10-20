@@ -33,7 +33,8 @@ export async function middleware(request: NextRequest) {
     pathname === APP_URLS.FORGOT_PASSWORD ||
     pathname === APP_URLS.RESET_PASSWORD ||
     pathname.startsWith(APP_URLS.AUTH_PREFIX) ||
-    pathname.startsWith(APP_URLS.SHARE_PREFIX);
+    pathname.startsWith(APP_URLS.SHARE_PREFIX) ||
+    pathname.startsWith(APP_URLS.INGEST_PREFIX);
 
   if (!user && !isPublic) {
     const url = request.nextUrl.clone();
