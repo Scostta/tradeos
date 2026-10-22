@@ -17,19 +17,38 @@
 //      Documents\NinjaTrader 8\
 //   4. Reinicia NinjaTrader. En New → NinjaScript Output verás
 //      "TradeOS: connected".
+//   Opcional: añade "screenshots": false a tradeos.json para no capturar el chart.
 //
 // Los envíos pasan por una cola en disco (Documents\NinjaTrader 8\tradeos\outbox)
 // y se reintentan si no hay red. El servidor es idempotente: reenviar un trade
 // no lo duplica.
+//
+// Modelo de hilos (v2)
+//   La v1 hacía trabajo dentro de los handlers de NinjaTrader (bloquear
+//   account.Orders, crear/soltar MarketData) con un lock propio cogido, y eso
+//   hacía deadlock con el hilo de la ATM/adapter en Rithmic. En la v2:
+//   - Los handlers (ExecutionUpdate, OrderUpdate, AccountStatusUpdate) SOLO
+//     copian datos a una cola sin locks y despiertan al hilo worker. Nunca
+//     llaman a la API de NinjaTrader ni esperan a nada, y nunca lanzan
+//     excepciones hacia NinjaTrader.
+//   - El handler de ticks solo actualiza máximo/mínimo bajo un lock "hoja"
+//     (dentro no se llama a nada), así que no puede formar un ciclo.
+//   - Todo el estado lo posee el hilo worker. Las llamadas a NinjaTrader
+//     (suscribirse, leer Executions/Positions, crear MarketData) se hacen desde
+//     el worker sin ningún lock propio cogido: si NinjaTrader tarda, solo
+//     espera el worker; ningún hilo de NinjaTrader espera nunca al add-on.
+//   - La captura del chart va por InvokeAsync con timeout, en otro hilo.
 // ============================================================================
 
 #region Using declarations
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Net;
+using System.Runtime.CompilerServices;
 using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading;
@@ -37,6 +56,7 @@ using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
+using System.Windows.Threading;
 using NinjaTrader.Cbi;
 using NinjaTrader.Data;
 using NinjaTrader.Gui;
@@ -48,24 +68,81 @@ namespace NinjaTrader.NinjaScript.AddOns
 {
 	public class TradeOSSync : AddOnBase
 	{
-		private const string Version            = "1.0.0";
-		private const int    MaxScreenshotWidth = 1920;
-		private const int    ScreenshotDelayMs  = 1500;  // deja que el chart pinte la ejecución de salida
-		private const int    RetryIntervalMs    = 20000;
+		private const string Version              = "2.0.0";
+		private const int    MaxScreenshotWidth   = 1920;
+		private const int    ScreenshotDelayMs    = 1500;  // deja que el chart pinte la ejecución de salida
+		private const int    UiProbeTimeoutMs     = 2000;
+		private const int    UiCaptureTimeoutMs   = 5000;
+		private const int    RetryIntervalMs      = 20000;
+		private const int    WorkerJoinTimeoutMs  = 1000;
 
-		private readonly object sync = new object();
+		// ── Compartido entre hilos ──────────────────────────────────────────────
+		// Cola sin locks: los handlers de NinjaTrader solo hacen Enqueue + Set.
+		private readonly ConcurrentQueue<object> events = new ConcurrentQueue<object>();
+		private readonly AutoResetEvent wake = new AutoResetEvent(false);
+		private volatile bool running;
+		private int handlerErrors;
+
+		// Suscripciones: las crea el worker y las deshace Stop(). `subsGate` es un
+		// lock hoja: con él cogido nunca se llama a NinjaTrader.
+		private readonly object subsGate = new object();
+		private readonly HashSet<Account> subscribedAccounts = new HashSet<Account>();
+		private readonly Dictionary<string, PriceFeed> feeds = new Dictionary<string, PriceFeed>();
+
+		// ── Solo del hilo worker ────────────────────────────────────────────────
 		private readonly Dictionary<string, PositionState> positions = new Dictionary<string, PositionState>();
 		private readonly HashSet<string> seenExecutions = new HashSet<string>();
-		private readonly HashSet<Account> subscribedAccounts = new HashSet<Account>();
+		private readonly Dictionary<string, Dictionary<Order, LiveStop>> liveStops = new Dictionary<string, Dictionary<Order, LiveStop>>();
+		private long stopSeq;
+		private int handlerErrorsLogged;
 
 		private bool started;
+		private Thread worker;
 		private string ingestUrl;
 		private string token;
+		private bool screenshots = true;
 		private string outboxDir;
 		private string failedDir;
 		private Timer senderTimer;
 		private int sending;
 		private bool authErrorLogged;
+
+		// ── Eventos (copias inmutables de lo que manda NinjaTrader) ─────────────
+
+		private class StartEvent { }
+
+		private class AccountEvent
+		{
+			public Account Account;
+		}
+
+		private class ExecutionEvent
+		{
+			public Account    Account;
+			public Instrument Instrument;
+			public string     AccountName;
+			public string     InstrumentName;
+			public string     ExecutionId;
+			public int        Side;  // +1 compra, -1 venta
+			public int        Quantity;
+			public double     Price;
+			public DateTime   Time;
+			public double     Commission;
+			public double     PointValue;
+			public bool       Replay;
+		}
+
+		private class OrderEvent
+		{
+			public Order      Order;
+			public Instrument Instrument;
+			public string     AccountName;
+			public string     InstrumentName;
+			public bool       IsStop;
+			public bool       Live;
+			public int        ExitsSide;  // +1 cierra largos (venta), -1 cierra cortos (compra)
+			public double     StopPrice;
+		}
 
 		// ── Modelo ──────────────────────────────────────────────────────────────
 
@@ -77,7 +154,7 @@ namespace NinjaTrader.NinjaScript.AddOns
 			public double   CommissionPerContract;
 			public double   High;
 			public double   Low;
-			public bool     ExtremesKnown;  // false si viene de un replay (sin ticks desde la entrada)
+			public bool     ExtremesKnown;  // false si viene de un replay o no hay datos de mercado
 			public bool     Phantom;        // abierto antes de las ejecuciones conocidas: no se envía
 		}
 
@@ -97,13 +174,75 @@ namespace NinjaTrader.NinjaScript.AddOns
 
 		private class PositionState
 		{
-			public Account     Account;
-			public Instrument  Instrument;
-			public int         Side;  // +1 long, -1 short, 0 flat
-			public List<Lot>   Lots   = new List<Lot>();
+			public string    AccountName;
+			public string    InstrumentName;
+			public int       Side;  // +1 long, -1 short, 0 flat
+			public List<Lot> Lots   = new List<Lot>();
 			public List<ClosedTrade> Closed = new List<ClosedTrade>();
-			public double?     InitialStop;
-			public MarketData  MarketData;
+			public double?   InitialStop;
+		}
+
+		private class ClosedPosition
+		{
+			public string    AccountName;
+			public string    InstrumentName;
+			public List<ClosedTrade> Trades;
+			public double?   InitialStop;
+		}
+
+		private class LiveStop
+		{
+			public long   Seq;
+			public int    ExitsSide;
+			public double Price;
+		}
+
+		// Máximo/mínimo de los ticks desde la última lectura. El handler corre en el
+		// hilo de datos de NinjaTrader; el lock es hoja (dentro no se llama a nada).
+		private class PriceFeed
+		{
+			private readonly object gate = new object();
+			private double high;
+			private double low;
+			private bool   hasData;
+
+			public MarketData Data;
+			public volatile bool Subscribed;
+
+			public void OnUpdate(object sender, MarketDataEventArgs e)
+			{
+				try
+				{
+					if (e.MarketDataType != MarketDataType.Last) return;
+					double price = e.Price;
+					lock (gate)
+					{
+						if (!hasData) { high = price; low = price; hasData = true; }
+						else if (price > high) high = price;
+						else if (price < low)  low  = price;
+					}
+				}
+				catch (Exception) { }
+			}
+
+			public bool Harvest(out double h, out double l)
+			{
+				lock (gate)
+				{
+					h = high;
+					l = low;
+					bool had = hasData;
+					hasData = false;
+					return had;
+				}
+			}
+		}
+
+		private sealed class RefComparer<T> : IEqualityComparer<T> where T : class
+		{
+			public static readonly RefComparer<T> Instance = new RefComparer<T>();
+			public bool Equals(T a, T b) { return ReferenceEquals(a, b); }
+			public int GetHashCode(T o) { return RuntimeHelpers.GetHashCode(o); }
 		}
 
 		// ── Ciclo de vida ───────────────────────────────────────────────────────
@@ -141,16 +280,19 @@ namespace NinjaTrader.NinjaScript.AddOns
 			if (!LoadConfig())
 				return;
 
-			Account.AccountStatusUpdate += OnAccountStatusUpdate;
+			running = true;
+			worker = new Thread(WorkerLoop)
+			{
+				IsBackground = true,
+				Name         = "TradeOSSync",
+				Priority     = ThreadPriority.BelowNormal,
+			};
+			worker.Start();
 
-			List<Account> accounts;
-			lock (Account.All)
-				accounts = Account.All.ToList();
-			foreach (Account account in accounts)
-				Subscribe(account);
+			Account.AccountStatusUpdate += OnAccountStatusUpdate;
+			Push(new StartEvent());
 
 			senderTimer = new Timer(delegate { ProcessOutbox(); }, null, 2000, RetryIntervalMs);
-			Log("connected (" + accounts.Count + " accounts) → " + ingestUrl);
 		}
 
 		private void Stop()
@@ -158,21 +300,39 @@ namespace NinjaTrader.NinjaScript.AddOns
 			if (!started) return;
 			started = false;
 
-			Account.AccountStatusUpdate -= OnAccountStatusUpdate;
+			// Los handlers miran `running` y dejan de encolar al instante.
+			running = false;
+			wake.Set();
 
-			lock (sync)
+			// Ningún lock propio cogido mientras se desuscribe de NinjaTrader.
+			try { Account.AccountStatusUpdate -= OnAccountStatusUpdate; } catch (Exception) { }
+
+			if (worker != null && !worker.Join(WorkerJoinTimeoutMs))
+				Log("el worker no terminó a tiempo; se cierra igualmente.");
+			worker = null;
+
+			List<Account>   accounts;
+			List<PriceFeed> feedList;
+			lock (subsGate)
 			{
-				foreach (Account account in subscribedAccounts)
+				accounts = subscribedAccounts.ToList();
+				feedList = feeds.Values.ToList();
+				subscribedAccounts.Clear();
+				feeds.Clear();
+			}
+
+			foreach (Account account in accounts)
+			{
+				try
 				{
 					account.ExecutionUpdate -= OnExecutionUpdate;
 					account.OrderUpdate     -= OnOrderUpdate;
 				}
-				subscribedAccounts.Clear();
-
-				foreach (PositionState p in positions.Values)
-					StopMarketData(p);
-				positions.Clear();
+				catch (Exception) { }
 			}
+
+			foreach (PriceFeed feed in feedList)
+				Unsubscribe(feed);
 
 			if (senderTimer != null)
 			{
@@ -199,24 +359,161 @@ namespace NinjaTrader.NinjaScript.AddOns
 				return false;
 			}
 
-			ingestUrl = url.Groups[1].Value;
-			token     = tok.Groups[1].Value;
+			ingestUrl   = url.Groups[1].Value;
+			token       = tok.Groups[1].Value;
+			screenshots = !Regex.IsMatch(json, "\"screenshots\"\\s*:\\s*false");
 			return true;
+		}
+
+		// ── Handlers de NinjaTrader: copiar, encolar y volver ───────────────────
+
+		private void Push(object evt)
+		{
+			events.Enqueue(evt);
+			wake.Set();
+		}
+
+		private void OnAccountStatusUpdate(object sender, AccountStatusEventArgs e)
+		{
+			try
+			{
+				if (running && e.Status == ConnectionStatus.Connected && e.Account != null)
+					Push(new AccountEvent { Account = e.Account });
+			}
+			catch (Exception) { Interlocked.Increment(ref handlerErrors); }
+		}
+
+		private void OnExecutionUpdate(object sender, ExecutionEventArgs e)
+		{
+			try
+			{
+				if (!running) return;
+				ExecutionEvent x = SnapshotExecution(e.Execution, false);
+				if (x != null) Push(x);
+			}
+			catch (Exception) { Interlocked.Increment(ref handlerErrors); }
+		}
+
+		private void OnOrderUpdate(object sender, OrderEventArgs e)
+		{
+			try
+			{
+				if (!running) return;
+				OrderEvent x = SnapshotOrder(e.Order);
+				if (x != null) Push(x);
+			}
+			catch (Exception) { Interlocked.Increment(ref handlerErrors); }
+		}
+
+		private static ExecutionEvent SnapshotExecution(Execution ex, bool replay)
+		{
+			if (ex == null || ex.Instrument == null || ex.Account == null || ex.Quantity <= 0) return null;
+
+			int side = ex.MarketPosition == MarketPosition.Long ? 1
+			         : ex.MarketPosition == MarketPosition.Short ? -1 : 0;
+			if (side == 0) return null;
+
+			return new ExecutionEvent
+			{
+				Account        = ex.Account,
+				Instrument     = ex.Instrument,
+				AccountName    = ex.Account.Name,
+				InstrumentName = ex.Instrument.FullName,
+				ExecutionId    = ex.ExecutionId,
+				Side           = side,
+				Quantity       = ex.Quantity,
+				Price          = ex.Price,
+				Time           = ex.Time,
+				Commission     = ex.Commission,
+				PointValue     = ex.Instrument.MasterInstrument.PointValue,
+				Replay         = replay,
+			};
+		}
+
+		private static OrderEvent SnapshotOrder(Order order)
+		{
+			if (order == null || order.Instrument == null || order.Account == null) return null;
+
+			OrderState  state  = order.OrderState;
+			OrderAction action = order.OrderAction;
+
+			return new OrderEvent
+			{
+				Order          = order,
+				Instrument     = order.Instrument,
+				AccountName    = order.Account.Name,
+				InstrumentName = order.Instrument.FullName,
+				IsStop         = order.OrderType == OrderType.StopMarket || order.OrderType == OrderType.StopLimit,
+				Live           = state == OrderState.Submitted
+				              || state == OrderState.Accepted
+				              || state == OrderState.Working
+				              || state == OrderState.TriggerPending
+				              || state == OrderState.ChangePending
+				              || state == OrderState.ChangeSubmitted,
+				ExitsSide      = action == OrderAction.Sell || action == OrderAction.SellShort ? 1
+				               : action == OrderAction.Buy  || action == OrderAction.BuyToCover ? -1 : 0,
+				StopPrice      = order.StopPrice,
+			};
+		}
+
+		// ── Hilo worker ─────────────────────────────────────────────────────────
+
+		private void WorkerLoop()
+		{
+			while (running)
+			{
+				wake.WaitOne(1000);
+
+				object evt;
+				while (running && events.TryDequeue(out evt))
+				{
+					try
+					{
+						if      (evt is ExecutionEvent) HandleExecution((ExecutionEvent)evt);
+						else if (evt is OrderEvent)     HandleOrder((OrderEvent)evt);
+						else if (evt is AccountEvent)   Subscribe(((AccountEvent)evt).Account);
+						else if (evt is StartEvent)     SubscribeAll();
+					}
+					catch (Exception err)
+					{
+						Log("error interno: " + err.Message);
+					}
+				}
+
+				int errors = Volatile.Read(ref handlerErrors);
+				if (errors != handlerErrorsLogged)
+				{
+					Log((errors - handlerErrorsLogged) + " error(es) leyendo eventos de NinjaTrader (ignorados).");
+					handlerErrorsLogged = errors;
+				}
+			}
 		}
 
 		// ── Cuentas ─────────────────────────────────────────────────────────────
 
-		private void OnAccountStatusUpdate(object sender, AccountStatusEventArgs e)
+		private void SubscribeAll()
 		{
-			if (e.Status == ConnectionStatus.Connected)
-				Subscribe(e.Account);
+			List<Account> accounts;
+			lock (Account.All)
+				accounts = Account.All.ToList();
+			foreach (Account account in accounts)
+				Subscribe(account);
+
+			Log("v" + Version + " connected (" + accounts.Count + " accounts) → " + ingestUrl);
 		}
 
+		// También se llama al reconectar una cuenta: el replay recupera las
+		// ejecuciones que hubo mientras estaba desconectada (las ya vistas se ignoran).
 		private void Subscribe(Account account)
 		{
-			lock (sync)
+			if (!running) return;
+
+			bool isNew;
+			lock (subsGate)
+				isNew = subscribedAccounts.Add(account);
+
+			if (isNew)
 			{
-				if (!subscribedAccounts.Add(account)) return;
 				account.ExecutionUpdate += OnExecutionUpdate;
 				account.OrderUpdate     += OnOrderUpdate;
 			}
@@ -226,165 +523,136 @@ namespace NinjaTrader.NinjaScript.AddOns
 			// (el servidor ignora las que ya tiene).
 			List<Execution> executions;
 			lock (account.Executions)
-				executions = account.Executions.OrderBy(x => x.Time).ToList();
+				executions = account.Executions.ToList();
+			List<Position> current;
+			lock (account.Positions)
+				current = account.Positions.ToList();
 
-			SeedPreexistingPositions(account, executions);
+			List<ExecutionEvent> replay = executions
+				.Select(x => SnapshotExecution(x, true))
+				.Where(x => x != null)
+				.OrderBy(x => x.Time)
+				.ToList();
 
-			foreach (Execution execution in executions)
-				HandleExecution(execution, true);
+			SeedPreexistingPositions(account.Name, replay, current);
+
+			foreach (ExecutionEvent x in replay)
+				HandleExecution(x);
 		}
 
 		// Si la posición actual no cuadra con las ejecuciones conocidas (p. ej. se
 		// abrió ayer y Account.Executions solo trae la sesión de hoy), la diferencia
 		// se siembra como un lote "fantasma". Sin esto, la salida de esa posición se
 		// leería como una entrada en sentido contrario y saldrían trades falsos.
-		private void SeedPreexistingPositions(Account account, List<Execution> executions)
+		private void SeedPreexistingPositions(string accountName, List<ExecutionEvent> executions, List<Position> current)
 		{
-			var instruments = new Dictionary<string, Instrument>();
-			var knownNet    = new Dictionary<string, int>();
-			foreach (Execution ex in executions)
+			var knownNet = new Dictionary<string, int>();
+			foreach (ExecutionEvent x in executions)
 			{
-				if (ex.Instrument == null) continue;
-				string name = ex.Instrument.FullName;
-				int signed  = ex.MarketPosition == MarketPosition.Long ? ex.Quantity
-				            : ex.MarketPosition == MarketPosition.Short ? -ex.Quantity : 0;
-				instruments[name] = ex.Instrument;
-				knownNet[name]    = (knownNet.ContainsKey(name) ? knownNet[name] : 0) + signed;
+				if (seenExecutions.Contains(x.AccountName + "|" + x.ExecutionId)) continue;
+				knownNet[x.InstrumentName] = (knownNet.ContainsKey(x.InstrumentName) ? knownNet[x.InstrumentName] : 0) + x.Side * x.Quantity;
 			}
 
 			var actualNet = new Dictionary<string, int>();
-			List<Position> current;
-			lock (account.Positions)
-				current = account.Positions.ToList();
 			foreach (Position pos in current)
 			{
 				if (pos.Instrument == null) continue;
-				string name = pos.Instrument.FullName;
-				int signed  = pos.MarketPosition == MarketPosition.Long ? pos.Quantity
-				            : pos.MarketPosition == MarketPosition.Short ? -pos.Quantity : 0;
-				instruments[name] = pos.Instrument;
-				actualNet[name]   = signed;
+				actualNet[pos.Instrument.FullName] = pos.MarketPosition == MarketPosition.Long ? pos.Quantity
+				                                   : pos.MarketPosition == MarketPosition.Short ? -pos.Quantity : 0;
 			}
 
-			lock (sync)
+			foreach (string instrument in knownNet.Keys.Union(actualNet.Keys).ToList())
 			{
-				foreach (KeyValuePair<string, Instrument> entry in instruments)
-				{
-					int actual = actualNet.ContainsKey(entry.Key) ? actualNet[entry.Key] : 0;
-					int known  = knownNet.ContainsKey(entry.Key)  ? knownNet[entry.Key]  : 0;
-					int start  = actual - known;
-					if (start == 0) continue;
+				string key = Key(accountName, instrument);
+				if (positions.ContainsKey(key)) continue;  // ya lo seguimos (reconexión)
 
-					string key = account.Name + "|" + entry.Key;
-					if (positions.ContainsKey(key)) continue;
+				int actual = actualNet.ContainsKey(instrument) ? actualNet[instrument] : 0;
+				int known  = knownNet.ContainsKey(instrument)  ? knownNet[instrument]  : 0;
+				int start  = actual - known;
+				if (start == 0) continue;
 
-					var p = new PositionState { Account = account, Instrument = entry.Value, Side = Math.Sign(start) };
-					p.Lots.Add(new Lot { Quantity = Math.Abs(start), Phantom = true });
-					positions[key] = p;
-					Log(account.Name + " " + entry.Key + ": posición previa de " + start + " contratos, sus trades no se envían.");
-				}
+				var p = new PositionState { AccountName = accountName, InstrumentName = instrument, Side = Math.Sign(start) };
+				p.Lots.Add(new Lot { Quantity = Math.Abs(start), Phantom = true });
+				positions[key] = p;
+				Log(accountName + " " + instrument + ": posición previa de " + start + " contratos, sus trades no se envían.");
 			}
 		}
 
 		// ── Ejecuciones → trades ────────────────────────────────────────────────
 
-		private void OnExecutionUpdate(object sender, ExecutionEventArgs e)
+		private void HandleExecution(ExecutionEvent x)
 		{
-			if (e.Execution != null)
-				HandleExecution(e.Execution, false);
-		}
+			if (!seenExecutions.Add(x.AccountName + "|" + x.ExecutionId)) return;
 
-		private void HandleExecution(Execution ex, bool replay)
-		{
-			if (ex.Instrument == null || ex.Account == null || ex.Quantity <= 0) return;
-
-			int side = ex.MarketPosition == MarketPosition.Long ? 1
-			         : ex.MarketPosition == MarketPosition.Short ? -1 : 0;
-			if (side == 0) return;
-
-			PositionState closedPosition = null;
-			PositionState opened = null;
-
-			lock (sync)
+			string key = Key(x.AccountName, x.InstrumentName);
+			PositionState p;
+			if (!positions.TryGetValue(key, out p))
 			{
-				if (!seenExecutions.Add(ex.Account.Name + "|" + ex.ExecutionId)) return;
+				p = new PositionState { AccountName = x.AccountName, InstrumentName = x.InstrumentName };
+				positions[key] = p;
+			}
 
-				string key = ex.Account.Name + "|" + ex.Instrument.FullName;
-				PositionState p;
-				if (!positions.TryGetValue(key, out p))
+			PriceFeed feed = x.Replay ? null : EnsureFeed(x.Instrument);
+			ApplyTicks(x.InstrumentName);  // los ticks hasta ahora son de los lotes ya abiertos
+
+			DateTime timeUtc         = ToUtc(x.Time);
+			double   commPerContract = x.Commission / x.Quantity;
+			int      remaining       = x.Quantity;
+			ClosedPosition closed    = null;
+
+			// Cierre (total o parcial): FIFO contra los lotes abiertos.
+			if (p.Side != 0 && p.Side != x.Side)
+			{
+				while (remaining > 0 && p.Lots.Count > 0)
 				{
-					p = new PositionState { Account = ex.Account, Instrument = ex.Instrument };
-					positions[key] = p;
+					Lot lot = p.Lots[0];
+					int qty = Math.Min(lot.Quantity, remaining);
+					if (!lot.Phantom)
+						p.Closed.Add(BuildTrade(p.Side, lot, qty, x.Price, timeUtc, commPerContract, x.PointValue));
+
+					lot.Quantity -= qty;
+					remaining    -= qty;
+					if (lot.Quantity == 0) p.Lots.RemoveAt(0);
 				}
 
-				DateTime timeUtc       = ToUtc(ex.Time);
-				double   commPerContract = ex.Commission / ex.Quantity;
-				int      remaining     = ex.Quantity;
-
-				// Cierre (total o parcial): FIFO contra los lotes abiertos.
-				if (p.Side != 0 && p.Side != side)
+				if (p.Lots.Count == 0)
 				{
-					double pointValue = ex.Instrument.MasterInstrument.PointValue;
-
-					while (remaining > 0 && p.Lots.Count > 0)
+					closed = new ClosedPosition
 					{
-						Lot lot = p.Lots[0];
-						int qty = Math.Min(lot.Quantity, remaining);
-						if (!lot.Phantom)
-							p.Closed.Add(BuildTrade(p.Side, lot, qty, ex.Price, timeUtc, commPerContract, pointValue));
-
-						lot.Quantity -= qty;
-						remaining    -= qty;
-						if (lot.Quantity == 0) p.Lots.RemoveAt(0);
-					}
-
-					if (p.Lots.Count == 0)
-					{
-						closedPosition = new PositionState
-						{
-							Account     = p.Account,
-							Instrument  = p.Instrument,
-							Closed      = p.Closed,
-							InitialStop = p.InitialStop,
-						};
-						p.Closed      = new List<ClosedTrade>();
-						p.InitialStop = null;
-						p.Side        = 0;
-						StopMarketData(p);
-					}
-				}
-
-				// Apertura, scale-in o la parte que sobra de un giro.
-				if (remaining > 0)
-				{
-					bool opening = p.Side == 0;
-					p.Side = side;
-					p.Lots.Add(new Lot
-					{
-						Quantity              = remaining,
-						Price                 = ex.Price,
-						TimeUtc               = timeUtc,
-						CommissionPerContract = commPerContract,
-						High                  = ex.Price,
-						Low                   = ex.Price,
-						ExtremesKnown         = !replay,
-					});
-
-					if (opening)
-					{
-						if (!replay) StartMarketData(p);
-						opened = p;
-					}
+						AccountName    = p.AccountName,
+						InstrumentName = p.InstrumentName,
+						Trades         = p.Closed,
+						InitialStop    = p.InitialStop,
+					};
+					p.Closed      = new List<ClosedTrade>();
+					p.InitialStop = null;
+					p.Side        = 0;
 				}
 			}
 
-			// Fuera del lock: FindWorkingStop bloquea account.Orders, y NinjaTrader
-			// puede lanzar OrderUpdate (que coge `sync`) con ese lock tomado.
-			if (opened != null)
-				FindWorkingStop(opened);
+			// Apertura, scale-in o la parte que sobra de un giro.
+			if (remaining > 0)
+			{
+				bool opening = p.Side == 0;
+				p.Side = x.Side;
+				p.Lots.Add(new Lot
+				{
+					Quantity              = remaining,
+					Price                 = x.Price,
+					TimeUtc               = timeUtc,
+					CommissionPerContract = commPerContract,
+					High                  = x.Price,
+					Low                   = x.Price,
+					ExtremesKnown         = feed != null && feed.Subscribed,
+				});
 
-			if (closedPosition != null && closedPosition.Closed.Count > 0)
-				EnqueuePosition(closedPosition, !replay);
+				// El stop de una ATM puede llegar antes que la ejecución de entrada.
+				if (opening)
+					p.InitialStop = FirstLiveStop(key, x.Side);
+			}
+
+			if (closed != null && closed.Trades.Count > 0)
+				EnqueuePosition(closed, !x.Replay && screenshots);
 		}
 
 		private static ClosedTrade BuildTrade(int side, Lot lot, int qty, double exitPrice,
@@ -396,9 +664,9 @@ namespace NinjaTrader.NinjaScript.AddOns
 			{
 				double high = Math.Max(lot.High, exitPrice);
 				double low  = Math.Min(lot.Low, exitPrice);
-				double adversePts  = side > 0 ? lot.Price - low  : high - lot.Price;
+				double adversePts   = side > 0 ? lot.Price - low  : high - lot.Price;
 				double favorablePts = side > 0 ? high - lot.Price : lot.Price - low;
-				mae = Math.Round(Math.Max(0, adversePts)  * qty * pointValue, 2);
+				mae = Math.Round(Math.Max(0, adversePts)   * qty * pointValue, 2);
 				mfe = Math.Round(Math.Max(0, favorablePts) * qty * pointValue, 2);
 			}
 
@@ -417,6 +685,11 @@ namespace NinjaTrader.NinjaScript.AddOns
 			};
 		}
 
+		private static string Key(string accountName, string instrumentName)
+		{
+			return accountName + "|" + instrumentName;
+		}
+
 		// NinjaTrader da los tiempos en su zona horaria (Tools → Options → General).
 		private static DateTime ToUtc(DateTime t)
 		{
@@ -433,92 +706,117 @@ namespace NinjaTrader.NinjaScript.AddOns
 		}
 
 		// ── Stop inicial ────────────────────────────────────────────────────────
+		// Se sigue solo con los eventos OrderUpdate (sin leer account.Orders): el
+		// worker guarda las órdenes stop vivas por cuenta+instrumento.
 
-		private void OnOrderUpdate(object sender, OrderEventArgs e)
+		private void HandleOrder(OrderEvent x)
 		{
-			Order order = e.Order;
-			if (order == null || order.Instrument == null || order.Account == null) return;
+			if (x.Live) EnsureFeed(x.Instrument);  // datos de mercado antes de que entre la ejecución
 
-			lock (sync)
+			string key = Key(x.AccountName, x.InstrumentName);
+			Dictionary<Order, LiveStop> stops;
+			if (!liveStops.TryGetValue(key, out stops))
 			{
-				PositionState p;
-				if (!positions.TryGetValue(order.Account.Name + "|" + order.Instrument.FullName, out p)) return;
-				if (p.Side != 0 && p.InitialStop == null && IsProtectiveStop(order, p.Side))
-					p.InitialStop = order.StopPrice;
+				stops = new Dictionary<Order, LiveStop>(RefComparer<Order>.Instance);
+				liveStops[key] = stops;
 			}
+
+			bool liveStop = x.IsStop && x.Live && x.ExitsSide != 0 && x.StopPrice > 0;
+			if (!liveStop)
+			{
+				stops.Remove(x.Order);
+				return;
+			}
+
+			LiveStop s;
+			if (!stops.TryGetValue(x.Order, out s))
+			{
+				s = new LiveStop { Seq = ++stopSeq, ExitsSide = x.ExitsSide };
+				stops[x.Order] = s;
+			}
+			s.Price = x.StopPrice;
+
+			PositionState p;
+			if (positions.TryGetValue(key, out p) && p.Side != 0 && p.Side == x.ExitsSide && p.InitialStop == null)
+				p.InitialStop = x.StopPrice;
 		}
 
-		// El stop de una ATM puede llegar antes que la ejecución de entrada.
-		private void FindWorkingStop(PositionState p)
+		private double? FirstLiveStop(string key, int side)
 		{
-			List<Order> orders;
-			lock (p.Account.Orders)
-				orders = p.Account.Orders.ToList();
+			Dictionary<Order, LiveStop> stops;
+			if (!liveStops.TryGetValue(key, out stops)) return null;
 
-			lock (sync)
-			{
-				if (p.Side == 0 || p.InitialStop != null) return;
-				foreach (Order order in orders)
-				{
-					if (order.Instrument == null || order.Instrument.FullName != p.Instrument.FullName) continue;
-					if (IsProtectiveStop(order, p.Side))
-					{
-						p.InitialStop = order.StopPrice;
-						return;
-					}
-				}
-			}
-		}
-
-		private static bool IsProtectiveStop(Order order, int side)
-		{
-			bool isStop = order.OrderType == OrderType.StopMarket || order.OrderType == OrderType.StopLimit;
-			bool live   = order.OrderState == OrderState.Submitted
-			           || order.OrderState == OrderState.Accepted
-			           || order.OrderState == OrderState.Working;
-			bool exitSide = side > 0
-				? order.OrderAction == OrderAction.Sell || order.OrderAction == OrderAction.SellShort
-				: order.OrderAction == OrderAction.Buy  || order.OrderAction == OrderAction.BuyToCover;
-			return isStop && live && exitSide && order.StopPrice > 0;
+			LiveStop first = null;
+			foreach (LiveStop s in stops.Values)
+				if (s.ExitsSide == side && (first == null || s.Seq < first.Seq))
+					first = s;
+			return first != null ? first.Price : (double?)null;
 		}
 
 		// ── MAE / MFE ───────────────────────────────────────────────────────────
+		// Una suscripción por instrumento durante toda la vida del add-on: nada de
+		// crear/soltar MarketData en cada trade.
 
-		private void StartMarketData(PositionState p)
+		private PriceFeed EnsureFeed(Instrument instrument)
 		{
-			if (p.MarketData != null) return;
-			p.MarketData = new MarketData(p.Instrument);
-			p.MarketData.Update += OnMarketData;
-		}
-
-		private void StopMarketData(PositionState p)
-		{
-			if (p.MarketData == null) return;
-			p.MarketData.Update -= OnMarketData;
-			p.MarketData = null;
-		}
-
-		private void OnMarketData(object sender, MarketDataEventArgs e)
-		{
-			if (e.MarketDataType != MarketDataType.Last || e.Instrument == null) return;
-
-			lock (sync)
+			PriceFeed feed;
+			lock (subsGate)
 			{
-				foreach (PositionState p in positions.Values)
+				if (feeds.TryGetValue(instrument.FullName, out feed)) return feed;
+				feed = new PriceFeed();
+				feeds[instrument.FullName] = feed;
+			}
+
+			try
+			{
+				feed.Data = new MarketData(instrument);
+				feed.Data.Update += feed.OnUpdate;
+				feed.Subscribed = true;
+			}
+			catch (Exception err)
+			{
+				Log("sin datos de mercado para " + instrument.FullName + " (MAE/MFE vacíos): " + err.Message);
+			}
+
+			if (!running) Unsubscribe(feed);  // Stop() llegó mientras nos suscribíamos
+			return feed;
+		}
+
+		private static void Unsubscribe(PriceFeed feed)
+		{
+			feed.Subscribed = false;
+			MarketData data = feed.Data;
+			feed.Data = null;
+			if (data == null) return;
+			try { data.Update -= feed.OnUpdate; } catch (Exception) { }
+		}
+
+		private void ApplyTicks(string instrumentName)
+		{
+			PriceFeed feed;
+			lock (subsGate)
+				feeds.TryGetValue(instrumentName, out feed);
+			if (feed == null) return;
+
+			double high, low;
+			if (!feed.Harvest(out high, out low)) return;
+
+			// El feed es por instrumento: se reparte entre todas las cuentas.
+			foreach (PositionState p in positions.Values)
+			{
+				if (p.Side == 0 || p.InstrumentName != instrumentName) continue;
+				foreach (Lot lot in p.Lots)
 				{
-					if (p.Side == 0 || p.Instrument.FullName != e.Instrument.FullName) continue;
-					foreach (Lot lot in p.Lots)
-					{
-						if (e.Price > lot.High) lot.High = e.Price;
-						if (e.Price < lot.Low)  lot.Low  = e.Price;
-					}
+					if (!lot.ExtremesKnown) continue;
+					if (high > lot.High) lot.High = high;
+					if (low  < lot.Low)  lot.Low  = low;
 				}
 			}
 		}
 
 		// ── Cola de envío ───────────────────────────────────────────────────────
 
-		private void EnqueuePosition(PositionState p, bool withScreenshot)
+		private void EnqueuePosition(ClosedPosition p, bool withScreenshot)
 		{
 			string json = BuildPayload(p);
 			string id   = DateTime.UtcNow.Ticks.ToString("D20") + "-" + Guid.NewGuid().ToString("N").Substring(0, 8);
@@ -530,7 +828,7 @@ namespace NinjaTrader.NinjaScript.AddOns
 					if (withScreenshot)
 					{
 						await Task.Delay(ScreenshotDelayMs);
-						byte[] png = CaptureChart(p.Instrument);
+						byte[] png = CaptureChart(p.InstrumentName);
 						if (png != null)
 							File.WriteAllBytes(Path.Combine(outboxDir, id + ".png"), png);
 					}
@@ -559,7 +857,7 @@ namespace NinjaTrader.NinjaScript.AddOns
 					string pngPath = Path.ChangeExtension(jsonPath, ".png");
 					byte[] png     = File.Exists(pngPath) ? File.ReadAllBytes(pngPath) : null;
 
-					int status = Post(File.ReadAllText(jsonPath, Encoding.UTF8), png);
+					int status = Send(File.ReadAllText(jsonPath, Encoding.UTF8), png);
 
 					if (status >= 200 && status < 300)
 					{
@@ -597,7 +895,7 @@ namespace NinjaTrader.NinjaScript.AddOns
 		}
 
 		/// <returns>HTTP status, o 0 si no hubo respuesta.</returns>
-		private int Post(string payloadJson, byte[] png)
+		private int Send(string payloadJson, byte[] png)
 		{
 			string boundary = "----tradeos" + Guid.NewGuid().ToString("N");
 			var body = new MemoryStream();
@@ -650,8 +948,10 @@ namespace NinjaTrader.NinjaScript.AddOns
 		}
 
 		// ── Captura del chart ───────────────────────────────────────────────────
+		// Cada chart tiene su propio hilo de UI. Nunca se espera sin límite: si un
+		// chart está ocupado, se salta y el trade se envía sin captura.
 
-		private byte[] CaptureChart(Instrument instrument)
+		private byte[] CaptureChart(string instrumentName)
 		{
 			List<Chart> charts;
 			try
@@ -664,55 +964,81 @@ namespace NinjaTrader.NinjaScript.AddOns
 			}
 
 			// Preferimos la ventana activa si hay varias con el mismo instrumento.
-			foreach (Chart chart in charts.OrderByDescending(c => c.Dispatcher.Invoke(() => c.IsActive)))
+			Chart best      = null;
+			int   bestScore = 0;
+			foreach (Chart chart in charts)
 			{
-				byte[] png = null;
-				Chart current = chart;
-				current.Dispatcher.Invoke(new Action(delegate
+				Chart c = chart;
+				int score = OnUi(c, () =>
 				{
-					ChartControl control = current.ActiveChartControl;
-					if (control == null || control.Instrument == null) return;
-					if (current.WindowState == WindowState.Minimized) return;
-					if (control.Instrument.FullName != instrument.FullName) return;
+					ChartControl control = c.ActiveChartControl;
+					if (control == null || control.Instrument == null) return 0;
+					if (c.WindowState == WindowState.Minimized) return 0;
+					if (control.Instrument.FullName != instrumentName) return 0;
+					return c.IsActive ? 2 : 1;
+				}, 0, UiProbeTimeoutMs);
 
-					RenderTargetBitmap shot = current.GetScreenshot(ShareScreenshotType.Chart);
-					if (shot == null) return;
-
-					BitmapSource source = shot;
-					if (shot.PixelWidth > MaxScreenshotWidth)
-					{
-						double scale = (double)MaxScreenshotWidth / shot.PixelWidth;
-						source = new TransformedBitmap(shot, new ScaleTransform(scale, scale));
-					}
-
-					var encoder = new PngBitmapEncoder();
-					encoder.Frames.Add(BitmapFrame.Create(source));
-					using (var ms = new MemoryStream())
-					{
-						encoder.Save(ms);
-						png = ms.ToArray();
-					}
-				}));
-
-				if (png != null) return png;
+				if (score > bestScore)
+				{
+					best      = c;
+					bestScore = score;
+				}
 			}
 
-			return null;
+			if (best == null) return null;
+
+			Chart target = best;
+			return OnUi<byte[]>(target, () =>
+			{
+				RenderTargetBitmap shot = target.GetScreenshot(ShareScreenshotType.Chart);
+				if (shot == null) return null;
+
+				BitmapSource source = shot;
+				if (shot.PixelWidth > MaxScreenshotWidth)
+				{
+					double scale = (double)MaxScreenshotWidth / shot.PixelWidth;
+					source = new TransformedBitmap(shot, new ScaleTransform(scale, scale));
+				}
+
+				var encoder = new PngBitmapEncoder();
+				encoder.Frames.Add(BitmapFrame.Create(source));
+				using (var ms = new MemoryStream())
+				{
+					encoder.Save(ms);
+					return ms.ToArray();
+				}
+			}, null, UiCaptureTimeoutMs);
+		}
+
+		private static T OnUi<T>(Window window, Func<T> fn, T fallback, int timeoutMs)
+		{
+			try
+			{
+				DispatcherOperation<T> op = window.Dispatcher.InvokeAsync(fn, DispatcherPriority.Background);
+				if (op.Task.Wait(timeoutMs))
+					return op.Result;
+				op.Abort();  // si no ha empezado, que no llegue a ejecutarse
+				return fallback;
+			}
+			catch (Exception)
+			{
+				return fallback;
+			}
 		}
 
 		// ── JSON ────────────────────────────────────────────────────────────────
 
-		private static string BuildPayload(PositionState p)
+		private static string BuildPayload(ClosedPosition p)
 		{
 			var sb = new StringBuilder();
 			sb.Append("{\"addonVersion\":").Append(Str(Version));
-			sb.Append(",\"account\":").Append(Str(p.Account.Name));
-			sb.Append(",\"instrument\":").Append(Str(p.Instrument.FullName));
+			sb.Append(",\"account\":").Append(Str(p.AccountName));
+			sb.Append(",\"instrument\":").Append(Str(p.InstrumentName));
 			sb.Append(",\"trades\":[");
 
-			for (int i = 0; i < p.Closed.Count; i++)
+			for (int i = 0; i < p.Trades.Count; i++)
 			{
-				ClosedTrade t = p.Closed[i];
+				ClosedTrade t = p.Trades[i];
 				if (i > 0) sb.Append(',');
 				sb.Append("{\"direction\":").Append(Str(t.Direction));
 				sb.Append(",\"contracts\":").Append(t.Contracts.ToString(CultureInfo.InvariantCulture));
