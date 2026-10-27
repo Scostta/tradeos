@@ -1,12 +1,14 @@
 "use client"
 
 import { useState } from "react"
+import { usePathname } from "next/navigation"
 import type { ReactNode } from "react"
 import { Sidebar } from "./sidebar.client"
 import { PropFirmAlertBanner } from "./prop-firm-alert-banner.client"
 import { TimezoneContext } from "~/hooks/use-timezone"
 import { COMMON } from "~/constants/copies/common"
 import type { PropFirmAlertItem } from "~/types/prop-firm"
+import { getActiveModule } from "~/helpers/active-module"
 
 export function DashboardShell({
   userEmail,
@@ -22,6 +24,9 @@ export function DashboardShell({
   children: ReactNode
 }) {
   const [sidebarOpen, setSidebarOpen] = useState(false)
+  // Las alertas de prop firm son de Trading. El selector de cuenta no vive
+  // aquí: está en las cabeceras de las páginas de Trading (?account=).
+  const isTrading = getActiveModule(usePathname()) === "trading"
 
   return (
     <TimezoneContext.Provider value={timezone}>
@@ -56,7 +61,7 @@ export function DashboardShell({
           </button>
           <span className="ml-3 font-semibold text-text tracking-tight">TradeOS</span>
         </div>
-        <PropFirmAlertBanner alerts={propFirmAlerts} />
+        {isTrading && <PropFirmAlertBanner alerts={propFirmAlerts} />}
         {/* Wrapper so each page's `h-full` measures the space LEFT below the
             mobile topbar + alert banner — without it the page is as tall as
             <main> and its bottom is clipped by overflow-hidden on mobile. */}
