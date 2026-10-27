@@ -12,7 +12,7 @@ Lo que NO se construye (ver §9): backtest, alertas, integración con bróker, c
 
 ### 1.1 Universo
 - Constituyentes actuales del **S&P 500** (lista de Wikipedia, scrapeada en el job) + `scripts/screener/universe_extra.csv` (tickers Yahoo de grandes capitalizadas europeas, mantenido a mano; empieza con ~40).
-- Capitalización > 2.000 M USD. `info.marketCap` viene en la divisa de cotización: se convierte a USD con el cierre mensual del par de Yahoo (`EURUSD=X`, …) a `run_date`. Las cotizadas en Londres declaran `GBp` pero Yahoo da su marketCap en libras → par GBP. Divisa sin par conocido o sin cierre → `market_cap` null → falla.
+- Capitalización > 2.000 M USD, **al cierre de `run_date`**: `market_cap = Close[t] × info.impliedSharesOutstanding × FX[t]`. No se usa `info.marketCap` (va al precio del momento de ejecutar el job, no al de `run_date`). `Close` es el cierre ajustado por splits pero no por dividendos (el precio real de ese día). `impliedSharesOutstanding` suma todas las clases de acción; `sharesOutstanding` es solo la clase cotizada. FX: cierre mensual del par de Yahoo (`EURUSD=X`, …) a `run_date`; las cotizadas en Londres cotizan en `GBp` (peniques) → precio / 100 y par GBP. Precio, acciones, divisa con par conocido o cierre del par ausente → `market_cap` null → falla.
 - Al menos **12 meses de cotización** (hay que poder calcular momentum 12-1). Las IPOs recientes quedan fuera automáticamente.
 
 ### 1.2 Filtro fundamental (calidad, no "barato")
@@ -41,7 +41,7 @@ Sobre **cierres mensuales ajustados** (Yahoo `Adj Close`, último cierre de cada
 
 ### 1.4 Ejecución y gestión
 - Se decide solo con el run del **primer día hábil del mes** (§3). Si no hay run del mes en curso, la app no deja abrir posiciones.
-- Máximo **5 posiciones** abiertas. Tamaño objetivo **4 % del patrimonio total** por posición (el satélite es el 20 %). La app sugiere el importe y bloquea la 6ª.
+- Máximo **5 posiciones** abiertas, y como máximo **2 abiertas por sector** (`info.sector` de Yahoo, guardado por el job en `invest_screen_results.sector`; el de una posición es el de su fila en el run que la aprobó). Un sector null cuenta como un sector más. Tamaño objetivo **4 % del patrimonio total** por posición (el satélite es el 20 %). La app sugiere el importe y bloquea la 6ª.
 - **Nunca se promedia a la baja**: no se puede abrir una segunda posición en un ticker ya abierto.
 - Salida mecánica: en el run mensual, si `price < sma10m` para una posición abierta → señal `sell`. La app lo marca y precarga el cierre con motivo `sma_exit`.
 - Salida discrecional: al abrir, el usuario escribe **≥ 2 falsadores** de la tesis. Si se cumple uno, cierra con motivo `falsifier` indicando cuál.
@@ -85,6 +85,8 @@ create table if not exists invest_screen_results (
   ticker              text not null,
   name                text,
   exchange            text,
+  sector              text,                    -- info.sector (§1.4); migración 20261027130000_invest_sector.sql
+  currency            text,                    -- divisa de price (§5); misma migración
   market_cap          numeric(16,0),
   revenue_growth_yoy  numeric(8,4),
   fcf_margin          numeric(8,4),
@@ -161,7 +163,7 @@ create table if not exists invest_prices (
   primary key (ticker, month_end)
 );
 ```
-El job escribe aquí: el benchmark, y cada ticker que tenga alguna posición (abierta o cerrada) de cualquier usuario, desde 12 meses antes de la primera apertura. RLS: `select` para `authenticated`.
+El job escribe aquí: el benchmark, cada ticker que tenga alguna posición (abierta o cerrada) de cualquier usuario, desde 12 meses antes de la primera apertura, y los pares `EUR{divisa}=X` (`EURUSD=X`, `EURGBP=X`, `EURCHF=X`, `EURSEK=X`, `EURDKK=X`, `EURNOK=X`: unidades de la divisa por 1 EUR) desde el inicio más antiguo de todo lo anterior. RLS: `select` para `authenticated`.
 
 ### 2.6 `invest_position_checks` — señal mensual por posición abierta
 ```sql
@@ -224,7 +226,7 @@ Python, fuera de Next. Carpeta propia con `requirements.txt` (yfinance, pandas, 
 - Cabecera: fecha del último run, universo, nº que pasan, estado "run del mes en curso: sí/no".
 - Tabla de los que **pasan**: ticker, nombre, precio, distancia a `sma10m` (%), momentum 12-1, RS 6m, growth, FCF margin, ROIC, net debt/EBITDA. Mono para números (DESIGN.md).
 - Buscador de ticker que muestra **cualquier** ticker del run con sus ratios y `fail_reasons` en rojo. Es para responder "¿por qué no pasa X?".
-- Botón "Open position" en cada fila aprobada → modal §4.4. Deshabilitado si hay 5 abiertas o el ticker ya está abierto, con el motivo en tooltip.
+- Botón "Open position" en cada fila aprobada → modal §4.4. Deshabilitado si hay 5 abiertas, el ticker ya está abierto o su sector ya tiene 2 abiertas, con el motivo en tooltip.
 
 ### 4.3 Pestaña Positions
 - Abiertas: ticker, fecha, entrada, acciones, importe, último precio (de `invest_prices`), P&L latente, **señal del último check** (`hold` / `sell` en badge; `sell` en `text-loss`), tesis plegada, falsadores como lista.
@@ -233,7 +235,7 @@ Python, fuera de Next. Carpeta propia con `requirements.txt` (yfinance, pandas, 
 
 ### 4.4 Modal Open position
 Campos: ticker (fijo), fecha, precio, acciones (con el importe sugerido = `total_portfolio_value × position_pct` y el nº de acciones resultante precargado, editable), comisiones, **tesis** (textarea, mín. 200 caracteres), **falsadores** (lista dinámica, mín. 2, cada uno mín. 30 caracteres).
-Server action `openInvestPosition` valida con Zod **y además** comprueba en servidor: existe run del mes en curso; el ticker está en ese run con `passes = true`; abiertas < `max_positions`; no hay otra abierta del mismo ticker. Cualquier fallo → error con copy claro. La regla vive en el servidor, no solo en el botón.
+Server action `openInvestPosition` valida con Zod **y además** comprueba en servidor: existe run del mes en curso; el ticker está en ese run con `passes = true`; abiertas < `max_positions`; no hay otra abierta del mismo ticker; menos de 2 abiertas en el sector del ticker (§1.4). Cualquier fallo → error con copy claro. La regla vive en el servidor, no solo en el botón.
 
 ### 4.5 Ajustes (dentro de la pestaña Performance o modal desde cabecera)
 `total_portfolio_value`, `benchmark_ticker`, `started_at`. `satellite_pct`, `max_positions` y `position_pct` se muestran pero **no son editables desde la UI** (cambiarlos es cambiar la spec; se haría por SQL a propósito).
@@ -247,17 +249,19 @@ Server action `openInvestPosition` valida con Zod **y además** comprueba en ser
 
 ## 5. Cálculos (`src/lib/calculations/invest-*.ts`, puros, con vitest)
 
+**Divisa base EUR.** `total_portfolio_value`, comisiones, rentabilidades e impuestos van en EUR. `entry_price`/`exit_price` se registran en la divisa de cotización del ticker (`invest_screen_results.currency`; `GBp` en peniques). Un importe en divisa `C` pasa a EUR dividiendo por el cierre mensual de `EUR{C}=X` (y por 100 si es `GBp`): las posiciones, al cierre de cada mes; aperturas y cierres, al cierre del mes en que ocurren (todo es cierre mensual, §9). El benchmark (IWDA.AS) ya cotiza en EUR.
+
 ### 5.1 `invest-performance.ts`
-- `satelliteMonthlyReturns(positions, prices, settings)`: para cada mes desde `started_at`, valor del satélite = suma de posiciones abiertas a `adj_close` del mes + caja realizada acumulada; aportaciones/retiradas = aperturas y cierres del mes. TWR mensual = `(V_end - flows) / V_start - 1`, con el satélite arrancando en `total_portfolio_value × satellite_pct` como caja. Devuelve `{ monthEnd, gross, netFees, netTax }[]`.
+- `satelliteMonthlyReturns(positions, prices, settings)`: el satélite arranca en `started_at` como caja = `total_portfolio_value × satellite_pct`. Valor a fin de cada mes `V = caja + Σ acciones × adj_close` de las posiciones abiertas. Abrir resta de la caja `precio × acciones` (+ comisión) y cerrar suma `precio × acciones` (− comisión): son movimientos internos, no hay flujos externos, así que la rentabilidad mensual es `V_end / V_start − 1`. La caja sin invertir rinde 0. Tres series: `gross` (sin comisiones ni impuestos), `netFees` (con comisiones) y `netTax` (con comisiones y el impuesto estimado de §5.2: tras cada cierre se recalcula el impuesto del año en curso y se resta la diferencia en ese mes; una pérdida posterior del mismo año lo devuelve). Devuelve `{ monthEnd, gross, netFees, netTax }[]`.
 - `benchmarkMonthlyReturns(prices, ticker, from)`.
 - `chainReturns(returns)` → índice base 100.
 - Tests con un caso de 6 meses calculado a mano, con una apertura, un cierre y un mes sin movimientos.
 
 ### 5.2 `invest-tax.ts`
-- `estimateSpanishCapitalGainsTax(realizedGainsByYear)`: tramos 19 % (≤ 6.000), 21 % (≤ 50.000), 23 % (≤ 200.000), aplicados sobre la ganancia neta anual (las pérdidas del año compensan). Etiquetar en UI como estimación. Tests por tramo y con pérdidas que compensan.
+- `estimateSpanishCapitalGainsTax(realizedGainsByYear)`: tramos 19 % (≤ 6.000), 21 % (≤ 50.000), 23 % (≤ 200.000), 27 % (≤ 300.000) y 28 % (resto), aplicados sobre la ganancia neta anual en EUR (las pérdidas del año compensan; no se arrastran entre años). Etiquetar en UI como estimación. Tests por tramo y con pérdidas que compensan.
 
 ### 5.3 `invest-sizing.ts`
-- `suggestedPositionSize(settings, price)` → `{ amount, shares }` con `shares = floor(amount / price)`.
+- `suggestedPositionSize(settings, price)` → `{ amount, shares }` con `shares = floor(amount / price)`. `amount` en EUR; el precio se pasa a EUR con el FX del mes del run (§5).
 
 ---
 
@@ -309,3 +313,10 @@ Commit por paso. Lint, `npm test` y `pytest` en verde antes de cada commit. Aña
 | 2026-10-27 | 3.1 | `workflow_dispatch` corre siempre; `run_date` por defecto = último día hábil del mes anterior. |
 | 2026-10-27 | 1.2 | `TotalDebt` ausente/NaN en un balance que sí cargó = 0; solo `null` si falta el balance entero. |
 | 2026-10-27 | 3.3 | Un reintento por ticker tras 3 s en error de red; `no_data` > 5 % del universo aborta el run sin escribir y el job termina con error. |
+| 2026-10-27 | 1.1 | `market_cap` = `Close[t]` × `impliedSharesOutstanding` × FX a `run_date` (`GBp` / 100). `info.marketCap` venía al precio del día de ejecución (MU en el run de 2026-09-30: 1,022e12 guardado vs. 1,205e12 al cierre del 30/09). `sharesOutstanding` descartado: solo cuenta una clase (GOOGL ×0,48, RO.SW ×0,13). |
+| 2026-10-27 | 1.3 | Revisado con MU: price, `sma10m` y los dos extremos del momentum 12-1 salen todos de `Adj Close` (y el benchmark también); no hay mezcla de ajustados y sin ajustar. |
+| 2026-10-27 | 1.4 | Máximo 2 posiciones abiertas por sector (`invest_screen_results.sector`). Sector null cuenta como un sector más. Se valida en `openInvestPosition`. |
+| 2026-10-27 | 2.2 / 2.5 | `invest_screen_results.currency` (divisa de `price`) y pares `EUR{divisa}=X` en `invest_prices`, para valorar en EUR. |
+| 2026-10-27 | 5 | Divisa base EUR: posiciones, aperturas y cierres se pasan a EUR con el cierre mensual del par; comisiones en EUR. |
+| 2026-10-27 | 5.1 | TWR con caja + posiciones: aperturas y cierres son movimientos internos (sin flujos externos), `r = V_end / V_start − 1`; la caja sin invertir rinde 0. `netTax` resta el impuesto en el mes de cada cierre (recalculado sobre el año en curso). |
+| 2026-10-27 | 5.2 | Tramos por encima de 200.000 €: 27 % hasta 300.000 y 28 % el resto (ley vigente). |

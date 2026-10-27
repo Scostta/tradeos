@@ -4,7 +4,8 @@
  "name": "Apple Inc.",
  "exchange": "NMS",
  "currency": "USD",
- "market_cap_usd": 5019084521472.0,
+ "sector": "Technology",
+ "market_cap_usd": 4860153663263.55,
  "income": {
   "Tax Effect Of Unusual Items": [
    0.0,

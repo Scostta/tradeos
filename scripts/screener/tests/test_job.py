@@ -66,6 +66,8 @@ def offline(monkeypatch, benchmark):
 
     def fetch_monthly(ticker, through, start=None):
         fetched_monthly.append((ticker, start))
+        if ticker.endswith("=X"):
+            return {"2026-08": 1.1, "2026-09": 1.2}
         return dict(benchmark) if ticker == "IWDA.AS" else dict(load_ticker(ticker).closes)
 
     monkeypatch.setattr(job.yahoo, "fetch_monthly", fetch_monthly)
@@ -111,16 +113,20 @@ def test_run_writes_run_results_checks_and_prices(offline):
     assert outcome.sell_by_user == Counter({"u1": 1})
 
     # Precios: benchmark desde 12 meses antes de started_at, tickers desde 12
-    # meses antes de su primera apertura (abiertas y cerradas).
+    # meses antes de su primera apertura (abiertas y cerradas). Los pares FX a
+    # EUR, desde el más antiguo de esos inicios.
     starts = dict((t, s) for t, s in offline if s is not None)
+    fx_pairs = {"EURUSD=X", "EURGBP=X", "EURCHF=X", "EURSEK=X", "EURDKK=X", "EURNOK=X"}
     assert starts == {
         "IWDA.AS": date(2025, 4, 1),
         "COST": date(2025, 3, 1),
         "GOOGL": date(2025, 5, 1),
         "AAPL": date(2024, 11, 1),
+        **{pair: date(2024, 11, 1) for pair in fx_pairs},
     }
     priced = {p["ticker"] for p in client.tables["invest_prices"]}
-    assert priced == {"IWDA.AS", "COST", "GOOGL", "AAPL"}
+    assert priced == {"IWDA.AS", "COST", "GOOGL", "AAPL"} | fx_pairs
+    assert {"ticker": "EURUSD=X", "month_end": "2026-09-30", "adj_close": 1.2} in client.tables["invest_prices"]
     assert {"ticker": "IWDA.AS", "month_end": "2026-09-30"} in [
         {k: p[k] for k in ("ticker", "month_end")} for p in client.tables["invest_prices"]
     ]

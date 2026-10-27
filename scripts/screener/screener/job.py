@@ -248,6 +248,11 @@ def run(
     for p in positions:
         opened = date.fromisoformat(p["opened_at"])
         starts[p["ticker"]] = min(starts.get(p["ticker"], opened), opened)
+    # Pares EUR{divisa}=X para que la app valore el satélite en EUR (§5), desde
+    # el inicio más antiguo de todo lo anterior.
+    earliest = min(starts.values())
+    for pair in sorted(set(yahoo.EUR_FX_TICKERS.values())):
+        starts.setdefault(pair, earliest)
     for ticker, start in sorted(starts.items()):
         try:
             closes = yahoo.fetch_monthly(ticker, t, start=months_before(start, PRICE_LOOKBACK_MONTHS))

@@ -27,6 +27,7 @@ log = logging.getLogger(__name__)
 yf.config.debug.hide_exceptions = False
 
 ADJ_CLOSE = "Adj Close"
+CLOSE = "Close"  # ajustado por splits, no por dividendos: el precio real de ese día
 
 # §3.3: errores de red (DNS, conexión, timeout, 429) → un solo reintento a los 3 s.
 NETWORK_ERRORS: tuple[type[BaseException], ...] = (
@@ -49,10 +50,10 @@ def with_retry(fn: Callable[[], T], label: str) -> T:
         time.sleep(RETRY_DELAY_SECONDS)
         return fn()
 
-# Divisa de info["currency"] -> par de Yahoo para pasar marketCap a USD.
-# Las cotizadas en Londres declaran "GBp" (peniques) pero Yahoo da su marketCap
-# en libras (comprobado: marketCap = acciones × precio / 100), así que usan GBP.
-# Una divisa que no está aquí deja market_cap en null (falla la regla).
+# Divisa de cotización (info["currency"]) -> par de Yahoo para pasar el market
+# cap a USD. Las cotizadas en Londres cotizan en "GBp" (peniques): su precio se
+# pasa a libras con PRICE_UNIT y usan el par GBP. Una divisa que no está aquí
+# deja market_cap en null (falla la regla).
 FX_TICKERS: dict[str, Optional[str]] = {
     "USD": None,
     "EUR": "EURUSD=X",
@@ -63,19 +64,33 @@ FX_TICKERS: dict[str, Optional[str]] = {
     "DKK": "DKKUSD=X",
     "NOK": "NOKUSD=X",
 }
+PRICE_UNIT: dict[str, float] = {"GBp": 0.01}
+
+# La app valora el satélite en EUR (INVEST_SPEC.md §5): el job guarda en
+# invest_prices los cierres mensuales de estos pares (unidades de la divisa por
+# 1 EUR). GBp usa EURGBP=X y la app divide además por 100 (PRICE_UNIT).
+EUR_FX_TICKERS: dict[str, str] = {
+    "USD": "EURUSD=X",
+    "GBP": "EURGBP=X",
+    "GBp": "EURGBP=X",
+    "CHF": "EURCHF=X",
+    "SEK": "EURSEK=X",
+    "DKK": "EURDKK=X",
+    "NOK": "EURNOK=X",
+}
 
 
-def monthly_closes(history: pd.DataFrame, through: str) -> dict[str, float]:
-    """{"YYYY-MM": Adj Close} hasta el mes `through` incluido.
+def monthly_closes(history: pd.DataFrame, through: str, column: str = ADJ_CLOSE) -> dict[str, float]:
+    """{"YYYY-MM": cierre} hasta el mes `through` incluido (por defecto Adj Close).
 
     Yahoo etiqueta las barras mensuales por el inicio de mes en hora local y la
     del mes en curso es parcial: se descarta todo lo posterior a `through`.
-    Si falta la columna Adj Close se lanza error (no se usa Close en su lugar).
+    Si falta la columna se lanza error (no se usa otra en su lugar).
     """
-    if ADJ_CLOSE not in history.columns:
-        raise KeyError(f"history sin columna {ADJ_CLOSE!r}: {list(history.columns)}")
+    if column not in history.columns:
+        raise KeyError(f"history sin columna {column!r}: {list(history.columns)}")
     closes: dict[str, float] = {}
-    for ts, value in history[ADJ_CLOSE].items():
+    for ts, value in history[column].items():
         if value is None or math.isnan(value):
             continue
         key = ta.month_key(ts.date())
@@ -128,11 +143,20 @@ def load_fx_rates(through: str) -> dict[str, float]:
     return rates
 
 
-def market_cap_usd(info: dict[str, Any], fx_rates: dict[str, float]) -> Optional[float]:
-    market_cap, currency = info.get("marketCap"), info.get("currency")
-    if market_cap is None or currency not in fx_rates:
+def market_cap_usd(
+    info: dict[str, Any], close: Optional[float], fx_rates: dict[str, float]
+) -> Optional[float]:
+    """Market cap en USD al cierre de run_date: Close(t) × acciones × FX(t).
+
+    No se usa info.marketCap: va al precio del momento de ejecutar el job, no al
+    de run_date (MU en el run de 2026-09-30: −15 %). Las acciones son
+    impliedSharesOutstanding, que suma todas las clases; sharesOutstanding es
+    solo la clase cotizada (GOOGL ×0,48, RO.SW ×0,13). Si falta algún dato → None.
+    """
+    shares, currency = info.get("impliedSharesOutstanding"), info.get("currency")
+    if close is None or not shares or currency not in fx_rates:
         return None
-    return float(market_cap) * fx_rates[currency]
+    return close * PRICE_UNIT.get(currency, 1.0) * float(shares) * fx_rates[currency]
 
 
 def fetch_ticker(ticker: str, through: str, fx_rates: dict[str, float]) -> TickerData:
@@ -152,6 +176,7 @@ def fetch_ticker(ticker: str, through: str, fx_rates: dict[str, float]) -> Ticke
         if history.empty:
             return TickerData(ticker=ticker, error="empty history")
         closes = monthly_closes(history, through)
+        close_t = monthly_closes(history, through, CLOSE).get(through)
         income = statement_to_dict(income_df)
         cashflow = statement_to_dict(cashflow_df)
         balance = statement_to_dict(balance_df)
@@ -163,7 +188,8 @@ def fetch_ticker(ticker: str, through: str, fx_rates: dict[str, float]) -> Ticke
         name=info.get("longName") or info.get("shortName"),
         exchange=info.get("exchange"),
         currency=info.get("currency"),
-        market_cap_usd=market_cap_usd(info, fx_rates),
+        sector=info.get("sector"),
+        market_cap_usd=market_cap_usd(info, close_t, fx_rates),
         income=income,
         cashflow=cashflow,
         balance=balance,

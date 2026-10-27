@@ -58,6 +58,7 @@ class TickerData:
     name: Optional[str] = None
     exchange: Optional[str] = None
     currency: Optional[str] = None
+    sector: Optional[str] = None
     market_cap_usd: Optional[float] = None
     income: Statement = field(default_factory=dict)
     cashflow: Statement = field(default_factory=dict)
@@ -73,6 +74,8 @@ class ScreenResult:
     ticker: str
     name: Optional[str] = None
     exchange: Optional[str] = None
+    sector: Optional[str] = None  # info.sector; límite de 2 abiertas por sector (§1.4)
+    currency: Optional[str] = None  # divisa de cotización (price); la app la pasa a EUR
     market_cap: Optional[int] = None
     revenue_growth_yoy: Optional[float] = None
     fcf_margin: Optional[float] = None
@@ -108,7 +111,10 @@ def _bounded(value: Optional[float], limit: float) -> Optional[float]:
 
 def evaluate(row: TickerData, benchmark: MonthlySeries, run_date: date) -> ScreenResult:
     """Aplica §1.1–§1.4 al cierre mensual de `run_date`."""
-    result = ScreenResult(ticker=row.ticker, name=row.name, exchange=row.exchange)
+    result = ScreenResult(
+        ticker=row.ticker, name=row.name, exchange=row.exchange, sector=row.sector,
+        currency=row.currency,
+    )
     t = ta.month_key(run_date)
 
     if row.error is not None or not row.closes:

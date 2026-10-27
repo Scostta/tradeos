@@ -4,7 +4,8 @@
  "name": "Alphabet Inc.",
  "exchange": "NMS",
  "currency": "USD",
- "market_cap_usd": 3874443231232.0,
+ "sector": "Communication Services",
+ "market_cap_usd": 4208075812430.1636,
  "income": {
   "Tax Effect Of Unusual Items": [
    4071984000.0,

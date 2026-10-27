@@ -74,6 +74,7 @@ def test_fixture_googl_passes(fixture_ticker, benchmark):
     assert result.passes and result.passes_fundamental and result.passes_technical
     assert result.months_listed >= 12 and result.market_cap > 2e9
     assert result.sma_exit is False
+    assert result.sector == "Communication Services"
 
 
 def test_fixture_aapl_fails_fundamental_only(fixture_ticker, benchmark):
@@ -130,13 +131,20 @@ def test_no_data():
     assert not (result.passes or result.passes_fundamental or result.passes_technical)
 
 
+def test_sector_is_copied_even_when_failing(fixture_ticker, benchmark):
+    result = evaluate(fixture_ticker("COST"), benchmark, FIXTURE_RUN_DATE)
+    assert not result.passes
+    assert result.to_db_row()["sector"] == "Consumer Defensive"
+    assert result.to_db_row()["currency"] == "USD"
+
+
 def test_empty_history_is_no_data():
     assert reasons(make_row(closes={})) == ["no_data"]
 
 
 def test_db_row_has_exactly_the_table_columns():
     columns = {
-        "ticker", "name", "exchange", "market_cap", "revenue_growth_yoy", "fcf_margin",
+        "ticker", "name", "exchange", "sector", "currency", "market_cap", "revenue_growth_yoy", "fcf_margin",
         "gross_margin", "gross_margin_prev", "net_debt_ebitda", "roic", "price", "sma10m",
         "momentum_12_1", "rel_strength_6m", "months_listed", "passes_fundamental",
         "passes_technical", "passes", "fail_reasons",

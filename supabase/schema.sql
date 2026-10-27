@@ -334,6 +334,8 @@ create table if not exists invest_screen_results (
   ticker              text not null,
   name                text,
   exchange            text,
+  sector              text,                   -- info.sector (§1.4: máx. 2 abiertas por sector)
+  currency            text,                   -- divisa de price (la app la pasa a EUR)
   market_cap          numeric(16,0),          -- en USD
   revenue_growth_yoy  numeric(8,4),
   fcf_margin          numeric(8,4),
@@ -410,6 +412,7 @@ alter table invest_settings enable row level security;
 create policy "Users manage own invest settings" on invest_settings
   for all using (auth.uid() = user_id);
 
+-- Benchmarks, tickers con alguna posición y pares FX EUR{divisa}=X (unidades por 1 EUR).
 create table if not exists invest_prices (
   ticker     text not null,
   month_end  date not null,

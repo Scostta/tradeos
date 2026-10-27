@@ -4,7 +4,8 @@
  "name": "Costco Wholesale Corporation",
  "exchange": "NMS",
  "currency": "USD",
- "market_cap_usd": 445415882752.0,
+ "sector": "Consumer Defensive",
+ "market_cap_usd": 403398383469.1064,
  "income": {
   "Tax Effect Of Unusual Items": [
    17043000.0,

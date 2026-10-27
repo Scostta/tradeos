@@ -62,9 +62,19 @@ estados financieros no se convierta en silencio en un fallo fundamental.
   o sea negativo.
 - Ratios redondeados a 4 decimales antes de aplicar umbrales (lo guardado
   reproduce la decisión); `|x| >= 10000` no cabe en `numeric(8,4)` → null.
-- **Market cap** en USD: `info.marketCap × FX` del cierre de `run_date`
-  (`EURUSD=X`, …). Las cotizadas en Londres declaran `GBp` pero Yahoo da su
-  marketCap en libras. Divisa sin tipo → null → falla `market_cap`.
+- **Market cap** en USD al cierre de `run_date`: `Close[t] ×
+  impliedSharesOutstanding × FX[t]` (`EURUSD=X`, …). No `info.marketCap`, que
+  va al precio del día en que corre el job; no `sharesOutstanding`, que cuenta
+  una sola clase de acción (GOOGL, BRK-B, RO.SW…). `Close` está ajustado por
+  splits pero no por dividendos. Las cotizadas en Londres cotizan en `GBp`:
+  precio / 100 y par GBP. Falta cualquier dato o divisa sin tipo → null →
+  falla `market_cap`.
+- **Sector**: `info.sector` tal cual, en `invest_screen_results.sector`. No es
+  una regla del screener; lo usa la app para el máximo de 2 posiciones
+  abiertas por sector (§1.4).
+- **Divisa**: `info.currency` en `invest_screen_results.currency`. El job
+  guarda en `invest_prices` los pares `EUR{divisa}=X` (unidades por 1 EUR)
+  para que la app valore el satélite en EUR (§5).
 - **Benchmark** de `rel_strength_6m`: el `benchmark_ticker` más usado en
   `invest_settings` (`IWDA.AS` si no hay filas). Si falta su cierre del mes, el
   job aborta antes de escribir.
