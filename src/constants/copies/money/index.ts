@@ -1,3 +1,4 @@
 export const MONEY = {
-  TITLE: "Money",
+  TITLE:    "Money",
+  SUBTITLE: "Personal finances",
 } as const
