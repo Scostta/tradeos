@@ -46,3 +46,17 @@ export function signColor(n: number | null): string {
   if (n == null || n === 0) return "text-text-dim"
   return n > 0 ? "text-profit" : "text-loss"
 }
+
+/** Importe en EUR: "€3,200", con signo opcional ("+€1,600" / "−€420"). */
+export function fmtEur(n: number | null, opts?: { sign?: boolean; decimals?: number }): string {
+  if (n == null) return DASH
+  const { sign = false, decimals = 0 } = opts ?? {}
+  const abs = Math.abs(n).toLocaleString("en-US", { minimumFractionDigits: decimals, maximumFractionDigits: decimals })
+  const shown = Number(n.toFixed(decimals))
+  if (shown < 0) return `−€${abs}`
+  return sign && shown > 0 ? `+€${abs}` : `€${abs}`
+}
+
+export function fmtShares(n: number): string {
+  return n.toLocaleString("en-US", { maximumFractionDigits: 4 })
+}

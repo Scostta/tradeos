@@ -3,7 +3,7 @@ import { INVEST } from "~/constants/copies/invest"
 import { getInvestSettings } from "~/services/queries/invest"
 import { ScreenTab } from "./components/screen-tab"
 import { SettingsButton } from "./components/settings-button.client"
-import { SettingsForm } from "./components/settings-form.client"
+import { InvestOnboarding } from "./components/invest-onboarding"
 
 export default async function InvestPage({
   searchParams,
@@ -35,16 +35,7 @@ export default async function InvestPage({
           <div className="card p-4 text-sm text-loss">{INVEST.SCREEN.LOAD_ERROR}</div>
         </div>
       ) : !settings ? (
-        // §4.1: sin invest_settings no se puede hacer nada más hasta rellenarlos.
-        <div className="flex-1 min-h-0 overflow-auto page-pad">
-          <div className="card p-6 flex flex-col gap-5 mx-auto" style={{ maxWidth: 560 }}>
-            <div>
-              <h2 className="text-lg font-semibold text-text">{INVEST.SETTINGS.ONBOARDING_TITLE}</h2>
-              <p className="text-md text-text-dim mt-1">{INVEST.SETTINGS.ONBOARDING_BODY}</p>
-            </div>
-            <SettingsForm settings={null} />
-          </div>
-        </div>
+        <InvestOnboarding />
       ) : (
         <>
           {/* El scroll va en un bloque normal: en un flex-col, las tarjetas con

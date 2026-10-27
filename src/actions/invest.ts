@@ -6,7 +6,11 @@ import { APP_URLS } from "~/constants/app-urls"
 import { getLatestRun, getPositions, getScreenResult } from "~/services/queries/invest"
 import { isCurrentMonthRun, openBlockers } from "~/lib/calculations/invest-run"
 import type { OpenBlocker } from "~/lib/calculations/invest-run"
-import { openInvestPositionInputSchema, saveInvestSettingsInputSchema } from "~/types/invest"
+import {
+  closeInvestPositionInputSchema,
+  openInvestPositionInputSchema,
+  saveInvestSettingsInputSchema,
+} from "~/types/invest"
 import { createDataResult, createErrorResult } from "~/helpers/result"
 import type { ResultType } from "~/helpers/result"
 
@@ -17,6 +21,9 @@ export type InvestActionError =
   | "NO_SETTINGS"
   | "NOT_IN_RUN"
   | "INVALID_DATE"
+  | "INVALID_CLOSE_DATE"
+  | "POSITION_NOT_FOUND"
+  | "NOT_OPEN"
   | "UNKNOWN"
 
 function todayUtc(): string {
@@ -123,5 +130,60 @@ export async function openInvestPosition(input: unknown): Promise<ResultType<{ i
   }
 
   revalidatePath(APP_URLS.INVEST)
+  revalidatePath(APP_URLS.INVEST_POSITIONS)
   return createDataResult({ id: inserted.id as string })
+}
+
+/**
+ * §4.3: cierra una posición abierta del usuario. La nota es obligatoria en
+ * falsifier (qué falsador saltó) y manual (motivo); lo exige el schema.
+ */
+export async function closeInvestPosition(input: unknown): Promise<ResultType<{ ok: true }, InvestActionError>> {
+  const parsed = closeInvestPositionInputSchema.safeParse(input)
+  if (!parsed.success) return createErrorResult("INVALID_INPUT")
+  const data = parsed.data
+
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return createErrorResult("UNAUTHENTICATED")
+
+  const { data: position, error: readError } = await supabase
+    .from("invest_positions")
+    .select("id, opened_at, closed_at")
+    .eq("id", data.positionId)
+    .eq("user_id", user.id)
+    .maybeSingle()
+  if (readError) {
+    console.error(readError)
+    return createErrorResult("UNKNOWN")
+  }
+  if (!position) return createErrorResult("POSITION_NOT_FOUND")
+  if (position.closed_at != null) return createErrorResult("NOT_OPEN")
+  if (data.closedAt < (position.opened_at as string) || data.closedAt > todayUtc()) {
+    return createErrorResult("INVALID_CLOSE_DATE")
+  }
+
+  const { data: updated, error } = await supabase
+    .from("invest_positions")
+    .update({
+      closed_at:   data.closedAt,
+      exit_price:  data.exitPrice,
+      fees_close:  data.feesClose,
+      exit_reason: data.exitReason,
+      exit_note:   data.exitNote || null,
+    })
+    .eq("id", data.positionId)
+    .eq("user_id", user.id)
+    .is("closed_at", null)   // otra pestaña pudo cerrarla entre la lectura y aquí
+    .select("id")
+
+  if (error) {
+    console.error(error)
+    return createErrorResult("UNKNOWN")
+  }
+  if (!updated || updated.length === 0) return createErrorResult("NOT_OPEN")
+
+  revalidatePath(APP_URLS.INVEST_POSITIONS)
+  revalidatePath(APP_URLS.INVEST)
+  return createDataResult({ ok: true })
 }

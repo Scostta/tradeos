@@ -4,6 +4,7 @@ import {
   mapInvestPositionFromDb,
   mapInvestPriceFromDb,
   mapInvestSettingsFromDb,
+  mapPositionCheckFromDb,
   mapScreenResultFromDb,
   mapScreenRunFromDb,
 } from "~/services/mappers/invest"
@@ -11,6 +12,7 @@ import type {
   InvestPositionWithMeta,
   InvestPrice,
   InvestSettings,
+  PositionCheck,
   ScreenResult,
   ScreenRun,
 } from "~/types/invest"
@@ -166,4 +168,32 @@ export async function getPricesFor(
     if ((data ?? []).length < FETCH_CHUNK) break
   }
   return createDataResult(rows)
+}
+
+export type LatestCheck = PositionCheck & { runDate: string }
+
+/** Último check (§2.6) de cada posición, por run_date. */
+export async function getLatestChecks(
+  positionIds: string[],
+): Promise<ResultType<Record<string, LatestCheck>, string>> {
+  if (positionIds.length === 0) return createDataResult({})
+  const supabase = await createClient()
+  const { data, error } = await supabase
+    .from("invest_position_checks")
+    .select("position_id, run_id, price, sma10m, signal, invest_screen_runs(run_date)")
+    .in("position_id", positionIds)
+
+  if (error) {
+    console.error(error)
+    return createErrorResult(error.message)
+  }
+  const latest: Record<string, LatestCheck> = {}
+  for (const row of data ?? []) {
+    const run = row.invest_screen_runs as unknown as { run_date: string } | null
+    if (!run) continue
+    const check = { ...mapPositionCheckFromDb(row), runDate: run.run_date }
+    const current = latest[check.positionId]
+    if (!current || current.runDate < check.runDate) latest[check.positionId] = check
+  }
+  return createDataResult(latest)
 }
