@@ -72,6 +72,9 @@ estados financieros no se convierta en silencio en un fallo fundamental.
 - **Sector**: `info.sector` tal cual, en `invest_screen_results.sector`. No es
   una regla del screener; lo usa la app para el máximo de 2 posiciones
   abiertas por sector (§1.4).
+- **invest_prices** guarda `adj_close` y `close` (sin ajustar por dividendos)
+  de la misma descarga mensual: la app usa `close` para el primer tramo del
+  total return y para el P&L latente de Positions (§5.1).
 - **Divisa**: `info.currency` en `invest_screen_results.currency`. El job
   guarda en `invest_prices` los pares `EUR{divisa}=X` (unidades por 1 EUR)
   para que la app valore el satélite en EUR (§5).

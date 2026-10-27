@@ -83,11 +83,20 @@ def months_before(d: date, months: int) -> date:
     return date.fromisoformat(ta.shift_month(ta.month_key(d), -months) + "-01")
 
 
-def price_rows(ticker: str, closes: dict[str, float]) -> list[dict[str, Any]]:
+def price_rows(
+    ticker: str, adj_closes: dict[str, float], closes: dict[str, float]
+) -> list[dict[str, Any]]:
+    """Filas de invest_prices: adj_close y close (sin ajustar; null si falta ese mes)."""
     rows = []
-    for key, value in sorted(closes.items()):
+    for key, value in sorted(adj_closes.items()):
         month_end = last_business_day(int(key[:4]), int(key[5:7]))
-        rows.append({"ticker": ticker, "month_end": month_end.isoformat(), "adj_close": round(value, 4)})
+        close = closes.get(key)
+        rows.append({
+            "ticker": ticker,
+            "month_end": month_end.isoformat(),
+            "adj_close": round(value, 4),
+            "close": None if close is None else round(close, 4),
+        })
     return rows
 
 
@@ -255,10 +264,10 @@ def run(
         starts.setdefault(pair, earliest)
     for ticker, start in sorted(starts.items()):
         try:
-            closes = yahoo.fetch_monthly(ticker, t, start=months_before(start, PRICE_LOOKBACK_MONTHS))
+            adj, closes = yahoo.fetch_monthly_prices(ticker, t, start=months_before(start, PRICE_LOOKBACK_MONTHS))
         except Exception as exc:  # noqa: BLE001 — un ticker sin precios no tumba el run
             log.warning("invest_prices %s: %s", ticker, exc)
             continue
-        client.insert_chunked("invest_prices", price_rows(ticker, closes), on_conflict="ticker,month_end")
+        client.insert_chunked("invest_prices", price_rows(ticker, adj, closes), on_conflict="ticker,month_end")
 
     return outcome

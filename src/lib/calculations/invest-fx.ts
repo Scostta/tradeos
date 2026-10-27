@@ -40,24 +40,36 @@ export function monthRange(from: MonthKey, to: MonthKey): MonthKey[] {
 
 export type PriceIndex = {
   closes:    Map<string, Map<MonthKey, number>>   // ticker → mes → adj_close
+  rawCloses: Map<string, Map<MonthKey, number>>   // ticker → mes → close sin ajustar
   monthEnds: Map<MonthKey, string>                // mes → month_end (último día hábil)
 }
 
 export function buildPriceIndex(prices: InvestPrice[]): PriceIndex {
   const closes = new Map<string, Map<MonthKey, number>>()
+  const rawCloses = new Map<string, Map<MonthKey, number>>()
   const monthEnds = new Map<MonthKey, string>()
+  const put = (map: Map<string, Map<MonthKey, number>>, ticker: string, key: MonthKey, v: number) => {
+    let byMonth = map.get(ticker)
+    if (!byMonth) map.set(ticker, (byMonth = new Map()))
+    byMonth.set(key, v)
+  }
   for (const p of prices) {
     const key = monthKey(p.monthEnd)
-    let byMonth = closes.get(p.ticker)
-    if (!byMonth) closes.set(p.ticker, (byMonth = new Map()))
-    byMonth.set(key, p.adjClose)
+    put(closes, p.ticker, key, p.adjClose)
+    if (p.close != null) put(rawCloses, p.ticker, key, p.close)
     monthEnds.set(key, p.monthEnd)
   }
-  return { closes, monthEnds }
+  return { closes, rawCloses, monthEnds }
 }
 
+/** adj_close del mes. */
 export function closeAt(index: PriceIndex, ticker: string, month: MonthKey): number | null {
   return index.closes.get(ticker)?.get(month) ?? null
+}
+
+/** Cierre sin ajustar del mes (null en filas anteriores a la columna close). */
+export function rawCloseAt(index: PriceIndex, ticker: string, month: MonthKey): number | null {
+  return index.rawCloses.get(ticker)?.get(month) ?? null
 }
 
 /**

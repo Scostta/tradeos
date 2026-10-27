@@ -70,7 +70,13 @@ def offline(monkeypatch, benchmark):
             return {"2026-08": 1.1, "2026-09": 1.2}
         return dict(benchmark) if ticker == "IWDA.AS" else dict(load_ticker(ticker).closes)
 
+    def fetch_monthly_prices(ticker, through, start=None):
+        adj = fetch_monthly(ticker, through, start)
+        # Sin ajustar: algo por encima del ajustado (dividendos posteriores), salvo FX.
+        return adj, {k: v if ticker.endswith("=X") else v * 1.01 for k, v in adj.items()}
+
     monkeypatch.setattr(job.yahoo, "fetch_monthly", fetch_monthly)
+    monkeypatch.setattr(job.yahoo, "fetch_monthly_prices", fetch_monthly_prices)
     monkeypatch.setattr(job.yahoo, "load_fx_rates", lambda through: {"USD": 1.0})
     monkeypatch.setattr(job.uv, "sp500_tickers", lambda: ["GOOGL", "AAPL"])
     monkeypatch.setattr(job.uv, "extra_tickers", lambda: ["AAPL"])
@@ -126,7 +132,10 @@ def test_run_writes_run_results_checks_and_prices(offline):
     }
     priced = {p["ticker"] for p in client.tables["invest_prices"]}
     assert priced == {"IWDA.AS", "COST", "GOOGL", "AAPL"} | fx_pairs
-    assert {"ticker": "EURUSD=X", "month_end": "2026-09-30", "adj_close": 1.2} in client.tables["invest_prices"]
+    assert {"ticker": "EURUSD=X", "month_end": "2026-09-30", "adj_close": 1.2, "close": 1.2} in client.tables["invest_prices"]
+    # El cierre sin ajustar se guarda junto al ajustado.
+    googl_sep = next(p for p in client.tables["invest_prices"] if p["ticker"] == "GOOGL" and p["month_end"] == "2026-09-30")
+    assert abs(googl_sep["close"] - googl_sep["adj_close"] * 1.01) < 1e-3
     assert {"ticker": "IWDA.AS", "month_end": "2026-09-30"} in [
         {k: p[k] for k in ("ticker", "month_end")} for p in client.tables["invest_prices"]
     ]
@@ -180,10 +189,10 @@ def test_summary_has_counts_but_no_user_ids(offline):
 
 
 def test_price_rows_use_last_business_day():
-    rows = job.price_rows("X", {"2026-05": 10.123456, "2029-03": 20.0})
+    rows = job.price_rows("X", {"2026-05": 10.123456, "2029-03": 20.0}, {"2026-05": 10.5})
     assert rows == [
-        {"ticker": "X", "month_end": "2026-05-29", "adj_close": 10.1235},
-        {"ticker": "X", "month_end": "2029-03-29", "adj_close": 20.0},
+        {"ticker": "X", "month_end": "2026-05-29", "adj_close": 10.1235, "close": 10.5},
+        {"ticker": "X", "month_end": "2029-03-29", "adj_close": 20.0, "close": None},
     ]
 
 

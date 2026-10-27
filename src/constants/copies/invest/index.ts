@@ -76,6 +76,7 @@ export const INVEST = {
   PERFORMANCE: {
     TITLE:          "Performance",
     SUBTITLE:       "Satellite vs benchmark · TWR in EUR",
+    HEADER_NOTE:    "Measured as total return (dividends included), so it can differ from the P&L in Positions, which is what you would get selling today.",
     LOAD_ERROR:     "Could not load the performance data.",
     PAPER_TITLE:    "Paper mode",
     PAPER_BODY:     "The 36-month test starts the day you open your first position with real money. Until then there is nothing to measure.",

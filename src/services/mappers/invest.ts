@@ -104,5 +104,6 @@ export function mapInvestPriceFromDb(row: Record<string, unknown>): InvestPrice 
     ticker:   row["ticker"],
     monthEnd: row["month_end"],
     adjClose: row["adj_close"],
+    close:    row["close"] ?? null,
   })
 }

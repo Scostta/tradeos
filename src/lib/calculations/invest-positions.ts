@@ -1,4 +1,4 @@
-import { EUR_FX_TICKERS, PRICE_UNIT, closeAt, monthKey } from "./invest-fx"
+import { EUR_FX_TICKERS, PRICE_UNIT, monthKey, rawCloseAt } from "./invest-fx"
 import type { MonthKey, PriceIndex } from "./invest-fx"
 import { spanishSavingsTax } from "./invest-tax"
 import type { InvestPosition } from "~/types/invest"
@@ -10,9 +10,9 @@ export type ValuedPosition = Pick<
   "id" | "ticker" | "openedAt" | "entryPrice" | "shares" | "feesOpen" | "closedAt" | "exitPrice" | "feesClose"
 > & { currency: string | null }
 
-/** Último mes con cierre de `ticker` en invest_prices. */
+/** Último mes con cierre sin ajustar de `ticker` en invest_prices. */
 export function lastMonthOf(index: PriceIndex, ticker: string): MonthKey | null {
-  const months = index.closes.get(ticker)
+  const months = index.rawCloses.get(ticker)
   if (!months || months.size === 0) return null
   return [...months.keys()].sort().at(-1) ?? null
 }
@@ -37,10 +37,10 @@ export function eurPerUnitAtOrBefore(currency: string | null, month: MonthKey, i
 
 export type OpenValuation = {
   costEur:   number | null
-  lastPrice: number | null      // adj close del último mes, divisa de cotización
+  lastPrice: number | null      // close sin ajustar del último mes, divisa de cotización
   lastMonth: MonthKey | null
   valueEur:  number | null
-  pnlEur:    number | null      // latente, sin comisiones
+  pnlEur:    number | null      // latente: lo que tendría si vendiera hoy, sin comisiones
   pnlPct:    number | null
 }
 
@@ -48,7 +48,8 @@ export function valueOpenPosition(p: ValuedPosition, index: PriceIndex): OpenVal
   const fxOpen = eurPerUnitAtOrBefore(p.currency, monthKey(p.openedAt), index)
   const costEur = fxOpen == null ? null : p.shares * p.entryPrice * fxOpen
   const lastMonth = lastMonthOf(index, p.ticker)
-  const lastPrice = lastMonth ? closeAt(index, p.ticker, lastMonth) : null
+  // "Lo que tendría si vendiera hoy": último cierre real, no el ajustado (§5.1).
+  const lastPrice = lastMonth ? rawCloseAt(index, p.ticker, lastMonth) : null
   const fxLast = lastMonth ? eurPerUnitAtOrBefore(p.currency, lastMonth, index) : null
   const valueEur = lastPrice != null && fxLast != null ? p.shares * lastPrice * fxLast : null
   const pnlEur = valueEur != null && costEur != null ? valueEur - costEur : null

@@ -1,4 +1,4 @@
-import { buildPriceIndex, closeAt, eurPerUnit, monthKey, monthRange, shiftMonth } from "./invest-fx"
+import { buildPriceIndex, closeAt, eurPerUnit, monthKey, monthRange, rawCloseAt, shiftMonth } from "./invest-fx"
 import type { MonthKey, PriceIndex } from "./invest-fx"
 import { spanishSavingsTax } from "./invest-tax"
 import type { InvestPosition, InvestPrice, InvestSettings } from "~/types/invest"
@@ -12,11 +12,13 @@ import type { InvestPosition, InvestPrice, InvestSettings } from "~/types/invest
 // r = V_end / V_start − 1. Aperturas y cierres se pasan a EUR con el FX del
 // cierre del mes en que ocurren (todo es cierre mensual, §9).
 //
-// Total return implícito: una posición vale su coste de entrada (en su
-// divisa) × adj_close(m) / adj_close(mes de apertura), abierta o al cerrar.
-// La serie ajustada incluye los dividendos, como el benchmark de
-// acumulación; los dividendos cobrados no se registran. El precio real de
-// salida solo se usa para el P&L realizado y el impuesto (§5.2).
+// Total return implícito: una posición vale
+//   acciones × close(mes de apertura) × adj_close(m) / adj_close(mes de apertura)
+// abierta o al cerrar. El primer tramo (compra → primer cierre mensual) va con
+// el cierre real sin ajustar; desde ahí, la serie ajustada, que incluye los
+// dividendos como el benchmark de acumulación. Los dividendos cobrados no se
+// registran. El precio real de salida solo se usa para el P&L realizado y el
+// impuesto (§5.2).
 //
 // Si falta un precio o un FX necesario, la serie se corta en el último mes
 // completo: no se inventa un valor.
@@ -75,8 +77,9 @@ export function satelliteMonthlyReturns(
       if (eventMonth(p.openedAt) !== month) continue
       const fx = eurPerUnit(p.currency, month, index)
       const anchor = closeAt(index, p.ticker, month)
-      if (fx == null || anchor == null || anchor <= 0) { missing = true; break }
-      const entry: Entry = { costLocal: p.shares * p.entryPrice, costEur: p.shares * p.entryPrice * fx, anchor }
+      const rawOpen = rawCloseAt(index, p.ticker, month)
+      if (fx == null || anchor == null || anchor <= 0 || rawOpen == null) { missing = true; break }
+      const entry: Entry = { baseLocal: p.shares * rawOpen, costEur: p.shares * p.entryPrice * fx, anchor }
       entries.set(p, entry)
       cash.gross   -= entry.costEur
       cash.netFees -= entry.costEur + p.feesOpen
@@ -137,17 +140,17 @@ export function satelliteMonthlyReturns(
 }
 
 type Entry = {
-  costLocal: number   // acciones × precio de entrada, divisa de cotización
-  costEur:   number
+  baseLocal: number   // acciones × close sin ajustar del mes de apertura, divisa de cotización
+  costEur:   number   // coste real (precio de entrada) en EUR
   anchor:    number   // adj_close del mes de apertura
 }
 
-/** Coste de entrada × adj(m) / adj(apertura), en EUR con el FX de m. */
+/** acciones × close(apertura) × adj(m) / adj(apertura), en EUR con el FX de m. */
 function totalReturnValue(p: PerfPosition, entry: Entry, month: MonthKey, index: PriceIndex): number | null {
   const close = closeAt(index, p.ticker, month)
   const fx = eurPerUnit(p.currency, month, index)
   if (close == null || fx == null) return null
-  return entry.costLocal * (close / entry.anchor) * fx
+  return entry.baseLocal * (close / entry.anchor) * fx
 }
 
 /**

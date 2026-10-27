@@ -125,6 +125,7 @@ export const investPriceSchema = z.object({
   ticker:    z.string(),
   monthEnd:  isoDate,
   adjClose:  z.number(),
+  close:     z.number().nullable(),   // sin ajustar por dividendos (§5.1)
 })
 export type InvestPrice = z.infer<typeof investPriceSchema>
 

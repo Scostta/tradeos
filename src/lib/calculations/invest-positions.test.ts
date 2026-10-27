@@ -8,11 +8,12 @@ import {
 } from "./invest-positions"
 import type { ValuedPosition } from "./invest-positions"
 
+// MU: cierre sin ajustar por encima del ajustado (dividendo posterior).
 const index = buildPriceIndex([
-  { ticker: "EURUSD=X", monthEnd: "2026-09-30", adjClose: 1.25 },
-  { ticker: "EURUSD=X", monthEnd: "2026-11-30", adjClose: 1.0 },
-  { ticker: "MU", monthEnd: "2026-10-30", adjClose: 1100 },
-  { ticker: "MU", monthEnd: "2026-11-30", adjClose: 1200 },
+  { ticker: "EURUSD=X", monthEnd: "2026-09-30", adjClose: 1.25, close: 1.25 },
+  { ticker: "EURUSD=X", monthEnd: "2026-11-30", adjClose: 1.0, close: 1.0 },
+  { ticker: "MU", monthEnd: "2026-10-30", adjClose: 1098, close: 1100 },
+  { ticker: "MU", monthEnd: "2026-11-30", adjClose: 1197, close: 1200 },
 ])
 
 const MU: ValuedPosition = {
@@ -32,14 +33,24 @@ describe("eurPerUnitAtOrBefore", () => {
 })
 
 describe("valueOpenPosition", () => {
-  it("coste con el FX de la apertura y valor con el último cierre", () => {
+  it("P&L latente = acciones × último cierre REAL − coste real (lo que tendría si vendiera hoy)", () => {
     const v = valueOpenPosition(MU, index)
     expect(v.costEur).toBeCloseTo(4 * 1000 * 0.8, 9)        // 3 200 €
     expect(v.lastMonth).toBe("2026-11")
-    expect(v.lastPrice).toBe(1200)
+    expect(v.lastPrice).toBe(1200)                          // close, no el adj (1 197)
     expect(v.valueEur).toBeCloseTo(4 * 1200 * 1.0, 9)      // 4 800 €
     expect(v.pnlEur).toBeCloseTo(1600, 9)
     expect(v.pnlPct).toBeCloseTo(0.5, 12)
+  })
+
+  it("filas sin close (anteriores a la columna): sin último precio", () => {
+    const old = buildPriceIndex([
+      { ticker: "EURUSD=X", monthEnd: "2026-09-30", adjClose: 1.25, close: 1.25 },
+      { ticker: "MU", monthEnd: "2026-11-30", adjClose: 1197, close: null },
+    ])
+    const v = valueOpenPosition(MU, old)
+    expect(v.lastPrice).toBeNull()
+    expect(v.pnlEur).toBeNull()
   })
 
   it("sin precios del ticker todavía: valor y P&L null", () => {

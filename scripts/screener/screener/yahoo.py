@@ -110,9 +110,7 @@ def statement_to_dict(df: Optional[pd.DataFrame]) -> dict[str, list[Optional[flo
     }
 
 
-def fetch_monthly(ticker: str, through: str, start: Optional[date] = None) -> dict[str, float]:
-    """Cierres mensuales ajustados. Sin `start`: period="2y" (§3.2)."""
-
+def _monthly_history(ticker: str, start: Optional[date]) -> pd.DataFrame:
     def download() -> pd.DataFrame:
         tk = yf.Ticker(ticker)
         if start is None:
@@ -121,7 +119,24 @@ def fetch_monthly(ticker: str, through: str, start: Optional[date] = None) -> di
             start=start.isoformat(), interval="1mo", auto_adjust=False, raise_errors=True
         )
 
-    return monthly_closes(with_retry(download, ticker), through)
+    return with_retry(download, ticker)
+
+
+def fetch_monthly(ticker: str, through: str, start: Optional[date] = None) -> dict[str, float]:
+    """Cierres mensuales ajustados. Sin `start`: period="2y" (§3.2)."""
+    return monthly_closes(_monthly_history(ticker, start), through)
+
+
+def fetch_monthly_prices(
+    ticker: str, through: str, start: Optional[date] = None
+) -> tuple[dict[str, float], dict[str, float]]:
+    """(Adj Close, Close) mensuales de una sola descarga, para invest_prices.
+
+    Close (ajustado por splits, no por dividendos) lo usa la app para el primer
+    tramo del total return y para el P&L latente de Positions (§5.1).
+    """
+    history = _monthly_history(ticker, start)
+    return monthly_closes(history, through), monthly_closes(history, through, CLOSE)
 
 
 def load_fx_rates(through: str) -> dict[str, float]:

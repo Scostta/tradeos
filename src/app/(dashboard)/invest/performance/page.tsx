@@ -72,6 +72,7 @@ export default async function InvestPerformancePage(): Promise<ReactElement> {
         <div>
           <h1 className="text-xl font-semibold tracking-tight text-text">{P.TITLE}</h1>
           <div className="mono text-sm text-text-mute mt-0.5">{P.SUBTITLE}</div>
+          <div className="text-sm text-text-mute mt-1">{P.HEADER_NOTE}</div>
         </div>
         {settings && (
           <div className="ml-auto">

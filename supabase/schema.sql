@@ -429,6 +429,7 @@ create table if not exists invest_prices (
   ticker     text not null,
   month_end  date not null,
   adj_close  numeric(12,4) not null,
+  close      numeric(12,4),           -- sin ajustar por dividendos (§5.1)
   primary key (ticker, month_end)
 );
 

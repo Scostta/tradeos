@@ -23,8 +23,8 @@ describe("suggestedPositionSize", () => {
 
 describe("eurPerUnit", () => {
   const index = buildPriceIndex([
-    { ticker: "EURUSD=X", monthEnd: "2026-09-30", adjClose: 1.25 },
-    { ticker: "EURGBP=X", monthEnd: "2026-09-30", adjClose: 0.8 },
+    { ticker: "EURUSD=X", monthEnd: "2026-09-30", adjClose: 1.25, close: 1.25 },
+    { ticker: "EURGBP=X", monthEnd: "2026-09-30", adjClose: 0.8, close: 0.8 },
   ])
 
   it("EUR es 1; USD divide por EURUSD; GBp además entre 100", () => {

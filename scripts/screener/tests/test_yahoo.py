@@ -186,3 +186,11 @@ def test_market_cap_converts_pence_and_fx():
 )
 def test_market_cap_missing_input_is_null(info, close, rates):
     assert yahoo.market_cap_usd(info, close, rates) is None
+
+
+def test_fetch_monthly_prices_returns_adjusted_and_raw_from_one_download(monkeypatch, sleeps):
+    created = fake_ticker_factory(monkeypatch, [])
+    adj, raw = yahoo.fetch_monthly_prices("MU", "2026-09")
+    assert adj == {"2026-08": 10.0, "2026-09": 11.0}
+    assert raw == {"2026-08": 10.2, "2026-09": 11.1}
+    assert created == ["MU"]

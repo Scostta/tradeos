@@ -21,8 +21,11 @@ const MONTH_ENDS: Record<string, string> = {
   "2026-06": "2026-06-30",
 }
 
-function series(ticker: string, closes: Record<string, number>): InvestPrice[] {
-  return Object.entries(closes).map(([m, adjClose]) => ({ ticker, monthEnd: MONTH_ENDS[m], adjClose }))
+/** Serie mensual; sin `raw`, el cierre sin ajustar es igual al ajustado (sin dividendos posteriores). */
+function series(ticker: string, closes: Record<string, number>, raw: Record<string, number> = {}): InvestPrice[] {
+  return Object.entries(closes).map(([m, adjClose]) => ({
+    ticker, monthEnd: MONTH_ENDS[m], adjClose, close: raw[m] ?? adjClose,
+  }))
 }
 
 const PRICES: InvestPrice[] = [
@@ -55,20 +58,21 @@ const BBB: PerfPosition = {
 
 const BBB_COST = 5000 / 1.1   // 4 545,4545 €
 
-// Total return implícito: coste de entrada × adj(m) / adj(mes de apertura).
-const aaa = (adj: number) => 4000 * adj / 110            // ancla: adj de enero = 110
-const bbb = (adj: number, fx: number) => 5000 * adj / 55 / fx   // ancla: adj de marzo = 55
+// Total return implícito: acciones × close(apertura) × adj(m) / adj(apertura).
+// Aquí close = adj (sin dividendos posteriores), así que se reduce a acciones × adj(m).
+const aaa = (adj: number) => 40 * adj
+const bbb = (adj: number, fx: number) => 100 * adj / fx
 
 describe("satelliteMonthlyReturns", () => {
   // Valores a fin de mes calculados a mano (caja + posiciones en EUR).
-  //            caja bruta                     posiciones                                   V bruto
-  // 2025-12    20 000                         —                                            20 000
-  // 2026-01    16 000                         AAA 4 000 × 110/110 = 4 000                  20 000    (apertura AAA)
-  // 2026-02    16 000                         AAA 4 000 × 120/110 = 4 363,64               20 363,64 (sin movimientos)
-  // 2026-03    16 000 − 4 545,45              AAA 4 545,45 + BBB 5 000 × 55/55 / 1,1        20 545,45 (apertura BBB)
-  // 2026-04    11 454,55 + 4 000 × 128/110    BBB 5 000 × 60/55 / 1,2 = 4 545,45           20 654,55 (cierre AAA)
-  // 2026-05    16 109,09                      BBB 5 000 × 66/55 / 1,1 = 5 454,55           21 563,64
-  // 2026-06    16 109,09                      BBB 5 000 × 60/55 / 1,2 = 4 545,45           20 654,55
+  //            caja bruta                 posiciones                         V bruto
+  // 2025-12    20 000                     —                                  20 000
+  // 2026-01    16 000                     AAA 40 × 110 = 4 400               20 400    (apertura AAA)
+  // 2026-02    16 000                     AAA 40 × 120 = 4 800               20 800    (sin movimientos)
+  // 2026-03    16 000 − 4 545,45          AAA 5 000 + BBB 100 × 55 / 1,1     21 454,55 (apertura BBB)
+  // 2026-04    11 454,55 + 40 × 128       BBB 100 × 60 / 1,2 = 5 000         21 574,55 (cierre AAA)
+  // 2026-05    16 574,55                  BBB 100 × 66 / 1,1 = 6 000         22 574,55
+  // 2026-06    16 574,55                  BBB 100 × 60 / 1,2 = 5 000         21 574,55
   const gross = [
     20_000,
     16_000 + aaa(110),
@@ -93,21 +97,25 @@ describe("satelliteMonthlyReturns", () => {
     ])
   })
 
+  it("el primer tramo (compra → primer cierre mensual) cuenta", () => {
+    // AAA compra a 100 y cierra enero a 110: 20 400 / 20 000.
+    expect(result[0].gross).toBeCloseTo(0.02, 10)
+  })
+
   it("bruto: caja + posiciones a total return, aperturas y cierres internos", () => {
-    expect(result[0].gross).toBeCloseTo(0, 10)                          // el mes de apertura es el ancla
-    expect(result[1].gross).toBeCloseTo((16_000 + aaa(120)) / 20_000 - 1, 10)   // mes sin movimientos
+    expect(result[1].gross).toBeCloseTo(20_800 / 20_400 - 1, 10)   // mes sin movimientos
     for (let i = 1; i <= 6; i++) expect(result[i - 1].gross).toBeCloseTo(ret(gross, i), 10)
   })
 
   it("el cierre entra a total return, no al precio real de salida", () => {
-    // Abril: AAA cierra a 130 reales (5 200 €) pero suma 4 000 × 128/110 = 4 654,55 €.
+    // Abril: AAA cierra a 130 reales (5 200 €) pero suma 40 × 128 = 5 120 €.
     expect(gross[4] - gross[3]).toBeCloseTo(aaa(128) - aaa(125) + bbb(60, 1.2) - bbb(55, 1.1), 8)
     expect(result[3].gross).toBeCloseTo(ret(gross, 4), 10)
   })
 
   it("neto de comisiones", () => {
     const net = gross.map((v, i) => v - fees[i])
-    expect(result[0].netFees).toBeCloseTo(-0.0005, 10)                  // 19 990 / 20 000
+    expect(result[0].netFees).toBeCloseTo(0.0195, 10)                   // 20 390 / 20 000
     for (let i = 1; i <= 6; i++) expect(result[i - 1].netFees).toBeCloseTo(ret(net, i), 10)
   })
 
@@ -123,7 +131,7 @@ describe("satelliteMonthlyReturns", () => {
       feesOpen: 0, closedAt: "2026-06-15", exitPrice: 30, feesClose: 0,
     }
     const r = satelliteMonthlyReturns([AAA, loser], PRICES, SETTINGS, "2026-06")
-    // Junio: BBB cierra a total return (5 000 × 60/55 / 1,2, igual que si siguiera abierta).
+    // Junio: BBB cierra a total return (100 × 60 / 1,2, igual que si siguiera abierta).
     // Pérdida real = 100 × 30 / 1,2 − 4 545,45 = −2 045,45 → año en negativo → impuesto 0:
     // se devuelven los 224,20 € de abril.
     const vMayFees = gross[5] - 20
@@ -133,11 +141,12 @@ describe("satelliteMonthlyReturns", () => {
   })
 
   it("dividendo en el periodo: el satélite lo recoge vía adj_close aunque la salida real sea igual a la entrada", () => {
-    // DIV paga un dividendo en febrero: Yahoo ajusta hacia atrás y el adj de enero queda en 95.
-    // Compra 10 a 100 € (enero) y vende 10 a 100 € (marzo): sin ganancia real, sin impuesto.
+    // DIV paga un dividendo en febrero: Yahoo ajusta hacia atrás y el adj de enero queda en 95,
+    // con cierre real de enero en 100. Compra 10 a 100 € (enero) y vende 10 a 100 € (marzo):
+    // sin ganancia real, sin impuesto.
     const prices: InvestPrice[] = [
       ...PRICES,
-      ...series("DIV.AS", { "2026-01": 95, "2026-02": 97, "2026-03": 100 }),
+      ...series("DIV.AS", { "2026-01": 95, "2026-02": 97, "2026-03": 100 }, { "2026-01": 100 }),
     ]
     const div: PerfPosition = {
       ticker: "DIV.AS", currency: "EUR", openedAt: "2026-01-10", entryPrice: 100, shares: 10,
@@ -145,11 +154,32 @@ describe("satelliteMonthlyReturns", () => {
     }
     const r = satelliteMonthlyReturns([div], prices, SETTINGS, "2026-03")
     const total = chainReturns(r.map(x => x.gross)).at(-1)! / 100 - 1
-    // (19 000 + 1 000 × 100/95) / 20 000 − 1 = +0,263 %
+    // 10 × 100 × 100/95 = 1 052,63 → (19 000 + 1 052,63) / 20 000 − 1 = +0,263 %
     expect(total).toBeCloseTo((19_000 + 1_000 * 100 / 95) / 20_000 - 1, 10)
     expect(r[1].gross).toBeCloseTo((19_000 + 1_000 * 97 / 95) / 20_000 - 1, 10)
     // Impuesto sobre la ganancia real (0): neto de impuestos = neto de comisiones = bruto.
     expect(r.map(x => x.netTax)).toEqual(r.map(x => x.gross))
+  })
+
+  it("primer tramo con dividendo posterior: se valora con el cierre real, no con el ajustado", () => {
+    // Compra a 98; cierre real de enero 100 (adj 95 por el dividendo de febrero).
+    // Enero vale 10 × 100 = 1 000 (no 10 × 95 = 950): (19 020 + 1 000) / 20 000 − 1 = +0,1 %.
+    const prices: InvestPrice[] = [
+      ...PRICES,
+      ...series("DIV.AS", { "2026-01": 95, "2026-02": 97 }, { "2026-01": 100 }),
+    ]
+    const div: PerfPosition = {
+      ticker: "DIV.AS", currency: "EUR", openedAt: "2026-01-10", entryPrice: 98, shares: 10,
+      feesOpen: 0, closedAt: null, exitPrice: null, feesClose: 0,
+    }
+    const r = satelliteMonthlyReturns([div], prices, SETTINGS, "2026-02")
+    expect(r[0].gross).toBeCloseTo((20_000 - 980 + 1_000) / 20_000 - 1, 10)
+    expect(r[1].gross).toBeCloseTo((19_020 + 1_000 * 97 / 95) / 20_020 - 1, 10)
+  })
+
+  it("sin cierre real del mes de apertura (filas antiguas) la serie se corta", () => {
+    const withoutRaw = PRICES.map(p => (p.ticker === "AAA.AS" && p.monthEnd === "2026-01-30" ? { ...p, close: null } : p))
+    expect(satelliteMonthlyReturns([AAA], withoutRaw, SETTINGS, "2026-06")).toEqual([])
   })
 
   it("se corta en el último mes con todos los precios", () => {
