@@ -320,3 +320,4 @@ Commit por paso. Lint, `npm test` y `pytest` en verde antes de cada commit. Aña
 | 2026-10-27 | 5 | Divisa base EUR: posiciones, aperturas y cierres se pasan a EUR con el cierre mensual del par; comisiones en EUR. |
 | 2026-10-27 | 5.1 | TWR con caja + posiciones: aperturas y cierres son movimientos internos (sin flujos externos), `r = V_end / V_start − 1`; la caja sin invertir rinde 0. `netTax` resta el impuesto en el mes de cada cierre (recalculado sobre el año en curso). |
 | 2026-10-27 | 5.2 | Tramos por encima de 200.000 €: 27 % hasta 300.000 y 28 % el resto (ley vigente). |
+| 2026-10-27 | 4.4 | `openInvestPosition` exige además `run_date < opened_at ≤ hoy` (se decide con el run del mes, sin fechas futuras). Las reglas de bloqueo (run del mes, aprobado, máx. posiciones, ticker abierto, sector) viven en `openBlockers()` y las comparten el botón y la action. |

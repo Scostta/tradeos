@@ -5,7 +5,6 @@ import { z } from "zod"
 // leen sus resultados. Los límites de §1.4 (posiciones, sector, ticker
 // repetido) sí se validan en openInvestPosition.
 
-export const MAX_OPEN_PER_SECTOR = 2
 export const THESIS_MIN_LENGTH = 200
 export const FALSIFIER_MIN_LENGTH = 30
 export const MIN_FALSIFIERS = 2
