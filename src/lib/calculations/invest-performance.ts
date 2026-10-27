@@ -7,10 +7,16 @@ import type { InvestPosition, InvestPrice, InvestSettings } from "~/types/invest
 //
 // El satélite arranca como caja = total_portfolio_value × satellite_pct al
 // cierre del mes anterior a started_at (base 100). Valor a fin de mes:
-// V = caja + Σ acciones × adj_close × FX. Abrir y cerrar son movimientos
-// internos (caja ↔ acciones), sin flujos externos: r = V_end / V_start − 1.
-// Aperturas y cierres se pasan a EUR con el FX del cierre del mes en que
-// ocurren (todo es cierre mensual, §9).
+// V = caja + Σ valor de las posiciones abiertas. Abrir y cerrar son
+// movimientos internos (caja ↔ acciones), sin flujos externos:
+// r = V_end / V_start − 1. Aperturas y cierres se pasan a EUR con el FX del
+// cierre del mes en que ocurren (todo es cierre mensual, §9).
+//
+// Total return implícito: una posición vale su coste de entrada (en su
+// divisa) × adj_close(m) / adj_close(mes de apertura), abierta o al cerrar.
+// La serie ajustada incluye los dividendos, como el benchmark de
+// acumulación; los dividendos cobrados no se registran. El precio real de
+// salida solo se usa para el P&L realizado y el impuesto (§5.2).
 //
 // Si falta un precio o un FX necesario, la serie se corta en el último mes
 // completo: no se inventa un valor.
@@ -52,7 +58,7 @@ export function satelliteMonthlyReturns(
 
   const start = settings.totalPortfolioValue * settings.satellitePct
   const cash: Ledger = { gross: start, netFees: start, netTax: start }
-  const costEur = new Map<PerfPosition, number>()
+  const entries = new Map<PerfPosition, Entry>()
   const gainsByYear = new Map<string, number>()
   const taxByYear = new Map<string, number>()
 
@@ -68,28 +74,31 @@ export function satelliteMonthlyReturns(
     for (const p of positions) {
       if (eventMonth(p.openedAt) !== month) continue
       const fx = eurPerUnit(p.currency, month, index)
-      if (fx == null) { missing = true; break }
-      const cost = p.shares * p.entryPrice * fx
-      costEur.set(p, cost)
-      cash.gross   -= cost
-      cash.netFees -= cost + p.feesOpen
-      cash.netTax  -= cost + p.feesOpen
+      const anchor = closeAt(index, p.ticker, month)
+      if (fx == null || anchor == null || anchor <= 0) { missing = true; break }
+      const entry: Entry = { costLocal: p.shares * p.entryPrice, costEur: p.shares * p.entryPrice * fx, anchor }
+      entries.set(p, entry)
+      cash.gross   -= entry.costEur
+      cash.netFees -= entry.costEur + p.feesOpen
+      cash.netTax  -= entry.costEur + p.feesOpen
     }
     if (missing) break
 
     for (const p of positions) {
       if (p.closedAt == null || p.exitPrice == null || eventMonth(p.closedAt) !== month) continue
+      const entry = entries.get(p)
+      const value = entry ? totalReturnValue(p, entry, month, index) : null
       const fx = eurPerUnit(p.currency, month, index)
-      const cost = costEur.get(p)
-      if (fx == null || cost == null) { missing = true; break }
-      const proceeds = p.shares * p.exitPrice * fx
-      cash.gross   += proceeds
-      cash.netFees += proceeds - p.feesClose
-      cash.netTax  += proceeds - p.feesClose
+      if (entry == null || value == null || fx == null) { missing = true; break }
+      cash.gross   += value
+      cash.netFees += value - p.feesClose
+      cash.netTax  += value - p.feesClose
 
-      // §5.2: impuesto del año recalculado tras cada cierre; se resta la diferencia.
+      // §5.2: impuesto sobre la ganancia real (precio de salida), recalculado
+      // para el año tras cada cierre; se resta la diferencia.
+      const proceeds = p.shares * p.exitPrice * fx
       const year = p.closedAt.slice(0, 4)
-      const gains = (gainsByYear.get(year) ?? 0) + proceeds - cost - p.feesOpen - p.feesClose
+      const gains = (gainsByYear.get(year) ?? 0) + proceeds - entry.costEur - p.feesOpen - p.feesClose
       gainsByYear.set(year, gains)
       const tax = spanishSavingsTax(gains)
       cash.netTax -= tax - (taxByYear.get(year) ?? 0)
@@ -97,8 +106,17 @@ export function satelliteMonthlyReturns(
     }
     if (missing) break
 
-    const holdings = holdingsValue(positions, month, index, eventMonth)
-    if (holdings == null) break
+    let holdings = 0
+    for (const p of positions) {
+      const open = eventMonth(p.openedAt) <= month
+      const closed = p.closedAt != null && eventMonth(p.closedAt) <= month
+      if (!open || closed) continue
+      const entry = entries.get(p)
+      const value = entry ? totalReturnValue(p, entry, month, index) : null
+      if (value == null) { missing = true; break }
+      holdings += value
+    }
+    if (missing) break
 
     const value: Ledger = {
       gross:   cash.gross + holdings,
@@ -118,23 +136,18 @@ export function satelliteMonthlyReturns(
   return out
 }
 
-function holdingsValue(
-  positions: PerfPosition[],
-  month: MonthKey,
-  index: PriceIndex,
-  eventMonth: (d: string) => MonthKey,
-): number | null {
-  let total = 0
-  for (const p of positions) {
-    const open = eventMonth(p.openedAt) <= month
-    const closed = p.closedAt != null && eventMonth(p.closedAt) <= month
-    if (!open || closed) continue
-    const close = closeAt(index, p.ticker, month)
-    const fx = eurPerUnit(p.currency, month, index)
-    if (close == null || fx == null) return null
-    total += p.shares * close * fx
-  }
-  return total
+type Entry = {
+  costLocal: number   // acciones × precio de entrada, divisa de cotización
+  costEur:   number
+  anchor:    number   // adj_close del mes de apertura
+}
+
+/** Coste de entrada × adj(m) / adj(apertura), en EUR con el FX de m. */
+function totalReturnValue(p: PerfPosition, entry: Entry, month: MonthKey, index: PriceIndex): number | null {
+  const close = closeAt(index, p.ticker, month)
+  const fx = eurPerUnit(p.currency, month, index)
+  if (close == null || fx == null) return null
+  return entry.costLocal * (close / entry.anchor) * fx
 }
 
 /**
