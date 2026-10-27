@@ -24,8 +24,12 @@ export default async function InvestPage({
 
       <InvestTabs active={tab} />
 
-      <div className="flex-1 overflow-auto page-pad flex flex-col gap-4">
-        {tab === "screen" && <ScreenTab query={query} />}
+      {/* El scroll va en un bloque normal: en un flex-col, las tarjetas con
+          overflow-hidden se encogían en vez de desbordar. */}
+      <div className="flex-1 min-h-0 overflow-auto page-pad">
+        <div className="flex flex-col gap-4">
+          {tab === "screen" && <ScreenTab query={query} />}
+        </div>
       </div>
     </div>
   )
