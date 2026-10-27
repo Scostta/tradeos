@@ -328,6 +328,48 @@ TradeOS son tres **módulos** que comparten login, diseño (DESIGN.md), layout `
 - **Cada módulo es dueño de sus tablas y no importa de los otros.** Invest usa el prefijo `invest_*` y Money `finance_*`; las tablas sin prefijo (`trades`, `accounts`, `playbooks`, …) son de Trading. El código de un módulo (rutas, componentes, queries, actions, cálculos, copies) no importa nada de otro módulo; lo compartido (shell, `src/components/`, `src/lib/ui/`, helpers genéricos) no pertenece a ninguno.
 - Futuro: una vista **"Net worth"** en Money leerá de los tres módulos (saldos de cuentas de Trading, satélite de Invest, finanzas de Money) **sin escribir en ninguno**. Es la única excepción prevista a la regla de no importar entre módulos, y es de solo lectura.
 
+## Invest
+
+Módulo núcleo/satélite (hipótesis 13): el núcleo es un fondo indexado fuera de la app (solo se registra su benchmark) y el satélite son ≤ 5 acciones elegidas una vez al mes con un screener de reglas fijas. Forward test de 36 meses, satélite vs. benchmark neto de impuestos. La fuente de verdad es **`INVEST_SPEC.md`**: reglas (§1), schema (§2), job (§3), app (§4), cálculos (§5), lista **Later** (ideas aparcadas: no se construyen sin pasar por ahí) y **§10 Registro de decisiones** (cada cambio de criterio se anota ahí).
+
+### Reglas (§1, fijas)
+
+- **Universo**: S&P 500 (Wikipedia) + `scripts/screener/universe_extra.csv`. Market cap > 2.000 M USD **al cierre de `run_date`** = `Close[t] × impliedSharesOutstanding × FX[t]` (no `info.marketCap`, no `sharesOutstanding`). ≥ 12 meses cotizando.
+- **Fundamental** (todas): crecimiento de ingresos > 10 %, FCF margin > 0, margen bruto ≥ el del año anterior − 1 pt, deuda neta/EBITDA < 2 o caja neta, ROIC > 10 %. Un ratio no calculable (`null`) **falla**; `TotalDebt` ausente en un balance que sí cargó cuenta como 0.
+- **Técnico** (sobre `Adj Close` mensual): precio > SMA 10 meses, momentum 12-1 > 0, fuerza relativa 6 m vs. benchmark > 0.
+- **Ejecución**: solo con el run del mes en curso; máx. 5 posiciones abiertas y **máx. 2 por sector**; tamaño 4 % del patrimonio total; nunca promediar a la baja; salida mecánica `sma_exit` si `price < sma10m`; ≥ 2 falsadores por tesis; cierre `manual` = desviación.
+- **Evaluación**: 36 meses desde `started_at`, que se fija al abrir la **primera posición con dinero real** (antes, modo papel). Si el satélite no bate al benchmark, se liquida.
+
+**Las reglas de §1.1–§1.3 se implementan una sola vez, en `evaluate()` de `scripts/screener/screener/rules.py`. TS no las reimplementa**: la app solo lee `invest_screen_results` (valores, `passes`, `fail_reasons`). Lo único que valida la app son los límites de apertura de §1.4, en `openBlockers()` (`src/lib/calculations/invest-run.ts`), compartida por el botón y por `openInvestPosition`.
+
+### Tablas (prefijo `invest_*`, migraciones `supabase/migrations/20261027*_invest*.sql` con rollback en `supabase/rollbacks/`)
+
+| Tabla | Quién escribe | Contenido |
+|---|---|---|
+| `invest_screen_runs` | job (service role) | un run por cierre mensual (`run_date` único); un rerun reutiliza la fila |
+| `invest_screen_results` | job | **todos** los tickers evaluados, con ratios, `sector`, `currency`, `passes` y `fail_reasons` |
+| `invest_prices` | job | cierres mensuales `adj_close` y `close` (sin ajustar) del benchmark, de los tickers con posición y de los pares `EUR{divisa}=X` |
+| `invest_position_checks` | job | señal `hold`/`sell` mensual por posición abierta |
+| `invest_positions` | usuario (RLS) | posiciones con tesis, falsadores, cierre y motivo |
+| `invest_settings` | usuario (RLS) | patrimonio total, benchmark, `started_at`; `satellite_pct`, `max_positions`, `position_pct` no se editan desde la UI |
+| `invest_reviews` | usuario (RLS) | una fila por run revisado (visita a Screen con el run vigente) |
+
+Las cuatro primeras son compartidas: `select` para `authenticated`, sin políticas de escritura.
+
+### Job (`scripts/screener/`, Python 3.12)
+
+- `.github/workflows/screener.yml`: cron `0 7 1-4 * *` (solo trabaja el primer día hábil NYSE) + `workflow_dispatch` (corre siempre; `run_date` opcional). Secrets `SUPABASE_URL` y `SUPABASE_SERVICE_ROLE_KEY`; escribe por PostgREST con una conexión nueva por petición.
+- yfinance con `hide_exceptions = False`; un reintento a los 3 s por error de red; `no_data` > 5 % del universo **aborta sin escribir**. Si un campo de yfinance no existe con los alias conocidos (`FIELD_ALIASES`), el ratio queda `null` y falla: sin fallbacks silenciosos.
+- Tests con pytest y fixtures reales (`tests/fixtures/`); en CI (`ci.yml`, job `screener-tests`) solo si cambia `scripts/screener/**`. Detalle en `scripts/screener/README.md`.
+
+### App
+
+- Rutas: `/invest` (Screen), `/invest/positions`, `/invest/performance`. Sin `invest_settings`, solo el formulario de ajustes.
+- `src/types/invest.ts` (Zod), `src/services/mappers/invest.ts`, `src/services/queries/invest.ts`, `src/actions/invest.ts` (`saveInvestSettings`, `openInvestPosition`, `closeInvestPosition`, `markRunReviewed`), cálculos puros con vitest en `src/lib/calculations/invest-*.ts`, copies en `src/constants/copies/invest/`.
+- **Divisa base EUR**: precios en la divisa de cotización (`GBp` en peniques), pasados a EUR con los pares de `invest_prices`; comisiones en EUR.
+- **Performance** (§5.1): TWR con caja + posiciones (abrir/cerrar son movimientos internos), **total return implícito** `acciones × close(apertura) × adj(m) / adj(apertura)`; dividendos cobrados no se registran. **Positions** muestra el P&L latente con el último `close` real ("si vendiera hoy"), por eso puede diferir.
+- **Impuesto estimado** (§5.2): IRPF del ahorro 19–28 % por año, pérdidas del año compensan, sin arrastre; cada cierre se lleva lo que añade al impuesto de su año. Siempre etiquetado como estimación.
+
 ## Variables de entorno requeridas
 
 ```env
