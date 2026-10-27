@@ -8,9 +8,16 @@ export const APP_URLS = {
   JOURNAL:    "/journal",
   ACCOUNTS:   "/accounts",
   GOALS:      "/goals",
-  INVEST:     "/invest",
+  INVEST:             "/invest",
+  INVEST_POSITIONS:   "/invest/positions",
+  INVEST_PERFORMANCE: "/invest/performance",
+  MONEY:              "/money",
   INSIGHTS:   "/insights",
   SETTINGS:   "/settings",
+
+  // Prefijos de los módulos Invest y Money (getActiveModule en src/helpers/active-module.ts).
+  INVEST_PREFIX:   "/invest",
+  MONEY_PREFIX:    "/money",
 
   SHARE_PREFIX:    "/share/",
 

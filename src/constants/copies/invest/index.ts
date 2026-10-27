@@ -4,10 +4,11 @@ export const INVEST = {
   TITLE:    "Invest",
   SUBTITLE: "Core/satellite · monthly screener",
 
-  TABS: {
-    SCREEN:      "Screen",
-    POSITIONS:   "Positions",
-    PERFORMANCE: "Performance",
+  POSITIONS: {
+    TITLE: "Positions",
+  },
+  PERFORMANCE: {
+    TITLE: "Performance",
   },
 
   SCREEN: {

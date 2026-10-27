@@ -303,6 +303,16 @@ Commit por paso. Lint, `npm test` y `pytest` en verde antes de cada commit. Aña
 
 ---
 
+## Later
+
+Ideas surgidas durante la implementación que **no** se hacen ahora (nada de esto está construido):
+
+- Shell: las rutas compartidas (`/settings`) se resuelven como módulo Trading, así que al abrir Settings desde Invest o Money el sidebar cambia a Trading. Alternativa: mantener el último módulo en rutas compartidas.
+- Shell: tras hacer login, el middleware manda siempre a `/dashboard`; podría ir a `/` para respetar el último módulo.
+- Shell: el layout `(dashboard)` sigue pidiendo las alertas de prop firm en todas las rutas, aunque fuera de Trading no se muestren.
+
+---
+
 ## 10. Registro de decisiones
 
 | Fecha | § | Decisión |

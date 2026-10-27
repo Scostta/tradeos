@@ -18,30 +18,44 @@ import { UploadIcon } from "~/lib/ui/icons/upload-icon";
 import { WalletIcon } from "~/lib/ui/icons/wallet-icon";
 import { TargetIcon } from "~/lib/ui/icons/target-icon";
 import { TrendIcon } from "~/lib/ui/icons/trend-icon";
+import { CoinsIcon } from "~/lib/ui/icons/coins-icon";
 import { SparklesIcon } from "~/lib/ui/icons/sparkles-icon";
 import { SettingsIcon } from "~/lib/ui/icons/settings-icon";
 import { XIcon } from "~/lib/ui/icons/x-icon";
 import { BrandMark } from "~/lib/ui/icons/brand-mark";
+import { getActiveModule } from "~/helpers/active-module";
+import type { AppModule } from "~/helpers/active-module";
+import { ModuleSwitcher } from "./module-switcher.client";
 
 interface NavItem {
   id: string;
   label: string;
   path: string;
   Icon: ComponentType;
+  exact?: boolean;   // homes de módulo: solo activos en su ruta exacta
 }
 
-const NAV_ITEMS: NavItem[] = [
-  { id: "dashboard", label: COMMON.NAV_LABELS.DASHBOARD, path: APP_URLS.DASHBOARD, Icon: GridIcon },
-  { id: "trades", label: COMMON.NAV_LABELS.TRADES, path: APP_URLS.TRADES, Icon: ListIcon },
-  { id: "import", label: COMMON.NAV_LABELS.IMPORT, path: APP_URLS.IMPORT, Icon: UploadIcon },
-  { id: "reports", label: COMMON.NAV_LABELS.REPORTS, path: APP_URLS.REPORTS, Icon: BarIcon },
-  { id: "insights", label: COMMON.NAV_LABELS.INSIGHTS, path: APP_URLS.INSIGHTS, Icon: SparklesIcon },
-  { id: "playbooks", label: COMMON.NAV_LABELS.PLAYBOOKS, path: APP_URLS.PLAYBOOKS, Icon: LayersIcon },
-  { id: "journal",    label: COMMON.NAV_LABELS.JOURNAL,    path: APP_URLS.JOURNAL,    Icon: CalendarIcon },
-  { id: "goals",     label: COMMON.NAV_LABELS.GOALS,      path: APP_URLS.GOALS,      Icon: TargetIcon },
-  { id: "invest",    label: COMMON.NAV_LABELS.INVEST,     path: APP_URLS.INVEST,     Icon: TrendIcon },
-  { id: "accounts",  label: COMMON.NAV_LABELS.ACCOUNTS,   path: APP_URLS.ACCOUNTS,   Icon: WalletIcon },
-];
+const NAV_BY_MODULE: Record<AppModule, NavItem[]> = {
+  trading: [
+    { id: "dashboard", label: COMMON.NAV_LABELS.DASHBOARD, path: APP_URLS.DASHBOARD, Icon: GridIcon, exact: true },
+    { id: "trades", label: COMMON.NAV_LABELS.TRADES, path: APP_URLS.TRADES, Icon: ListIcon },
+    { id: "import", label: COMMON.NAV_LABELS.IMPORT, path: APP_URLS.IMPORT, Icon: UploadIcon },
+    { id: "reports", label: COMMON.NAV_LABELS.REPORTS, path: APP_URLS.REPORTS, Icon: BarIcon },
+    { id: "insights", label: COMMON.NAV_LABELS.INSIGHTS, path: APP_URLS.INSIGHTS, Icon: SparklesIcon },
+    { id: "playbooks", label: COMMON.NAV_LABELS.PLAYBOOKS, path: APP_URLS.PLAYBOOKS, Icon: LayersIcon },
+    { id: "journal",    label: COMMON.NAV_LABELS.JOURNAL,    path: APP_URLS.JOURNAL,    Icon: CalendarIcon },
+    { id: "goals",     label: COMMON.NAV_LABELS.GOALS,      path: APP_URLS.GOALS,      Icon: TargetIcon },
+    { id: "accounts",  label: COMMON.NAV_LABELS.ACCOUNTS,   path: APP_URLS.ACCOUNTS,   Icon: WalletIcon },
+  ],
+  invest: [
+    { id: "screen",      label: COMMON.NAV_LABELS.SCREEN,      path: APP_URLS.INVEST,             Icon: TrendIcon, exact: true },
+    { id: "positions",   label: COMMON.NAV_LABELS.POSITIONS,   path: APP_URLS.INVEST_POSITIONS,   Icon: WalletIcon },
+    { id: "performance", label: COMMON.NAV_LABELS.PERFORMANCE, path: APP_URLS.INVEST_PERFORMANCE, Icon: BarIcon },
+  ],
+  money: [
+    { id: "overview", label: COMMON.NAV_LABELS.OVERVIEW, path: APP_URLS.MONEY, Icon: CoinsIcon, exact: true },
+  ],
+};
 
 function getInitials(email?: string): string {
   if (!email) return "—";
@@ -65,10 +79,11 @@ export function Sidebar({
   const pathname = usePathname();
   const [pending, startSignOut] = useTransition();
   const initials = getInitials(userName ?? userEmail);
+  const activeModule = getActiveModule(pathname);
 
-  function isActive(path: string): boolean {
-    if (path === "/dashboard") return pathname === "/dashboard";
-    return pathname.startsWith(path);
+  function isActive(item: NavItem): boolean {
+    if (item.exact) return pathname === item.path;
+    return pathname.startsWith(item.path);
   }
 
   return (
@@ -104,10 +119,15 @@ export function Sidebar({
         </div>
       </div>
 
+      {/* Module switcher (en móvil, dentro del drawer) */}
+      <div className="pb-3">
+        <ModuleSwitcher active={activeModule} onNavigate={onClose} />
+      </div>
+
       {/* Nav */}
       <nav className="flex flex-col gap-px mt-1">
-        {NAV_ITEMS.map((item) => {
-          const active = isActive(item.path);
+        {NAV_BY_MODULE[activeModule].map((item) => {
+          const active = isActive(item);
           return (
             <Link
               key={item.id}

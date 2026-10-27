@@ -19,7 +19,7 @@ export function TickerSearchForm({ initial }: { initial: string }): ReactElement
     const q = value.trim().toUpperCase()
     if (!q || pending) return
     startTransition(() => {
-      router.push(`${APP_URLS.INVEST}?tab=screen&q=${encodeURIComponent(q)}`, { scroll: false })
+      router.push(`${APP_URLS.INVEST}?q=${encodeURIComponent(q)}`, { scroll: false })
     })
   }
 

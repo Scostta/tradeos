@@ -8,6 +8,12 @@ export const COMMON = {
   OR:           "or",
   ALL_ACCOUNTS: "All accounts",
   OPEN_MENU:    "Open menu",
+  MODULES: {
+    TRADING: "Trading",
+    INVEST:  "Invest",
+    MONEY:   "Money",
+  },
+  MODULE_SWITCHER: "Module",
   NAV_LABELS: {
     DASHBOARD:  "Dashboard",
     TRADES:     "Trades",
@@ -17,8 +23,11 @@ export const COMMON = {
     JOURNAL:    "Journal",
     ACCOUNTS:   "Accounts",
     GOALS:      "Goals",
-    INVEST:     "Invest",
     INSIGHTS:   "AI Insights",
+    SCREEN:      "Screen",
+    POSITIONS:   "Positions",
+    PERFORMANCE: "Performance",
+    OVERVIEW:    "Overview",
   },
   SESSION: {
     LABEL:    "Session · —",
