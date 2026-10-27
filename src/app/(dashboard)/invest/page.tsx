@@ -1,8 +1,6 @@
 import type { ReactElement } from "react"
 import { INVEST } from "~/constants/copies/invest"
 import { getInvestSettings } from "~/services/queries/invest"
-import { InvestTabs } from "./components/invest-tabs"
-import type { InvestTab } from "./components/invest-tabs"
 import { ScreenTab } from "./components/screen-tab"
 import { SettingsButton } from "./components/settings-button.client"
 import { SettingsForm } from "./components/settings-form.client"
@@ -10,10 +8,9 @@ import { SettingsForm } from "./components/settings-form.client"
 export default async function InvestPage({
   searchParams,
 }: {
-  searchParams: Promise<{ tab?: string; q?: string }>
+  searchParams: Promise<{ q?: string }>
 }): Promise<ReactElement> {
   const params = await searchParams
-  const tab: InvestTab = "screen"
   const query = params.q?.trim().toUpperCase() || null
 
   const settingsResult = await getInvestSettings()
@@ -50,12 +47,11 @@ export default async function InvestPage({
         </div>
       ) : (
         <>
-          <InvestTabs active={tab} />
           {/* El scroll va en un bloque normal: en un flex-col, las tarjetas con
               overflow-hidden se encogían en vez de desbordar. */}
           <div className="flex-1 min-h-0 overflow-auto page-pad">
             <div className="flex flex-col gap-4">
-              {tab === "screen" && <ScreenTab query={query} settings={settings} />}
+              <ScreenTab query={query} settings={settings} />
             </div>
           </div>
         </>

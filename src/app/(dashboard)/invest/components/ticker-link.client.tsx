@@ -14,7 +14,7 @@ function Pending(): ReactElement | null {
 export function TickerLink({ ticker }: { ticker: string }): ReactElement {
   return (
     <Link
-      href={`${APP_URLS.INVEST}?tab=screen&q=${encodeURIComponent(ticker)}`}
+      href={`${APP_URLS.INVEST}?q=${encodeURIComponent(ticker)}`}
       className="inline-flex items-center gap-1.5 mono text-sm font-semibold text-text hover:text-accent"
     >
       {ticker}
