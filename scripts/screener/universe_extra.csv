@@ -1,0 +1,50 @@
+# Grandes capitalizadas europeas (tickers de Yahoo), mantenido a mano (INVEST_SPEC.md §1.1).
+ticker,name
+ASML.AS,ASML Holding
+ADYEN.AS,Adyen
+PRX.AS,Prosus
+SAP.DE,SAP
+SIE.DE,Siemens
+ALV.DE,Allianz
+DTE.DE,Deutsche Telekom
+MUV2.DE,Munich Re
+IFX.DE,Infineon
+RHM.DE,Rheinmetall
+MC.PA,LVMH
+OR.PA,L'Oreal
+RMS.PA,Hermes
+TTE.PA,TotalEnergies
+SAN.PA,Sanofi
+AI.PA,Air Liquide
+SU.PA,Schneider Electric
+AIR.PA,Airbus
+EL.PA,EssilorLuxottica
+SAF.PA,Safran
+AZN.L,AstraZeneca
+SHEL.L,Shell
+HSBA.L,HSBC
+ULVR.L,Unilever
+REL.L,RELX
+RIO.L,Rio Tinto
+GSK.L,GSK
+DGE.L,Diageo
+LSEG.L,London Stock Exchange Group
+BA.L,BAE Systems
+NESN.SW,Nestle
+RO.SW,Roche
+NOVN.SW,Novartis
+UBSG.SW,UBS
+ZURN.SW,Zurich Insurance
+ABBN.SW,ABB
+CFR.SW,Richemont
+ITX.MC,Inditex
+IBE.MC,Iberdrola
+SAN.MC,Banco Santander
+ENEL.MI,Enel
+RACE.MI,Ferrari
+ISP.MI,Intesa Sanpaolo
+NOVO-B.CO,Novo Nordisk
+DSV.CO,DSV
+ATCO-A.ST,Atlas Copco
+INVE-B.ST,Investor
+EQNR.OL,Equinor

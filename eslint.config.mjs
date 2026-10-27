@@ -17,6 +17,8 @@ const eslintConfig = defineConfig([
     // E2E tests + Playwright config — handled by Playwright tooling, not Next lint.
     "tests/**",
     "playwright.config.ts",
+    // Job de screening en Python; su venv local trae .js de paquetes de pip.
+    "scripts/screener/**",
   ]),
 ]);
 

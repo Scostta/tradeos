@@ -32,3 +32,38 @@ jobs:
           NEXT_PUBLIC_SUPABASE_URL: https://placeholder.supabase.co
           NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: placeholder-anon-key
           SUPABASE_SERVICE_ROLE_KEY: placeholder-service-role-key
+
+  screener-changes:
+    runs-on: ubuntu-latest
+    outputs:
+      screener: ${{ steps.filter.outputs.screener }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            screener:
+              - 'scripts/screener/**'
+              - '.github/workflows/screener.yml'
+
+  screener-tests:
+    needs: screener-changes
+    if: needs.screener-changes.outputs.screener == 'true'
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: scripts/screener
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: scripts/screener/requirements-dev.txt
+
+      - run: pip install -r requirements-dev.txt
+
+      - name: Pytest
+        run: python -m pytest

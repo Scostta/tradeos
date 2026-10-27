@@ -58,3 +58,9 @@ next-env.d.ts
 
 # supabase CLI scratch
 supabase/.temp
+
+# python (scripts/screener)
+__pycache__/
+*.pyc
+.venv/
+.pytest_cache/

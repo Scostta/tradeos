@@ -1,0 +1,181 @@
+from __future__ import annotations
+
+from collections import Counter
+from datetime import date
+from typing import Any, Optional
+
+import pytest
+
+from screener import job
+from screener.rules import ScreenResult
+
+from .conftest import FIXTURE_RUN_DATE, load_ticker
+
+
+class FakeClient:
+    """PostgREST en memoria: solo lo que usa job.run()."""
+
+    def __init__(self, settings=None, positions=None, runs=None) -> None:
+        self.tables: dict[str, list[dict[str, Any]]] = {
+            "invest_settings": settings or [],
+            "invest_positions": positions or [],
+            "invest_screen_runs": runs or [],
+            "invest_screen_results": [],
+            "invest_position_checks": [],
+            "invest_prices": [],
+        }
+        self.calls: list[tuple[str, str]] = []
+
+    def select(self, table, params):
+        self.calls.append(("select", table))
+        rows = self.tables[table]
+        if "run_date" in params:
+            rows = [r for r in rows if r["run_date"] == params["run_date"].removeprefix("eq.")]
+        return [dict(r) for r in rows]
+
+    def insert(self, table, rows, returning: bool = False, on_conflict: Optional[str] = None):
+        self.calls.append(("insert", table))
+        if table == "invest_screen_runs":
+            rows = [{"id": f"run-{len(self.tables[table]) + 1}", **r} for r in rows]
+        self.tables[table].extend(rows)
+        return rows if returning else []
+
+    def insert_chunked(self, table, rows, size: int = 500, **kwargs):
+        self.insert(table, rows, **kwargs)
+
+    def update(self, table, filters, values):
+        self.calls.append(("update", table))
+        run_id = filters["id"].removeprefix("eq.")
+        for row in self.tables[table]:
+            if row["id"] == run_id:
+                row.update(values)
+        return []
+
+    def delete(self, table, filters):
+        self.calls.append(("delete", table))
+        if table == "invest_screen_runs":
+            raise AssertionError("un rerun no debe borrar la fila del run")
+        run_id = filters["run_id"].removeprefix("eq.")
+        self.tables[table] = [r for r in self.tables[table] if r["run_id"] != run_id]
+
+
+@pytest.fixture
+def offline(monkeypatch, benchmark):
+    """Sustituye Yahoo y Wikipedia por los fixtures."""
+    fetched_monthly: list[tuple[str, Optional[date]]] = []
+
+    def fetch_monthly(ticker, through, start=None):
+        fetched_monthly.append((ticker, start))
+        return dict(benchmark) if ticker == "IWDA.AS" else dict(load_ticker(ticker).closes)
+
+    monkeypatch.setattr(job.yahoo, "fetch_monthly", fetch_monthly)
+    monkeypatch.setattr(job.yahoo, "load_fx_rates", lambda through: {"USD": 1.0})
+    monkeypatch.setattr(job.uv, "sp500_tickers", lambda: ["GOOGL", "AAPL"])
+    monkeypatch.setattr(job.uv, "extra_tickers", lambda: ["AAPL"])
+    return fetched_monthly
+
+
+def fetch_fixture(ticker, through, fx_rates):
+    return load_ticker(ticker)
+
+
+POSITIONS = [
+    {"id": "p1", "user_id": "u1", "ticker": "COST", "opened_at": "2026-03-02", "closed_at": None},
+    {"id": "p2", "user_id": "u1", "ticker": "GOOGL", "opened_at": "2026-05-01", "closed_at": None},
+    {"id": "p3", "user_id": "u2", "ticker": "AAPL", "opened_at": "2025-11-03", "closed_at": "2026-02-02"},
+]
+
+
+def run(client):
+    return job.run(FIXTURE_RUN_DATE, client, "sha123", pause=0, fetch_ticker=fetch_fixture)
+
+
+def test_run_writes_run_results_checks_and_prices(offline):
+    client = FakeClient(
+        settings=[{"benchmark_ticker": "IWDA.AS", "started_at": "2026-04-01"}], positions=POSITIONS
+    )
+    outcome = run(client)
+
+    # Universo deduplicado; COST (posición abierta fuera del universo) no entra en results.
+    assert outcome.universe_size == 2
+    assert [r["ticker"] for r in client.tables["invest_screen_results"]] == ["GOOGL", "AAPL"]
+    (run_row,) = client.tables["invest_screen_runs"]
+    assert run_row["run_date"] == "2026-09-30"
+    assert run_row["passed_count"] == 1 and run_row["benchmark"] == "IWDA.AS"
+    assert run_row["job_version"] == "sha123"
+    assert all(r["run_id"] == run_row["id"] for r in client.tables["invest_screen_results"])
+
+    # Checks solo de posiciones abiertas; COST está bajo su sma10m → sell.
+    checks = {c["position_id"]: c["signal"] for c in client.tables["invest_position_checks"]}
+    assert checks == {"p1": "sell", "p2": "hold"}
+    assert outcome.sell_by_user == Counter({"u1": 1})
+
+    # Precios: benchmark desde 12 meses antes de started_at, tickers desde 12
+    # meses antes de su primera apertura (abiertas y cerradas).
+    starts = dict((t, s) for t, s in offline if s is not None)
+    assert starts == {
+        "IWDA.AS": date(2025, 4, 1),
+        "COST": date(2025, 3, 1),
+        "GOOGL": date(2025, 5, 1),
+        "AAPL": date(2024, 11, 1),
+    }
+    priced = {p["ticker"] for p in client.tables["invest_prices"]}
+    assert priced == {"IWDA.AS", "COST", "GOOGL", "AAPL"}
+    assert {"ticker": "IWDA.AS", "month_end": "2026-09-30"} in [
+        {k: p[k] for k in ("ticker", "month_end")} for p in client.tables["invest_prices"]
+    ]
+
+
+def test_rerun_reuses_run_row_and_replaces_results(offline):
+    client = FakeClient(positions=POSITIONS)
+    run(client)
+    first_id = client.tables["invest_screen_runs"][0]["id"]
+    run(client)
+
+    assert [r["id"] for r in client.tables["invest_screen_runs"]] == [first_id]
+    assert len(client.tables["invest_screen_results"]) == 2
+    assert len(client.tables["invest_position_checks"]) == 2
+    assert ("update", "invest_screen_runs") in client.calls
+
+
+def test_dry_run_does_not_need_client(offline):
+    outcome = run(None)
+    assert [r.ticker for r in outcome.passed] == ["GOOGL"]
+    assert outcome.checks == []
+
+
+def test_run_aborts_without_benchmark_close(monkeypatch, offline):
+    monkeypatch.setattr(job.yahoo, "fetch_monthly", lambda ticker, through, start=None: {"2026-08": 1.0})
+    with pytest.raises(RuntimeError, match="benchmark"):
+        run(FakeClient())
+
+
+def test_choose_benchmark():
+    assert job.choose_benchmark([]) == "IWDA.AS"
+    assert job.choose_benchmark([{"benchmark_ticker": "VWCE.DE"}]) == "VWCE.DE"
+    settings = [{"benchmark_ticker": t} for t in ["VWCE.DE", "IWDA.AS", "VWCE.DE"]]
+    assert job.choose_benchmark(settings) == "VWCE.DE"
+
+
+def test_position_without_price_gets_no_check():
+    results = {"XYZ": ScreenResult(ticker="XYZ", fail_reasons=["no_data"])}
+    checks, sells, skipped = job.build_checks(
+        [{"id": "p", "user_id": "u", "ticker": "XYZ", "closed_at": None}], results
+    )
+    assert checks == [] and not sells and skipped == ["XYZ"]
+
+
+def test_summary_has_counts_but_no_user_ids(offline):
+    outcome = run(FakeClient(positions=POSITIONS))
+    summary = job.render_summary(outcome)
+    assert "2026-09-30" in summary and "Pasan: 1" in summary and "`GOOGL`" in summary
+    assert "Usuario 1: 1" in summary
+    assert "u1" not in summary and "u2" not in summary
+
+
+def test_price_rows_use_last_business_day():
+    rows = job.price_rows("X", {"2026-05": 10.123456, "2029-03": 20.0})
+    assert rows == [
+        {"ticker": "X", "month_end": "2026-05-29", "adj_close": 10.1235},
+        {"ticker": "X", "month_end": "2029-03-29", "adj_close": 20.0},
+    ]

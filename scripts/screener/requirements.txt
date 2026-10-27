@@ -1,0 +1,5 @@
+yfinance==1.7.0
+pandas==3.1.0
+requests==2.34.2
+# pandas.read_html (tabla del S&P 500 en Wikipedia)
+lxml==6.1.3
