@@ -52,7 +52,7 @@ Sobre **cierres mensuales ajustados** (Yahoo `Adj Close`, último cierre de cada
 - Si el usuario tiene otro fondo, lo cambia en ajustes (§2.4); el job lee el ticker de ahí.
 
 ### 1.6 Evaluación de la hipótesis
-- Horizonte: **36 meses** desde `invest_settings.started_at`.
+- Horizonte: **36 meses** desde `invest_settings.started_at`. `started_at` se fija al abrir la **primera posición con dinero real** (= su `opened_at`); hasta entonces su valor es de **modo papel** (provisional, por defecto la fecha de los ajustes) y la app lo muestra así.
 - Métrica: rentabilidad del satélite neta de costes e impuestos estimados vs. rentabilidad del benchmark en el mismo periodo, ambas como TWR mensual encadenada (§5).
 - La app muestra "mes X de 36" y la diferencia acumulada. Si a los 36 meses el satélite no bate al benchmark, se liquida. El criterio queda escrito aquí; no se decide al final.
 
@@ -238,7 +238,7 @@ Campos: ticker (fijo), fecha, precio, acciones (con el importe sugerido = `total
 Server action `openInvestPosition` valida con Zod **y además** comprueba en servidor: existe run del mes en curso; el ticker está en ese run con `passes = true`; abiertas < `max_positions`; no hay otra abierta del mismo ticker; menos de 2 abiertas en el sector del ticker (§1.4). Cualquier fallo → error con copy claro. La regla vive en el servidor, no solo en el botón.
 
 ### 4.5 Ajustes (dentro de la pestaña Performance o modal desde cabecera)
-`total_portfolio_value`, `benchmark_ticker`, `started_at`. `satellite_pct`, `max_positions` y `position_pct` se muestran pero **no son editables desde la UI** (cambiarlos es cambiar la spec; se haría por SQL a propósito).
+`total_portfolio_value`, `benchmark_ticker`. `started_at` se muestra (modo papel o fecha de inicio) pero no se edita: lo fija la primera posición (§1.6). `satellite_pct`, `max_positions` y `position_pct` se muestran pero **no son editables desde la UI** (cambiarlos es cambiar la spec; se haría por SQL a propósito).
 
 ### 4.6 Pestaña Performance
 - "Month N of 36" desde `started_at`.
@@ -337,3 +337,4 @@ Ideas surgidas durante la implementación que **no** se hacen ahora (nada de est
 | 2026-10-27 | 4.3 | En la pestaña Positions, un importe de un mes cuyo cierre de FX aún no existe usa el último cierre del par anterior (solo para mostrar; el rendimiento de §5.1 valora cada mes con su propio cierre). `closeInvestPosition` exige `opened_at ≤ closed_at ≤ hoy`. |
 | 2026-10-27 | 4.6 | Revisiones en `invest_reviews (user_id, run_id, reviewed_at)` (migración `20261027140000_invest_reviews.sql`), insertadas al visitar Screen con el run vigente. Se elimina `invest_settings.last_reviewed_run_id`, que no guardaba histórico. |
 | 2026-10-27 | 5.1 | Total return implícito: abiertas y cerradas se valoran con `coste de entrada × adj_close(m) / adj_close(mes de apertura)`; dividendos cobrados no se registran. El precio real de salida solo cuenta para P&L realizado e impuesto. |
+| 2026-10-27 | 1.6 | `started_at` se fija al abrir la primera posición con dinero real (`openInvestPosition` lo pone a su `opened_at`); hasta entonces es modo papel. Deja de ser editable en ajustes (§4.5). |

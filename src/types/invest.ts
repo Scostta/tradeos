@@ -133,7 +133,6 @@ export type InvestPrice = z.infer<typeof investPriceSchema>
 export const saveInvestSettingsInputSchema = z.object({
   totalPortfolioValue: z.number().positive(),
   benchmarkTicker:     z.string().trim().min(1).max(20),
-  startedAt:           isoDate,
 })
 export type SaveInvestSettingsInput = z.infer<typeof saveInvestSettingsInputSchema>
 

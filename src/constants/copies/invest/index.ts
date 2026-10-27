@@ -174,13 +174,16 @@ export const INVEST = {
     TITLE:           "Invest settings",
     ONBOARDING_TITLE: "Set up the Invest module",
     ONBOARDING_BODY:
-      "Enter your total portfolio value (core + satellite) and when the 36-month test starts. " +
-      "Position sizes and performance are computed from these values.",
+      "Enter your total portfolio value (core + satellite) and your benchmark. " +
+      "The 36-month test starts when you open your first position; until then you are in paper mode.",
     TOTAL:           "Total portfolio value (EUR)",
     TOTAL_HINT:      "Core + satellite. Update it when it changes.",
     BENCHMARK:       "Benchmark ticker (Yahoo)",
     BENCHMARK_HINT:  "Your core index fund. Default IWDA.AS.",
-    STARTED_AT:      "Test start date",
+    STARTED_AT:      "Test start",
+    PAPER_MODE:      "Paper mode",
+    PAPER_MODE_HINT: "The 36-month test starts the day you open your first position with real money.",
+    STARTED_ON:      "Started {date}",
     FIXED_TITLE:     "Fixed by the spec",
     FIXED_HINT:      "Not editable here: changing them means changing the spec.",
     SATELLITE:       "Satellite",

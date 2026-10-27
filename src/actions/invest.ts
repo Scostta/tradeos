@@ -39,14 +39,14 @@ export async function saveInvestSettings(input: unknown): Promise<ResultType<{ o
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return createErrorResult("UNAUTHENTICATED")
 
-  // satellite_pct, max_positions y position_pct no se tocan desde la UI (§4.5):
+  // satellite_pct, max_positions y position_pct no se tocan desde la UI (§4.5),
+  // ni started_at, que fija openInvestPosition con la primera posición (§1.6):
   // en el insert quedan sus defaults y el upsert no los incluye.
   const { error } = await supabase.from("invest_settings").upsert(
     {
       user_id:               user.id,
       total_portfolio_value: parsed.data.totalPortfolioValue,
       benchmark_ticker:      parsed.data.benchmarkTicker.toUpperCase(),
-      started_at:            parsed.data.startedAt,
       updated_at:            new Date().toISOString(),
     },
     { onConflict: "user_id" },
@@ -130,8 +130,19 @@ export async function openInvestPosition(input: unknown): Promise<ResultType<{ i
     return createErrorResult("UNKNOWN")
   }
 
+  // §1.6: el test de 36 meses arranca con la primera posición con dinero real;
+  // hasta entonces started_at es provisional (modo papel).
+  if (positionsResult.data.length === 0) {
+    const { error: startError } = await supabase
+      .from("invest_settings")
+      .update({ started_at: data.openedAt, updated_at: new Date().toISOString() })
+      .eq("user_id", user.id)
+    if (startError) console.error(startError)
+  }
+
   revalidatePath(APP_URLS.INVEST)
   revalidatePath(APP_URLS.INVEST_POSITIONS)
+  revalidatePath(APP_URLS.INVEST_PERFORMANCE)
   return createDataResult({ id: inserted.id as string })
 }
 

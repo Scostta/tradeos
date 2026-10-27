@@ -9,6 +9,7 @@ import { Toast } from "~/lib/ui/toast"
 import type { ToastVariant } from "~/lib/ui/toast"
 import { investErrorMessage } from "./invest-errors"
 import { Spinner } from "./spinner"
+import { fmtDay } from "./invest-format"
 
 const S = INVEST.SETTINGS
 export const INPUT_CLS =
@@ -19,6 +20,7 @@ const DEFAULTS = { satellitePct: 0.2, maxPositions: 5, positionPct: 0.04, benchm
 
 type Props = {
   settings:  InvestSettings | null
+  started?:  boolean   // hay alguna posición: started_at ya es definitivo (§1.6)
   onSaved?:  () => void
   onCancel?: () => void
 }
@@ -33,17 +35,15 @@ function Field({ label, hint, children }: { label: string; hint?: string; childr
   )
 }
 
-export function SettingsForm({ settings, onSaved, onCancel }: Props): ReactElement {
-  const today = new Date().toISOString().slice(0, 10)
+export function SettingsForm({ settings, started = false, onSaved, onCancel }: Props): ReactElement {
   const [total, setTotal]         = useState(settings ? String(settings.totalPortfolioValue) : "")
   const [benchmark, setBenchmark] = useState(settings?.benchmarkTicker ?? DEFAULTS.benchmarkTicker)
-  const [startedAt, setStartedAt] = useState(settings?.startedAt ?? today)
   const [toast, setToast]         = useState<{ message: string; variant: ToastVariant } | null>(null)
   const [pending, startTransition] = useTransition()
 
   const fixed = settings ?? DEFAULTS
   const totalNum = Number(total)
-  const valid = total.trim() !== "" && totalNum > 0 && benchmark.trim() !== "" && startedAt !== ""
+  const valid = total.trim() !== "" && totalNum > 0 && benchmark.trim() !== ""
 
   function showToast(message: string, variant: ToastVariant) {
     setToast({ message, variant })
@@ -56,7 +56,6 @@ export function SettingsForm({ settings, onSaved, onCancel }: Props): ReactEleme
       const result = await saveInvestSettings({
         totalPortfolioValue: totalNum,
         benchmarkTicker:     benchmark.trim(),
-        startedAt,
       })
       if (result.success) {
         showToast(S.SAVED, "success")
@@ -90,9 +89,19 @@ export function SettingsForm({ settings, onSaved, onCancel }: Props): ReactEleme
             className={`${INPUT_CLS} mono`} spellCheck={false} autoComplete="off"
           />
         </Field>
-        <Field label={S.STARTED_AT}>
-          <input type="date" value={startedAt} onChange={e => setStartedAt(e.target.value)} className={`${INPUT_CLS} mono`} />
-        </Field>
+        {/* §1.6: started_at no se edita; lo fija la primera posición. */}
+        <div className="flex flex-col gap-1.5">
+          <span className="label-caps">{S.STARTED_AT}</span>
+          {started && settings ? (
+            <span className="mono text-base text-text py-2">{S.STARTED_ON.replace("{date}", fmtDay(settings.startedAt))}</span>
+          ) : (
+            <span className="inline-flex self-start items-center gap-2 mt-1 px-2.5 py-1 rounded-full bg-short/10 text-short text-sm font-medium">
+              <span className="size-1.5 rounded-full bg-short" />
+              {S.PAPER_MODE}
+            </span>
+          )}
+          {!started && <span className="text-sm text-text-mute">{S.PAPER_MODE_HINT}</span>}
+        </div>
       </div>
 
       <div className="rounded-md border border-border bg-bg px-3 py-2.5">
