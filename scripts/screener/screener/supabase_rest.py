@@ -1,4 +1,10 @@
-"""Cliente mínimo de PostgREST (Supabase) con la service role."""
+"""Cliente mínimo de PostgREST (Supabase) con la service role.
+
+Cada petición abre su propia conexión (sin requests.Session ni keep-alive).
+Entre las lecturas del inicio y las escrituras pasan 15–30 min de descargas de
+Yahoo; en los runners de GitHub el NAT descarta en silencio las conexiones TCP
+inactivas y una conexión reutilizada se quedaba colgada hasta el ReadTimeout.
+"""
 
 from __future__ import annotations
 
@@ -17,14 +23,12 @@ class SupabaseRest:
     def __init__(self, url: str, service_role_key: str, timeout: int = 60) -> None:
         self.base = url.rstrip("/") + "/rest/v1"
         self.timeout = timeout
-        self.session = requests.Session()
-        self.session.headers.update(
-            {
-                "apikey": service_role_key,
-                "Authorization": f"Bearer {service_role_key}",
-                "Content-Type": "application/json",
-            }
-        )
+        self.headers = {
+            "apikey": service_role_key,
+            "Authorization": f"Bearer {service_role_key}",
+            "Content-Type": "application/json",
+            "Connection": "close",
+        }
 
     def _request(
         self,
@@ -34,8 +38,8 @@ class SupabaseRest:
         json: Any = None,
         prefer: Optional[str] = None,
     ) -> Any:
-        headers = {"Prefer": prefer} if prefer else {}
-        response = self.session.request(
+        headers = {**self.headers, **({"Prefer": prefer} if prefer else {})}
+        response = requests.request(
             method,
             f"{self.base}/{table}",
             params=params,
