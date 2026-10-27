@@ -1,6 +1,9 @@
 import { describe, it, expect } from "vitest"
 import {
   benchmarkMonthlyReturns,
+  buildPerformanceReport,
+  reviewStats,
+  testMonth,
   chainReturns,
   performanceBaseMonth,
   satelliteMonthlyReturns,
@@ -186,5 +189,55 @@ describe("chainReturns", () => {
   it("encadena desde base 100", () => {
     expect(chainReturns([0.1, -0.1])).toEqual([100, expect.closeTo(110, 10), expect.closeTo(99, 10)])
     expect(chainReturns([])).toEqual([100])
+  })
+})
+
+describe("testMonth", () => {
+  it("el mes de started_at es el 1", () => {
+    expect(testMonth("2026-10-15", "2026-10-27")).toBe(1)
+    expect(testMonth("2026-10-15", "2026-11-01")).toBe(2)
+    expect(testMonth("2026-10-15", "2029-09-30")).toBe(36)
+    expect(testMonth("2026-10-15", "2029-10-01")).toBe(37)
+  })
+})
+
+describe("buildPerformanceReport", () => {
+  const sat = [
+    { monthEnd: "2026-01-30", gross: 0.10, netFees: 0.09, netTax: 0.08 },
+    { monthEnd: "2026-02-27", gross: 0.10, netFees: 0.10, netTax: 0.10 },
+    { monthEnd: "2026-03-31", gross: 0.50, netFees: 0.50, netTax: 0.50 },  // sin benchmark: fuera del periodo común
+  ]
+  const bench = [
+    { monthEnd: "2026-01-30", ret: 0.05 },
+    { monthEnd: "2026-02-27", ret: -0.02 },
+  ]
+  const r = buildPerformanceReport(sat, bench, "2025-12-31")
+
+  it("acumula sobre el periodo común", () => {
+    expect(r.months).toBe(2)
+    expect(r.satellite.gross).toBeCloseTo(1.1 * 1.1 - 1, 12)
+    expect(r.satellite.netFees).toBeCloseTo(1.09 * 1.1 - 1, 12)
+    expect(r.satellite.netTax).toBeCloseTo(1.08 * 1.1 - 1, 12)
+    expect(r.benchmark).toBeCloseTo(1.05 * 0.98 - 1, 12)
+    expect(r.diff).toBeCloseTo(1.08 * 1.1 - 1.05 * 0.98, 12)
+  })
+
+  it("puntos del gráfico base 100, con null donde una serie no llega", () => {
+    expect(r.points[0]).toEqual({ monthEnd: "2025-12-31", satellite: 100, benchmark: 100 })
+    expect(r.points[1].satellite).toBeCloseTo(108, 10)
+    expect(r.points[2].benchmark).toBeCloseTo(102.9, 10)
+    expect(r.points[3]).toEqual({ monthEnd: "2026-03-31", satellite: expect.closeTo(178.2, 8), benchmark: null })
+  })
+})
+
+describe("reviewStats", () => {
+  it("cuenta los runs desde el mes base y los revisados", () => {
+    const runs = [
+      { id: "r8", runDate: "2026-08-31" },   // anterior a la base (2026-09): no cuenta
+      { id: "r9", runDate: "2026-09-30" },   // run de octubre, mes de started_at
+      { id: "r10", runDate: "2026-10-30" },
+      { id: "r11", runDate: "2026-11-30" },
+    ]
+    expect(reviewStats(runs, new Set(["r9", "r11", "r8"]), "2026-10-15")).toEqual({ reviewed: 2, total: 3 })
   })
 })

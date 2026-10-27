@@ -185,3 +185,83 @@ export function chainReturns(returns: number[], base = 100): number[] {
   for (const r of returns) out.push(out[out.length - 1] * (1 + r))
   return out
 }
+
+// ── Informe de la pestaña Performance (§4.6) ─────────────────────────────────
+
+/** "Month N of 36": mes del test (1 = el de started_at). */
+export function testMonth(startedAt: string, today: string): number {
+  const toIndex = (d: string) => Number(d.slice(0, 4)) * 12 + Number(d.slice(5, 7))
+  return toIndex(today) - toIndex(startedAt) + 1
+}
+
+export type ChartPoint = {
+  monthEnd:  string
+  satellite: number | null   // índice base 100, neto de comisiones e impuestos
+  benchmark: number | null
+}
+
+export type PerformanceReport = {
+  points:    ChartPoint[]
+  months:    number           // meses comparados (periodo común)
+  satellite: { gross: number; netFees: number; netTax: number }
+  benchmark: number
+  diff:      number           // satélite neto de impuestos − benchmark
+}
+
+/**
+ * Compara satélite y benchmark sobre el periodo común (la serie más corta
+ * manda). `baseMonthEnd` es el cierre base (índice 100); sin él no hay informe.
+ */
+export function buildPerformanceReport(
+  satellite: SatelliteMonth[],
+  benchmark: MonthlyReturn[],
+  baseMonthEnd: string,
+): PerformanceReport {
+  const n = Math.min(satellite.length, benchmark.length)
+  const sat = satellite.slice(0, n)
+  const bench = benchmark.slice(0, n)
+  const cum = (rs: number[]) => (chainReturns(rs).at(-1) ?? 100) / 100 - 1
+
+  const satIndex = chainReturns(satellite.map(s => s.netTax))
+  const benchIndex = chainReturns(benchmark.map(b => b.ret))
+  const length = Math.max(satellite.length, benchmark.length)
+  const points: ChartPoint[] = [{ monthEnd: baseMonthEnd, satellite: 100, benchmark: 100 }]
+  for (let i = 0; i < length; i++) {
+    points.push({
+      monthEnd:  satellite[i]?.monthEnd ?? benchmark[i]!.monthEnd,
+      satellite: satIndex[i + 1] ?? null,
+      benchmark: benchIndex[i + 1] ?? null,
+    })
+  }
+
+  const netTax = cum(sat.map(s => s.netTax))
+  const benchCum = cum(bench.map(b => b.ret))
+  return {
+    points,
+    months: n,
+    satellite: {
+      gross:   cum(sat.map(s => s.gross)),
+      netFees: cum(sat.map(s => s.netFees)),
+      netTax,
+    },
+    benchmark: benchCum,
+    diff:      netTax - benchCum,
+  }
+}
+
+/**
+ * §4.6: % de meses con revisión. Cuentan los runs desde el cierre base (el
+ * run del mes de started_at en adelante); revisado = hay fila en invest_reviews.
+ */
+export function reviewStats(
+  runs: { id: string; runDate: string }[],
+  reviewedRunIds: Set<string>,
+  startedAt: string,
+): { reviewed: number; total: number } {
+  const base = performanceBaseMonth(startedAt)
+  const counted = runs.filter(r => monthKey(r.runDate) >= base)
+  return {
+    reviewed: counted.filter(r => reviewedRunIds.has(r.id)).length,
+    total:    counted.length,
+  }
+}

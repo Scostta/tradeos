@@ -197,3 +197,33 @@ export async function getLatestChecks(
   }
   return createDataResult(latest)
 }
+
+/** Runs con run_date >= from (YYYY-MM-DD), para el % de meses revisados (§4.6). */
+export async function getRunsSince(from: string): Promise<ResultType<{ id: string; runDate: string }[], string>> {
+  const supabase = await createClient()
+  const { data, error } = await supabase
+    .from("invest_screen_runs")
+    .select("id, run_date")
+    .gte("run_date", from)
+    .order("run_date", { ascending: true })
+
+  if (error) {
+    console.error(error)
+    return createErrorResult(error.message)
+  }
+  return createDataResult((data ?? []).map(r => ({ id: r.id as string, runDate: r.run_date as string })))
+}
+
+/** Ids de los runs que el usuario revisó (invest_reviews). */
+export async function getReviewedRunIds(): Promise<ResultType<Set<string>, string>> {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return createErrorResult("UNAUTHENTICATED")
+
+  const { data, error } = await supabase.from("invest_reviews").select("run_id").eq("user_id", user.id)
+  if (error) {
+    console.error(error)
+    return createErrorResult(error.message)
+  }
+  return createDataResult(new Set((data ?? []).map(r => r.run_id as string)))
+}
