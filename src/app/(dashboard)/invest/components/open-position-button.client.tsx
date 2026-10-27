@@ -30,7 +30,7 @@ export function OpenPositionButton({ candidate, blockers }: Props): ReactElement
     <>
       {opened && (
         <div className="fixed top-4 right-4 z-50">
-          <Toast variant="success" message={INVEST.OPEN.OPENED.replace("{ticker}", candidate.ticker)} />
+          <Toast variant="success" message={(candidate.paper ? INVEST.OPEN.OPENED_PAPER : INVEST.OPEN.OPENED).replace("{ticker}", candidate.ticker)} />
         </div>
       )}
       <span title={disabled ? reason : undefined} className="inline-flex">

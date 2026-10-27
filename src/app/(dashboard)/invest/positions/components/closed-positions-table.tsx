@@ -4,7 +4,7 @@ import type { ClosedResult } from "~/lib/calculations/invest-positions"
 import { TriangleAlertIcon } from "~/lib/ui/icons/triangle-alert-icon"
 import type { InvestPositionWithMeta } from "~/types/invest"
 import { cn } from "~/utils/cn"
-import { fmtDay, fmtEur, fmtPrice, fmtShares, signColor } from "../../components/invest-format"
+import { PAPER_BADGE_CLS, fmtDay, fmtEur, fmtPrice, fmtShares, signColor } from "../../components/invest-format"
 
 const P = INVEST.POSITIONS
 const H = P.HEADERS
@@ -64,7 +64,10 @@ export function ClosedPositionsTable({ rows }: { rows: ClosedRow[] }): ReactElem
                 const net = r && tax != null ? r.netPnlEur - tax : null
                 return (
                   <tr key={p.id} className="border-b border-border last:border-0 hover:bg-surface-2 transition-colors">
-                    <td className="px-3 py-2.5 mono text-sm font-semibold text-text">{p.ticker}</td>
+                    <td className="px-3 py-2.5 whitespace-nowrap">
+                      <span className="mono text-sm font-semibold text-text">{p.ticker}</span>
+                      {p.paper && <span className={`${PAPER_BADGE_CLS} ml-2`}>{INVEST.PERFORMANCE.PAPER_BADGE}</span>}
+                    </td>
                     <td className="px-3 py-2.5 mono text-sm text-text-dim whitespace-nowrap">{fmtDay(p.openedAt)}</td>
                     <td className="px-3 py-2.5 mono text-sm text-text-dim whitespace-nowrap">{p.closedAt ? fmtDay(p.closedAt) : "—"}</td>
                     <td className={`${CELL} text-text-dim`}>{fmtShares(p.shares)}</td>

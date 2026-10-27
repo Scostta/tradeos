@@ -57,6 +57,10 @@ export function fmtEur(n: number | null, opts?: { sign?: boolean; decimals?: num
   return sign && shown > 0 ? `+€${abs}` : `€${abs}`
 }
 
+/** Clases del badge "Paper" (§1.6), igual en todas las pestañas. */
+export const PAPER_BADGE_CLS =
+  "mono text-xs font-semibold tracking-wider uppercase px-1.5 py-0.5 rounded-sm bg-short/15 text-short"
+
 export function fmtShares(n: number): string {
   return n.toLocaleString("en-US", { maximumFractionDigits: 4 })
 }

@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest"
-import { distanceToSma, isCurrentMonthRun, openBlockers } from "./invest-run"
+import { distanceToSma, isCurrentMonthRun, openBlockers, positionsForLimits, startedAtAfterOpen } from "./invest-run"
 
 describe("isCurrentMonthRun", () => {
   it("el run de octubre evalúa el cierre de septiembre", () => {
@@ -67,5 +67,32 @@ describe("openBlockers", () => {
     const open = [{ ticker: "X", sector: null }, { ticker: "Y", sector: null }]
     expect(openBlockers({ ...base, candidate, openPositions: open })).toEqual(["SECTOR_LIMIT"])
     expect(openBlockers({ ...base, candidate, openPositions: [{ ticker: "Z", sector: "Technology" }] })).toEqual([])
+  })
+})
+
+describe("papel (§1.6)", () => {
+  const pos = (ticker: string, paper: boolean, closedAt: string | null = null) => ({ ticker, paper, closedAt, sector: "Technology" })
+
+  it("en modo papel, las de papel pasan por los mismos límites que las reales", () => {
+    const open = positionsForLimits([pos("LRCX", true), pos("KLAC", true), pos("OLD", true, "2026-10-01")], true)
+    expect(open.map(p => p.ticker)).toEqual(["LRCX", "KLAC"])
+    const candidate = { ticker: "MU", passes: true, sector: "Technology" }
+    expect(openBlockers({ isCurrentRun: true, candidate, openPositions: open, maxPositions: 5 })).toEqual(["SECTOR_LIMIT"])
+    expect(openBlockers({ isCurrentRun: true, candidate: { ...candidate, ticker: "LRCX" }, openPositions: open, maxPositions: 5 }))
+      .toEqual(["ALREADY_OPEN", "SECTOR_LIMIT"])
+  })
+
+  it("en modo real, las de papel abiertas no cuentan para máximo, sector ni ticker", () => {
+    const all = [pos("MU", true), pos("LRCX", true), pos("KLAC", true), pos("A", true), pos("B", true), pos("ASML", false)]
+    const open = positionsForLimits(all, false)
+    expect(open.map(p => p.ticker)).toEqual(["ASML"])
+    const candidate = { ticker: "MU", passes: true, sector: "Technology" }
+    expect(openBlockers({ isCurrentRun: true, candidate, openPositions: open, maxPositions: 5 })).toEqual([])
+  })
+
+  it("started_at solo lo fija la primera posición real", () => {
+    expect(startedAtAfterOpen(null, true, "2026-10-28")).toBeNull()               // papel: no
+    expect(startedAtAfterOpen(null, false, "2026-11-03")).toBe("2026-11-03")      // primera real: sí
+    expect(startedAtAfterOpen("2026-11-03", false, "2026-12-02")).toBe("2026-11-03") // siguientes: no cambia
   })
 })

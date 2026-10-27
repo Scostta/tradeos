@@ -338,7 +338,7 @@ Módulo núcleo/satélite (hipótesis 13): el núcleo es un fondo indexado fuera
 - **Fundamental** (todas): crecimiento de ingresos > 10 %, FCF margin > 0, margen bruto ≥ el del año anterior − 1 pt, deuda neta/EBITDA < 2 o caja neta, ROIC > 10 %. Un ratio no calculable (`null`) **falla**; `TotalDebt` ausente en un balance que sí cargó cuenta como 0.
 - **Técnico** (sobre `Adj Close` mensual): precio > SMA 10 meses, momentum 12-1 > 0, fuerza relativa 6 m vs. benchmark > 0.
 - **Ejecución**: solo con el run del mes en curso; máx. 5 posiciones abiertas y **máx. 2 por sector**; tamaño 4 % del patrimonio total; nunca promediar a la baja; salida mecánica `sma_exit` si `price < sma10m`; ≥ 2 falsadores por tesis; cierre `manual` = desviación.
-- **Evaluación**: 36 meses desde `started_at`, que se fija al abrir la **primera posición con dinero real** (antes, modo papel). Si el satélite no bate al benchmark, se liquida.
+- **Evaluación**: 36 meses desde `started_at`, que se fija al abrir la **primera posición real** (`paper = false`). Antes, **modo papel** (`invest_settings.paper_mode`): el modal abre posiciones de papel con las mismas validaciones y checks, que nunca cuentan para el test; "Start real test" en ajustes sale del modo papel, y desde ahí las de papel abiertas no cuentan para los límites. Si el satélite no bate al benchmark, se liquida.
 
 **Las reglas de §1.1–§1.3 se implementan una sola vez, en `evaluate()` de `scripts/screener/screener/rules.py`. TS no las reimplementa**: la app solo lee `invest_screen_results` (valores, `passes`, `fail_reasons`). Lo único que valida la app son los límites de apertura de §1.4, en `openBlockers()` (`src/lib/calculations/invest-run.ts`), compartida por el botón y por `openInvestPosition`.
 
@@ -350,8 +350,8 @@ Módulo núcleo/satélite (hipótesis 13): el núcleo es un fondo indexado fuera
 | `invest_screen_results` | job | **todos** los tickers evaluados, con ratios, `sector`, `currency`, `passes` y `fail_reasons` |
 | `invest_prices` | job | cierres mensuales `adj_close` y `close` (sin ajustar) del benchmark, de los tickers con posición y de los pares `EUR{divisa}=X` |
 | `invest_position_checks` | job | señal `hold`/`sell` mensual por posición abierta |
-| `invest_positions` | usuario (RLS) | posiciones con tesis, falsadores, cierre y motivo |
-| `invest_settings` | usuario (RLS) | patrimonio total, benchmark, `started_at`; `satellite_pct`, `max_positions`, `position_pct` no se editan desde la UI |
+| `invest_positions` | usuario (RLS) | posiciones con tesis, falsadores, cierre y motivo; `paper` para las de papel |
+| `invest_settings` | usuario (RLS) | patrimonio total, benchmark, `paper_mode`, `started_at` (null hasta la primera posición real); `satellite_pct`, `max_positions`, `position_pct` no se editan desde la UI |
 | `invest_reviews` | usuario (RLS) | una fila por run revisado (visita a Screen con el run vigente) |
 
 Las cuatro primeras son compartidas: `select` para `authenticated`, sin políticas de escritura.
@@ -365,7 +365,7 @@ Las cuatro primeras son compartidas: `select` para `authenticated`, sin polític
 ### App
 
 - Rutas: `/invest` (Screen), `/invest/positions`, `/invest/performance`. Sin `invest_settings`, solo el formulario de ajustes.
-- `src/types/invest.ts` (Zod), `src/services/mappers/invest.ts`, `src/services/queries/invest.ts`, `src/actions/invest.ts` (`saveInvestSettings`, `openInvestPosition`, `closeInvestPosition`, `markRunReviewed`), cálculos puros con vitest en `src/lib/calculations/invest-*.ts`, copies en `src/constants/copies/invest/`.
+- `src/types/invest.ts` (Zod), `src/services/mappers/invest.ts`, `src/services/queries/invest.ts`, `src/actions/invest.ts` (`saveInvestSettings`, `openInvestPosition`, `closeInvestPosition`, `markRunReviewed`, `startRealTest`), cálculos puros con vitest en `src/lib/calculations/invest-*.ts`, copies en `src/constants/copies/invest/`.
 - **Divisa base EUR**: precios en la divisa de cotización (`GBp` en peniques), pasados a EUR con los pares de `invest_prices`; comisiones en EUR.
 - **Performance** (§5.1): TWR con caja + posiciones (abrir/cerrar son movimientos internos), **total return implícito** `acciones × close(apertura) × adj(m) / adj(apertura)`; dividendos cobrados no se registran. **Positions** muestra el P&L latente con el último `close` real ("si vendiera hoy"), por eso puede diferir.
 - **Impuesto estimado** (§5.2): IRPF del ahorro 19–28 % por año, pérdidas del año compensan, sin arrastre; cada cierre se lleva lo que añade al impuesto de su año. Siempre etiquetado como estimación.

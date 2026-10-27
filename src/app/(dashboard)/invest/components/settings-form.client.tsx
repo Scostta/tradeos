@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from "react"
 import type { ReactElement } from "react"
-import { saveInvestSettings } from "~/actions/invest"
+import { saveInvestSettings, startRealTest } from "~/actions/invest"
 import { INVEST } from "~/constants/copies/invest"
 import type { InvestSettings } from "~/types/invest"
 import { Toast } from "~/lib/ui/toast"
@@ -20,7 +20,6 @@ const DEFAULTS = { satellitePct: 0.2, maxPositions: 5, positionPct: 0.04, benchm
 
 type Props = {
   settings:  InvestSettings | null
-  started?:  boolean   // hay alguna posición: started_at ya es definitivo (§1.6)
   onSaved?:  () => void
   onCancel?: () => void
 }
@@ -35,7 +34,7 @@ function Field({ label, hint, children }: { label: string; hint?: string; childr
   )
 }
 
-export function SettingsForm({ settings, started = false, onSaved, onCancel }: Props): ReactElement {
+export function SettingsForm({ settings, onSaved, onCancel }: Props): ReactElement {
   const [total, setTotal]         = useState(settings ? String(settings.totalPortfolioValue) : "")
   const [benchmark, setBenchmark] = useState(settings?.benchmarkTicker ?? DEFAULTS.benchmarkTicker)
   const [toast, setToast]         = useState<{ message: string; variant: ToastVariant } | null>(null)
@@ -89,19 +88,7 @@ export function SettingsForm({ settings, started = false, onSaved, onCancel }: P
             className={`${INPUT_CLS} mono`} spellCheck={false} autoComplete="off"
           />
         </Field>
-        {/* §1.6: started_at no se edita; lo fija la primera posición. */}
-        <div className="flex flex-col gap-1.5">
-          <span className="label-caps">{S.STARTED_AT}</span>
-          {started && settings ? (
-            <span className="mono text-base text-text py-2">{S.STARTED_ON.replace("{date}", fmtDay(settings.startedAt))}</span>
-          ) : (
-            <span className="inline-flex self-start items-center gap-2 mt-1 px-2.5 py-1 rounded-full bg-short/10 text-short text-sm font-medium">
-              <span className="size-1.5 rounded-full bg-short" />
-              {S.PAPER_MODE}
-            </span>
-          )}
-          {!started && <span className="text-sm text-text-mute">{S.PAPER_MODE_HINT}</span>}
-        </div>
+        <TestStatus settings={settings} onStarted={onSaved} />
       </div>
 
       <div className="rounded-md border border-border bg-bg px-3 py-2.5">
@@ -134,6 +121,61 @@ export function SettingsForm({ settings, started = false, onSaved, onCancel }: P
           {pending ? <><Spinner />{S.SAVING}</> : S.SAVE}
         </button>
       </div>
+    </div>
+  )
+}
+
+// §1.6: started_at no se edita. Modo papel → botón "Start real test" (con
+// confirmación); después, la primera posición real fija la fecha.
+function TestStatus({ settings, onStarted }: { settings: InvestSettings | null; onStarted?: () => void }): ReactElement {
+  const [armed, setArmed] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const [pending, startTransition] = useTransition()
+  const paperMode = settings?.paperMode ?? true
+
+  function start() {
+    if (!armed) { setArmed(true); return }
+    startTransition(async () => {
+      const result = await startRealTest()
+      if (result.success) onStarted?.()
+      else setError(investErrorMessage(result.error))
+    })
+  }
+
+  return (
+    <div className="flex flex-col gap-1.5">
+      <span className="label-caps">{S.STARTED_AT}</span>
+      {paperMode ? (
+        <>
+          <span className="inline-flex self-start items-center gap-2 mt-1 px-2.5 py-1 rounded-full bg-short/10 text-short text-sm font-medium">
+            <span className="size-1.5 rounded-full bg-short" />
+            {S.PAPER_MODE}
+          </span>
+          <span className="text-sm text-text-mute">{S.PAPER_MODE_HINT}</span>
+          {settings && (
+            <>
+              <button
+                type="button" onClick={start} disabled={pending}
+                className={`btn-ghost self-start inline-flex items-center gap-2 mt-1 ${armed ? "border-accent text-accent" : ""}`}
+              >
+                {pending ? <><Spinner />{S.STARTING}</> : armed ? S.START_REAL_CONFIRM : S.START_REAL}
+              </button>
+              {armed && <span className="text-sm text-text-mute">{S.START_REAL_HINT}</span>}
+              {error && <span className="text-sm text-loss">{error}</span>}
+            </>
+          )}
+        </>
+      ) : settings?.startedAt ? (
+        <span className="mono text-base text-text py-2">{S.STARTED_ON.replace("{date}", fmtDay(settings.startedAt))}</span>
+      ) : (
+        <>
+          <span className="inline-flex self-start items-center gap-2 mt-1 px-2.5 py-1 rounded-full bg-accent/10 text-accent text-sm font-medium">
+            <span className="size-1.5 rounded-full bg-accent" />
+            {S.REAL_PENDING}
+          </span>
+          <span className="text-sm text-text-mute">{S.REAL_PENDING_HINT}</span>
+        </>
+      )}
     </div>
   )
 }

@@ -1,6 +1,6 @@
 import type { ReactElement } from "react"
 import { INVEST } from "~/constants/copies/invest"
-import { getInvestSettings, getPositions } from "~/services/queries/invest"
+import { getInvestSettings } from "~/services/queries/invest"
 import { ScreenTab } from "./components/screen-tab"
 import { SettingsButton } from "./components/settings-button.client"
 import { InvestOnboarding } from "./components/invest-onboarding"
@@ -13,10 +13,8 @@ export default async function InvestPage({
   const params = await searchParams
   const query = params.q?.trim().toUpperCase() || null
 
-  const [settingsResult, positionsResult] = await Promise.all([getInvestSettings(), getPositions()])
+  const settingsResult = await getInvestSettings()
   const settings = settingsResult.success ? settingsResult.data : null
-  // §1.6: con alguna posición, started_at ya es definitivo (fuera de modo papel).
-  const started = positionsResult.success && positionsResult.data.length > 0
 
   return (
     <div className="flex flex-col h-full">
@@ -27,7 +25,7 @@ export default async function InvestPage({
         </div>
         {settings && (
           <div className="ml-auto">
-            <SettingsButton settings={settings} started={started} />
+            <SettingsButton settings={settings} />
           </div>
         )}
       </header>

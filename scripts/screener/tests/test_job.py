@@ -141,6 +141,15 @@ def test_run_writes_run_results_checks_and_prices(offline):
     ]
 
 
+def test_paper_mode_settings_without_started_at(offline):
+    """§1.6: en modo papel started_at es null; el benchmark se pide desde run_date − 12 m."""
+    client = FakeClient(settings=[{"benchmark_ticker": "IWDA.AS", "started_at": None}])
+    run(client)
+    starts = dict((t, s) for t, s in offline if s is not None)
+    assert starts["IWDA.AS"] == date(2025, 9, 1)
+    assert {p["ticker"] for p in client.tables["invest_prices"]} >= {"IWDA.AS"}
+
+
 def test_rerun_reuses_run_row_and_replaces_results(offline):
     client = FakeClient(positions=POSITIONS)
     run(client)

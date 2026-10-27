@@ -42,3 +42,23 @@ export function openBlockers(args: {
   if (sameSector >= MAX_OPEN_PER_SECTOR) out.push("SECTOR_LIMIT")
   return out
 }
+
+// ── Papel (INVEST_SPEC.md §1.6) ──────────────────────────────────────────────
+
+/**
+ * Posiciones abiertas que cuentan para los límites de apertura (máx.
+ * posiciones, sector, ticker repetido): solo las del modo actual. En modo
+ * papel, las de papel; en modo real, las reales (las de papel que sigan
+ * abiertas no cuentan).
+ */
+export function positionsForLimits<T extends { paper: boolean; closedAt: string | null }>(
+  positions: T[],
+  paperMode: boolean,
+): T[] {
+  return positions.filter(p => p.closedAt == null && p.paper === paperMode)
+}
+
+/** started_at tras abrir una posición: solo lo fija la primera con paper = false. */
+export function startedAtAfterOpen(current: string | null, paper: boolean, openedAt: string): string | null {
+  return paper || current != null ? current : openedAt
+}

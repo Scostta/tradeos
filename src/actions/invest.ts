@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache"
 import { createClient } from "~/utils/supabase/server"
 import { APP_URLS } from "~/constants/app-urls"
 import { getLatestRun, getPositions, getScreenResult } from "~/services/queries/invest"
-import { isCurrentMonthRun, openBlockers } from "~/lib/calculations/invest-run"
+import { isCurrentMonthRun, openBlockers, positionsForLimits, startedAtAfterOpen } from "~/lib/calculations/invest-run"
 import type { OpenBlocker } from "~/lib/calculations/invest-run"
 import {
   closeInvestPositionInputSchema,
@@ -75,7 +75,7 @@ export async function openInvestPosition(input: unknown): Promise<ResultType<{ i
   if (!user) return createErrorResult("UNAUTHENTICATED")
 
   const { data: settingsRow, error: settingsError } = await supabase
-    .from("invest_settings").select("max_positions").eq("user_id", user.id).maybeSingle()
+    .from("invest_settings").select("max_positions, paper_mode, started_at").eq("user_id", user.id).maybeSingle()
   if (settingsError) {
     console.error(settingsError)
     return createErrorResult("UNKNOWN")
@@ -99,10 +99,13 @@ export async function openInvestPosition(input: unknown): Promise<ResultType<{ i
   const candidate = candidateResult.data
   if (!candidate) return createErrorResult("NOT_IN_RUN")
 
+  // §1.6: en modo papel se abren posiciones de papel. Los límites se cuentan
+  // solo entre las del modo actual (las de papel no cuentan en modo real).
+  const paper = settingsRow.paper_mode as boolean
   const blockers = openBlockers({
     isCurrentRun:  true,
     candidate,
-    openPositions: positionsResult.data.filter(p => p.closedAt == null),
+    openPositions: positionsForLimits(positionsResult.data, paper),
     maxPositions:  settingsRow.max_positions as number,
   })
   if (blockers.length > 0) return createErrorResult(blockers[0])
@@ -119,24 +122,27 @@ export async function openInvestPosition(input: unknown): Promise<ResultType<{ i
       fees_open:   data.feesOpen,
       thesis:      data.thesis,
       falsifiers:  data.falsifiers,
+      paper,
     })
     .select("id")
     .single()
 
   if (error) {
-    // invest_positions_one_open_per_ticker: otra apertura simultánea del mismo ticker.
+    // invest_positions_one_open_per_ticker: otra apertura simultánea del mismo ticker (y modo).
     if (error.code === "23505") return createErrorResult("ALREADY_OPEN")
     console.error(error)
     return createErrorResult("UNKNOWN")
   }
 
-  // §1.6: el test de 36 meses arranca con la primera posición con dinero real;
-  // hasta entonces started_at es provisional (modo papel).
-  if (positionsResult.data.length === 0) {
+  // §1.6: el test de 36 meses arranca con la primera posición con dinero real.
+  const currentStart = (settingsRow.started_at as string | null) ?? null
+  const startedAt = startedAtAfterOpen(currentStart, paper, data.openedAt)
+  if (startedAt !== currentStart) {
     const { error: startError } = await supabase
       .from("invest_settings")
-      .update({ started_at: data.openedAt, updated_at: new Date().toISOString() })
+      .update({ started_at: startedAt, updated_at: new Date().toISOString() })
       .eq("user_id", user.id)
+      .is("started_at", null)
     if (startError) console.error(startError)
   }
 
@@ -226,5 +232,29 @@ export async function markRunReviewed(input: unknown): Promise<ResultType<{ ok: 
     console.error(error)
     return createErrorResult("UNKNOWN")
   }
+  return createDataResult({ ok: true })
+}
+
+/**
+ * §1.6: sale del modo papel. Desde aquí el modal abre posiciones reales y la
+ * primera fija started_at. No hay vuelta atrás desde la UI.
+ */
+export async function startRealTest(): Promise<ResultType<{ ok: true }, InvestActionError>> {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return createErrorResult("UNAUTHENTICATED")
+
+  const { error } = await supabase
+    .from("invest_settings")
+    .update({ paper_mode: false, updated_at: new Date().toISOString() })
+    .eq("user_id", user.id)
+  if (error) {
+    console.error(error)
+    return createErrorResult("UNKNOWN")
+  }
+
+  revalidatePath(APP_URLS.INVEST)
+  revalidatePath(APP_URLS.INVEST_POSITIONS)
+  revalidatePath(APP_URLS.INVEST_PERFORMANCE)
   return createDataResult({ ok: true })
 }

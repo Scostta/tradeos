@@ -4,7 +4,7 @@ import type { OpenValuation } from "~/lib/calculations/invest-positions"
 import type { LatestCheck } from "~/services/queries/invest"
 import type { InvestPositionWithMeta } from "~/types/invest"
 import { cn } from "~/utils/cn"
-import { fmtDay, fmtEur, fmtPct, fmtPrice, fmtShares, signColor } from "../../components/invest-format"
+import { PAPER_BADGE_CLS, fmtDay, fmtEur, fmtPct, fmtPrice, fmtShares, signColor } from "../../components/invest-format"
 import { ClosePositionButton } from "./close-position-button.client"
 
 const P = INVEST.POSITIONS
@@ -48,10 +48,11 @@ export function OpenPositionCard({ position: p, valuation: v, check }: Props): R
   const sell = check?.signal === "sell"
 
   return (
-    <div className={cn("card flex flex-col", sell && "border-loss/40")}>
+    <div className={cn("card flex flex-col", sell && "border-loss/40", p.paper && "border-dashed")}>
       {/* Cabecera */}
       <div className="flex flex-wrap items-center gap-x-3 gap-y-2 px-4 py-3 border-b border-border">
         <span className="mono text-xl font-semibold tracking-tight text-text">{p.ticker}</span>
+        {p.paper && <span className={PAPER_BADGE_CLS}>{INVEST.PERFORMANCE.PAPER_BADGE}</span>}
         <span className="text-md text-text-dim truncate">{p.name ?? ""}</span>
         <span className="text-xs px-2 py-0.5 rounded-sm bg-surface-2 text-text-dim">{p.sector ?? INVEST.SCREEN.NO_SECTOR}</span>
         <div className="ml-auto flex items-center gap-2">

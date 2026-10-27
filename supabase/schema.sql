@@ -379,6 +379,7 @@ create table if not exists invest_positions (
   fees_close    numeric(10,2) default 0,
   exit_reason   text check (exit_reason in ('sma_exit','falsifier','manual')),
   exit_note     text,
+  paper         boolean not null default false,  -- posición de papel (§1.6)
   created_at    timestamptz default now(),
   constraint invest_positions_falsifiers_min check (array_length(falsifiers, 1) >= 2),
   constraint invest_positions_close_consistent check (
@@ -387,8 +388,9 @@ create table if not exists invest_positions (
   )
 );
 
+-- Papel y real no se bloquean entre sí (§1.6).
 create unique index if not exists invest_positions_one_open_per_ticker
-  on invest_positions (user_id, ticker) where closed_at is null;
+  on invest_positions (user_id, ticker, paper) where closed_at is null;
 
 alter table invest_positions enable row level security;
 
@@ -402,7 +404,8 @@ create table if not exists invest_settings (
   max_positions         integer not null default 5,
   position_pct          numeric(5,4) not null default 0.04,
   benchmark_ticker      text not null default 'IWDA.AS',
-  started_at            date not null default current_date,
+  started_at            date,                     -- lo fija la primera posición real (§1.6)
+  paper_mode            boolean not null default true,  -- hasta "Start real test"
   updated_at            timestamptz default now()
 );
 

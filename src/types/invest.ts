@@ -74,7 +74,8 @@ export const investSettingsSchema = z.object({
   maxPositions:        z.number().int(),
   positionPct:         z.number(),
   benchmarkTicker:     z.string(),
-  startedAt:           isoDate,
+  startedAt:           isoDate.nullable(),   // lo fija la primera posición real (§1.6)
+  paperMode:           z.boolean(),          // true hasta "Start real test"
   updatedAt:           timestamp.nullable(),
 })
 export type InvestSettings = z.infer<typeof investSettingsSchema>
@@ -98,6 +99,7 @@ export const investPositionSchema = z.object({
   feesClose:  z.number(),
   exitReason: exitReasonSchema.nullable(),
   exitNote:   z.string().nullable(),
+  paper:      z.boolean(),                   // posición de papel (§1.6)
   createdAt:  timestamp,
 })
 export type InvestPosition = z.infer<typeof investPositionSchema>

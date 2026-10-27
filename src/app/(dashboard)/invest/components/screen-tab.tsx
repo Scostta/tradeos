@@ -7,7 +7,7 @@ import {
   getScreenResult,
   getScreenResults,
 } from "~/services/queries/invest"
-import { isCurrentMonthRun, openBlockers } from "~/lib/calculations/invest-run"
+import { isCurrentMonthRun, openBlockers, positionsForLimits } from "~/lib/calculations/invest-run"
 import { EUR_FX_TICKERS, buildPriceIndex, eurPerUnit, monthKey } from "~/lib/calculations/invest-fx"
 import type { InvestSettings } from "~/types/invest"
 import { RunSummary } from "./run-summary"
@@ -44,7 +44,8 @@ export async function ScreenTab({ query, settings }: Props): Promise<ReactElemen
 
   const today = new Date().toISOString().slice(0, 10)
   const isCurrent = isCurrentMonthRun(run.runDate, today)
-  const openPositions = positions.data.filter(p => p.closedAt == null)
+  // §1.6: los límites se cuentan solo entre las posiciones del modo actual.
+  const openPositions = positionsForLimits(positions.data, settings.paperMode)
   const fxIndex = buildPriceIndex(fx.data)
   const runMonth = monthKey(run.runDate)
 
@@ -61,6 +62,7 @@ export async function ScreenTab({ query, settings }: Props): Promise<ReactElemen
         totalPortfolioValue: settings.totalPortfolioValue,
         positionPct:         settings.positionPct,
         eurPerUnit:          eurPerUnit(r.currency, runMonth, fxIndex),
+        paper:               settings.paperMode,
       },
     }
   }

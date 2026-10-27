@@ -26,7 +26,7 @@ function Tile({ label, children }: { label: string; children: ReactNode }): Reac
   )
 }
 
-async function PositionsContent({ maxPositions }: { maxPositions: number }): Promise<ReactElement> {
+async function PositionsContent({ maxPositions, paperMode }: { maxPositions: number; paperMode: boolean }): Promise<ReactElement> {
   const positionsResult = await getPositions()
   if (!positionsResult.success) {
     return <div className="card p-4 text-sm text-loss">{P.LOAD_ERROR}</div>
@@ -51,10 +51,13 @@ async function PositionsContent({ maxPositions }: { maxPositions: number }): Pro
   const index = buildPriceIndex(pricesResult.data)
 
   const valued = open.map(p => ({ position: p, valuation: valueOpenPosition(p, index) }))
+  // §1.6: el resumen (y el máximo) es del modo actual; en modo real, las de
+  // papel abiertas se listan pero no suman.
+  const counted = valued.filter(v => v.position.paper === paperMode)
   const sum = (xs: (number | null)[]) => (xs.some(x => x == null) ? null : xs.reduce<number>((a, x) => a + (x ?? 0), 0))
-  const invested = sum(valued.map(v => v.valuation.costEur))
-  const marketValue = sum(valued.map(v => v.valuation.valueEur))
-  const unrealized = sum(valued.map(v => v.valuation.pnlEur))
+  const invested = sum(counted.map(v => v.valuation.costEur))
+  const marketValue = sum(counted.map(v => v.valuation.valueEur))
+  const unrealized = sum(counted.map(v => v.valuation.pnlEur))
 
   const closedResults = closed.map(p => ({ position: p, result: closedPositionResult(p, index) }))
   const taxes = estimatedTaxByClose(
@@ -69,13 +72,13 @@ async function PositionsContent({ maxPositions }: { maxPositions: number }): Pro
   return (
     <>
       <div className="grid grid-cols-2 xl:grid-cols-4 gap-3">
-        <Tile label={P.OPEN_COUNT}>
-          {open.length}<span className="text-md text-text-mute font-normal"> / {maxPositions}</span>
+        <Tile label={paperMode ? `${P.OPEN_COUNT} · ${INVEST.PERFORMANCE.PAPER_BADGE}` : P.OPEN_COUNT}>
+          {counted.length}<span className="text-md text-text-mute font-normal"> / {maxPositions}</span>
         </Tile>
-        <Tile label={P.INVESTED}>{fmtEur(open.length ? invested : 0)}</Tile>
-        <Tile label={P.MARKET_VALUE}>{fmtEur(open.length ? marketValue : 0)}</Tile>
+        <Tile label={P.INVESTED}>{fmtEur(counted.length ? invested : 0)}</Tile>
+        <Tile label={P.MARKET_VALUE}>{fmtEur(counted.length ? marketValue : 0)}</Tile>
         <Tile label={P.UNREALIZED}>
-          <span className={signColor(unrealized)}>{fmtEur(open.length ? unrealized : 0, { sign: true })}</span>
+          <span className={signColor(unrealized)}>{fmtEur(counted.length ? unrealized : 0, { sign: true })}</span>
         </Tile>
       </div>
 
@@ -128,7 +131,7 @@ export default async function InvestPositionsPage(): Promise<ReactElement> {
       ) : (
         <div className="flex-1 min-h-0 overflow-auto page-pad">
           <div className="flex flex-col gap-5">
-            <PositionsContent maxPositions={settings.maxPositions} />
+            <PositionsContent maxPositions={settings.maxPositions} paperMode={settings.paperMode} />
           </div>
         </div>
       )}

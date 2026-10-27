@@ -50,7 +50,7 @@ type Ledger = { gross: number; netFees: number; netTax: number }
 export function satelliteMonthlyReturns(
   positions: PerfPosition[],
   prices: InvestPrice[],
-  settings: Pick<InvestSettings, "totalPortfolioValue" | "satellitePct" | "startedAt">,
+  settings: Pick<InvestSettings, "totalPortfolioValue" | "satellitePct"> & { startedAt: string },
   through: MonthKey,
 ): SatelliteMonth[] {
   const index = buildPriceIndex(prices)
@@ -267,4 +267,32 @@ export function reviewStats(
     reviewed: counted.filter(r => reviewedRunIds.has(r.id)).length,
     total:    counted.length,
   }
+}
+
+export type PerformanceScope<T> = {
+  kind:           "real" | "paper" | "none"
+  positions:      T[]          // las que entran en la curva
+  startedAt:      string | null
+  paperPositions: T[]          // todas las de papel (bloque plegado en modo real)
+}
+
+/**
+ * §1.6: qué mide Performance. Con posiciones reales, solo las reales desde
+ * started_at. Sin reales, la curva de las de papel desde la primera apertura
+ * de papel (etiquetada "Paper").
+ */
+export function performanceScope<T extends { paper: boolean; openedAt: string }>(
+  positions: T[],
+  startedAt: string | null,
+): PerformanceScope<T> {
+  const real = positions.filter(p => !p.paper)
+  const paper = positions.filter(p => p.paper)
+  const firstOpen = (ps: T[]) => ps.map(p => p.openedAt).sort()[0] ?? null
+  if (real.length > 0) {
+    return { kind: "real", positions: real, startedAt: startedAt ?? firstOpen(real), paperPositions: paper }
+  }
+  if (paper.length > 0) {
+    return { kind: "paper", positions: paper, startedAt: firstOpen(paper), paperPositions: paper }
+  }
+  return { kind: "none", positions: [], startedAt: null, paperPositions: [] }
 }

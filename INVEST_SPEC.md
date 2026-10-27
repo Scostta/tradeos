@@ -52,7 +52,9 @@ Sobre **cierres mensuales ajustados** (Yahoo `Adj Close`, último cierre de cada
 - Si el usuario tiene otro fondo, lo cambia en ajustes (§2.4); el job lee el ticker de ahí.
 
 ### 1.6 Evaluación de la hipótesis
-- Horizonte: **36 meses** desde `invest_settings.started_at`. `started_at` se fija al abrir la **primera posición con dinero real** (= su `opened_at`); hasta entonces su valor es de **modo papel** (provisional, por defecto la fecha de los ajustes) y la app lo muestra así.
+- Horizonte: **36 meses** desde `invest_settings.started_at`.
+- **Modo papel** (`invest_settings.paper_mode = true`, estado inicial): el modal abre posiciones de **papel** (`invest_positions.paper = true`), con las mismas validaciones de servidor (run vigente, ticker aprobado, máx. 5, máx. 2 por sector, sin duplicar ticker) y los mismos checks `hold`/`sell` del job. Sirven para ensayar; nunca cuentan para el test.
+- El usuario sale del modo papel con **"Start real test"** en ajustes (`paper_mode = false`, sin vuelta atrás desde la UI). Desde ahí el modal abre posiciones reales, y `started_at` se fija **solo** al abrir la primera con `paper = false` (= su `opened_at`). Las posiciones de papel que sigan abiertas se mantienen (y reciben checks), pero **no cuentan** para el máximo de 5, el de sector ni el de ticker duplicado: los límites se cuentan solo entre las posiciones del modo actual.
 - Métrica: rentabilidad del satélite neta de costes e impuestos estimados vs. rentabilidad del benchmark en el mismo periodo, ambas como TWR mensual encadenada (§5).
 - La app muestra "mes X de 36" y la diferencia acumulada. Si a los 36 meses el satélite no bate al benchmark, se liquida. El criterio queda escrito aquí; no se decide al final.
 
@@ -127,6 +129,7 @@ create table if not exists invest_positions (
   fees_close    numeric(10,2) default 0,
   exit_reason   text check (exit_reason in ('sma_exit','falsifier','manual')),
   exit_note     text,                         -- qué falsador saltó / motivo manual
+  paper         boolean not null default false,  -- posición de papel (§1.6)
   created_at    timestamptz default now(),
   constraint invest_positions_falsifiers_min check (array_length(falsifiers, 1) >= 2),
   constraint invest_positions_close_consistent check (
@@ -135,7 +138,7 @@ create table if not exists invest_positions (
   )
 );
 create unique index invest_positions_one_open_per_ticker
-  on invest_positions (user_id, ticker) where closed_at is null;
+  on invest_positions (user_id, ticker, paper) where closed_at is null;   -- papel y real no se bloquean (§1.6)
 ```
 RLS: `for all using (auth.uid() = user_id)`.
 
@@ -148,7 +151,8 @@ create table if not exists invest_settings (
   max_positions         integer not null default 5,
   position_pct          numeric(5,4) not null default 0.04,
   benchmark_ticker      text not null default 'IWDA.AS',
-  started_at            date not null default current_date,
+  started_at            date,                         -- null hasta la primera posición real (§1.6)
+  paper_mode            boolean not null default true, -- hasta "Start real test"
   updated_at            timestamptz default now()
 );
 ```
@@ -230,19 +234,19 @@ Python, fuera de Next. Carpeta propia con `requirements.txt` (yfinance, pandas, 
 - Botón "Open position" en cada fila aprobada → modal §4.4. Deshabilitado si hay 5 abiertas, el ticker ya está abierto o su sector ya tiene 2 abiertas, con el motivo en tooltip.
 
 ### 4.3 Pestaña Positions
-- Abiertas: ticker, fecha, entrada, acciones, importe, último precio (de `invest_prices`), P&L latente, **señal del último check** (`hold` / `sell` en badge; `sell` en `text-loss`), tesis plegada, falsadores como lista.
+- Abiertas: ticker (con badge **"Paper"** si `paper`), fecha, entrada, acciones, importe, último precio (de `invest_prices`), P&L latente, **señal del último check** (`hold` / `sell` en badge; `sell` en `text-loss`), tesis plegada, falsadores como lista.
 - Botón "Close" → modal con `exit_reason` (precargado `sma_exit` si la señal es `sell`), precio, fecha, comisiones y nota (obligatoria si `falsifier` o `manual`).
 - Cerradas: tabla con P&L realizado bruto, comisiones, impuesto estimado (§5.2), motivo de salida. Las salidas `manual` llevan un marcador visible.
 
 ### 4.4 Modal Open position
 Campos: ticker (fijo), fecha, precio, acciones (con el importe sugerido = `total_portfolio_value × position_pct` y el nº de acciones resultante precargado, editable), comisiones, **tesis** (textarea, mín. 200 caracteres), **falsadores** (lista dinámica, mín. 2, cada uno mín. 30 caracteres).
-Server action `openInvestPosition` valida con Zod **y además** comprueba en servidor: existe run del mes en curso; el ticker está en ese run con `passes = true`; abiertas < `max_positions`; no hay otra abierta del mismo ticker; menos de 2 abiertas en el sector del ticker (§1.4). Cualquier fallo → error con copy claro. La regla vive en el servidor, no solo en el botón.
+Server action `openInvestPosition` valida con Zod **y además** comprueba en servidor: existe run del mes en curso; el ticker está en ese run con `passes = true`; abiertas < `max_positions`; no hay otra abierta del mismo ticker; menos de 2 abiertas en el sector del ticker (§1.4). En modo papel la posición se crea con `paper = true` y el modal lo dice ("Paper position"); los límites se cuentan solo entre las abiertas del modo actual (§1.6). Cualquier fallo → error con copy claro. La regla vive en el servidor, no solo en el botón.
 
 ### 4.5 Ajustes (dentro de la pestaña Performance o modal desde cabecera)
-`total_portfolio_value`, `benchmark_ticker`. `started_at` se muestra (modo papel o fecha de inicio) pero no se edita: lo fija la primera posición (§1.6). `satellite_pct`, `max_positions` y `position_pct` se muestran pero **no son editables desde la UI** (cambiarlos es cambiar la spec; se haría por SQL a propósito).
+`total_portfolio_value`, `benchmark_ticker`. `started_at` se muestra (modo papel, "Real test" pendiente de la primera posición, o fecha de inicio) pero no se edita: lo fija la primera posición real (§1.6). En modo papel, botón **"Start real test"** (con confirmación). `satellite_pct`, `max_positions` y `position_pct` se muestran pero **no son editables desde la UI** (cambiarlos es cambiar la spec; se haría por SQL a propósito).
 
 ### 4.6 Pestaña Performance
-- "Month N of 36" desde `started_at`.
+- "Month N of 36" desde `started_at`. Sin posiciones reales, la curva es la de las posiciones de papel (desde la primera apertura de papel) con la etiqueta **"Paper"** bien visible; con reales, solo las reales y un bloque plegado **"Paper positions"** al final.
 - Gráfico de dos líneas (cierres mensuales): satélite (TWR, §5.1) vs. benchmark, ambos base 100 en `started_at`. Reutilizar el wrapper de charts existente (`src/components/charts/`); si no encaja, `lightweight-charts` que ya está en dependencias.
 - Tabla: rentabilidad acumulada satélite bruta, neta de comisiones, neta de impuestos estimados; benchmark; diferencia. Nº de operaciones, nº de salidas por motivo, % de meses con revisión hecha (hubo run y el usuario entró a Screen con ese run vigente → una fila en `invest_reviews (user_id, run_id, reviewed_at)`, PK compuesta, insertada por `markRunReviewed` al visitar Screen).
 
@@ -338,3 +342,4 @@ Ideas surgidas durante la implementación que **no** se hacen ahora (nada de est
 | 2026-10-27 | 5.1 | Total return implícito: abiertas y cerradas se valoran con `coste de entrada × adj_close(m) / adj_close(mes de apertura)`; dividendos cobrados no se registran. El precio real de salida solo cuenta para P&L realizado e impuesto. |
 | 2026-10-27 | 1.6 | `started_at` se fija al abrir la primera posición con dinero real (`openInvestPosition` lo pone a su `opened_at`); hasta entonces es modo papel. Deja de ser editable en ajustes (§4.5). |
 | 2026-10-27 | 2.5 / 5.1 | `invest_prices.close` (cierre sin ajustar, migración `20261027150000_invest_prices_close.sql`). Performance: `acciones × close(apertura) × adj(m) / adj(apertura)`, el primer tramo deja de ser 0. Positions: P&L latente = `acciones × último close − coste real`. Filas sin `close` (anteriores al job nuevo): la serie de Performance se corta y Positions no muestra último precio hasta que el job las reescriba. |
+| 2026-10-27 | 1.6 / 4.4 | Posiciones de papel (`invest_positions.paper`, migración `20261027160000_invest_paper.sql`): en modo papel (`invest_settings.paper_mode`) el modal las abre con las mismas validaciones y checks. "Start real test" en ajustes sale del modo papel; `started_at` (ahora nullable) lo fija solo la primera posición real. En modo real las de papel abiertas no cuentan para los límites (índice único por `user_id, ticker, paper`). Performance: curva de papel etiquetada sin reales; con reales, solo reales + bloque "Paper positions". |

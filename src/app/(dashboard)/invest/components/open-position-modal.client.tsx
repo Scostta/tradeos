@@ -31,6 +31,7 @@ export type OpenCandidate = {
   totalPortfolioValue: number
   positionPct:         number
   eurPerUnit:          number | null     // null: sin FX del run → no se calculan acciones
+  paper:               boolean           // modo papel (§1.6): la posición se crea con paper = true
 }
 
 const eur = (n: number) =>
@@ -119,7 +120,7 @@ export function OpenPositionModal({ candidate: c, onClose, onOpened }: Props): R
 
   return (
     <Modal
-      title={`${O.TITLE} · ${c.ticker}`}
+      title={`${c.paper ? O.PAPER_TITLE : O.TITLE} · ${c.ticker}`}
       caption={<>{c.name ? `${c.name} · ` : ""}{O.RUN_CAPTION.replace("{date}", fmtDay(c.runDate))}</>}
       width={600}
       onClose={onClose}
@@ -127,6 +128,15 @@ export function OpenPositionModal({ candidate: c, onClose, onOpened }: Props): R
       {toast && (
         <div className="fixed top-4 right-4 z-60">
           <Toast variant={toast.variant} message={toast.message} />
+        </div>
+      )}
+
+      {c.paper && (
+        <div className="flex items-start gap-3 px-3 py-2.5 rounded-md border border-short/40 bg-short/10">
+          <span className="mono text-xs font-semibold tracking-wider uppercase px-2 py-0.5 rounded-sm bg-short text-bg shrink-0">
+            {INVEST.PERFORMANCE.PAPER_BADGE}
+          </span>
+          <span className="text-sm text-short">{O.PAPER_NOTICE}</span>
         </div>
       )}
 
@@ -207,7 +217,7 @@ export function OpenPositionModal({ candidate: c, onClose, onOpened }: Props): R
           type="button" onClick={submit} disabled={!valid || pending}
           className="btn-accent inline-flex items-center gap-2 disabled:opacity-60 disabled:cursor-not-allowed"
         >
-          {pending ? <><Spinner />{O.SUBMITTING}</> : O.SUBMIT}
+          {pending ? <><Spinner />{O.SUBMITTING}</> : c.paper ? O.SUBMIT_PAPER : O.SUBMIT}
         </button>
       </div>
     </Modal>

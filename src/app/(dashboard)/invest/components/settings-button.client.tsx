@@ -8,7 +8,7 @@ import type { InvestSettings } from "~/types/invest"
 import { Modal } from "./modal.client"
 import { SettingsForm } from "./settings-form.client"
 
-export function SettingsButton({ settings, started }: { settings: InvestSettings; started: boolean }): ReactElement {
+export function SettingsButton({ settings }: { settings: InvestSettings }): ReactElement {
   const [open, setOpen] = useState(false)
   return (
     <>
@@ -18,7 +18,7 @@ export function SettingsButton({ settings, started }: { settings: InvestSettings
       </button>
       {open && (
         <Modal title={INVEST.SETTINGS.TITLE} onClose={() => setOpen(false)}>
-          <SettingsForm settings={settings} started={started} onSaved={() => setOpen(false)} onCancel={() => setOpen(false)} />
+          <SettingsForm settings={settings} onSaved={() => setOpen(false)} onCancel={() => setOpen(false)} />
         </Modal>
       )}
     </>

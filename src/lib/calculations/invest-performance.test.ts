@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest"
 import {
   benchmarkMonthlyReturns,
+  performanceScope,
   buildPerformanceReport,
   reviewStats,
   testMonth,
@@ -269,5 +270,28 @@ describe("reviewStats", () => {
       { id: "r11", runDate: "2026-11-30" },
     ]
     expect(reviewStats(runs, new Set(["r9", "r11", "r8"]), "2026-10-15")).toEqual({ reviewed: 2, total: 3 })
+  })
+})
+
+describe("performanceScope (§1.6)", () => {
+  const p = (ticker: string, paper: boolean, openedAt: string) => ({ ticker, paper, openedAt })
+
+  it("sin reales: curva de papel desde la primera apertura de papel", () => {
+    const s = performanceScope([p("MU", true, "2026-10-28"), p("LRCX", true, "2026-10-15")], null)
+    expect(s.kind).toBe("paper")
+    expect(s.startedAt).toBe("2026-10-15")
+    expect(s.positions.map(x => x.ticker)).toEqual(["MU", "LRCX"])
+  })
+
+  it("con reales: solo las reales desde started_at; las de papel aparte", () => {
+    const s = performanceScope([p("MU", true, "2026-10-28"), p("ASML", false, "2026-11-03")], "2026-11-03")
+    expect(s.kind).toBe("real")
+    expect(s.startedAt).toBe("2026-11-03")
+    expect(s.positions.map(x => x.ticker)).toEqual(["ASML"])
+    expect(s.paperPositions.map(x => x.ticker)).toEqual(["MU"])
+  })
+
+  it("sin posiciones: nada que medir", () => {
+    expect(performanceScope([], null).kind).toBe("none")
   })
 })

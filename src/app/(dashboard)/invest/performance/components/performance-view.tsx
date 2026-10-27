@@ -27,28 +27,38 @@ function shortMonth(isoDate: string): string {
   return new Date(`${isoDate}T00:00:00Z`).toLocaleDateString("en-US", { month: "short", year: "2-digit", timeZone: "UTC" })
 }
 
-export function PerformanceView({ settings, positions, report, reviews, today }: {
+export function PerformanceView({ settings, positions, startedAt, paper, report, reviews, today }: {
   settings:  InvestSettings
-  positions: InvestPositionWithMeta[]
+  positions: InvestPositionWithMeta[]   // las de la curva (reales, o de papel si no hay reales)
+  startedAt: string
+  paper:     boolean                    // curva de papel (§1.6): etiqueta bien visible
   report:    PerformanceReport | null
   reviews:   { reviewed: number; total: number }
   today:     string
 }): ReactElement {
-  const month = testMonth(settings.startedAt, today)
+  const month = testMonth(startedAt, today)
   const exits = Object.fromEntries(
     EXIT_REASONS.map(r => [r, positions.filter(p => p.exitReason === r).length]),
   ) as Record<ExitReason, number>
   const hasData = report != null && report.months > 0
-  const since = P.SINCE.replace("{date}", fmtDay(settings.startedAt))
+  const since = P.SINCE.replace("{date}", fmtDay(startedAt))
 
   return (
     <>
+      {paper && (
+        <div className="flex items-center gap-3 px-4 py-3 rounded-md border border-short/40 bg-short/10">
+          <span className="mono text-sm font-semibold tracking-wider uppercase px-2 py-0.5 rounded-sm bg-short text-bg">
+            {P.PAPER_BADGE}
+          </span>
+          <span className="text-sm text-short">{P.PAPER_BANNER}</span>
+        </div>
+      )}
       <div className="grid grid-cols-2 xl:grid-cols-4 gap-3">
         <Tile
           label={P.MONTH}
           sub={
             <div className="flex flex-col gap-1.5">
-              <span>{P.STARTED.replace("{date}", fmtDay(settings.startedAt))}</span>
+              <span>{P.STARTED.replace("{date}", fmtDay(startedAt))}</span>
               <div className="h-1 rounded-full bg-surface-2 overflow-hidden">
                 <div
                   className={cn("h-full rounded-full", month > HORIZON_MONTHS ? "bg-short" : "bg-accent")}

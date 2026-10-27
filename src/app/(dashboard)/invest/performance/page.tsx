@@ -10,11 +10,12 @@ import {
   getReviewedRunIds,
   getRunsSince,
 } from "~/services/queries/invest"
-import { EUR_FX_TICKERS, buildPriceIndex, monthKey } from "~/lib/calculations/invest-fx"
+import { EUR_FX_TICKERS, buildPriceIndex, monthKey, shiftMonth } from "~/lib/calculations/invest-fx"
 import {
   benchmarkMonthlyReturns,
   buildPerformanceReport,
   performanceBaseMonth,
+  performanceScope,
   reviewStats,
   satelliteMonthlyReturns,
 } from "~/lib/calculations/invest-performance"
@@ -22,6 +23,7 @@ import type { InvestPositionWithMeta, InvestSettings } from "~/types/invest"
 import { InvestOnboarding } from "../components/invest-onboarding"
 import { SettingsButton } from "../components/settings-button.client"
 import { PerformanceView } from "./components/performance-view"
+import { PaperPositionsBlock } from "./components/paper-positions-block"
 
 const P = INVEST.PERFORMANCE
 
@@ -29,14 +31,23 @@ async function PerformanceContent({ settings, positions }: {
   settings:  InvestSettings
   positions: InvestPositionWithMeta[]
 }): Promise<ReactElement> {
-  const base = performanceBaseMonth(settings.startedAt)
+  // §1.6: con posiciones reales, solo ellas desde started_at; sin reales, la
+  // curva de las de papel (etiquetada) desde la primera apertura de papel.
+  const scope = performanceScope(positions, settings.startedAt)
+  const startedAt = scope.startedAt as string
+  const base = performanceBaseMonth(startedAt)
   const today = new Date().toISOString().slice(0, 10)
+  const showPaperBlock = scope.kind === "real" && scope.paperPositions.length > 0
 
   const runResult = await getLatestRun()
   const through = runResult.success && runResult.data ? monthKey(runResult.data.runDate) : base
+  const firstPaper = scope.paperPositions.map(p => p.openedAt).sort()[0]
+  const from = showPaperBlock && firstPaper && firstPaper < startedAt
+    ? `${shiftMonth(monthKey(firstPaper), -1)}-01`
+    : `${base}-01`
   const tickers = [...positions.map(p => p.ticker), ...Object.values(EUR_FX_TICKERS), settings.benchmarkTicker]
   const [pricesResult, runsResult, reviewsResult] = await Promise.all([
-    getPricesFor(tickers, `${base}-01`),
+    getPricesFor(tickers, from),
     getRunsSince(`${base}-01`),
     getReviewedRunIds(),
   ])
@@ -44,19 +55,26 @@ async function PerformanceContent({ settings, positions }: {
     return <div className="card p-4 text-sm text-loss">{P.LOAD_ERROR}</div>
   }
 
-  const baseMonthEnd = buildPriceIndex(pricesResult.data).monthEnds.get(base) ?? null
-  const satellite = satelliteMonthlyReturns(positions, pricesResult.data, settings, through)
-  const benchmark = benchmarkMonthlyReturns(pricesResult.data, settings.benchmarkTicker, settings.startedAt, through)
+  const index = buildPriceIndex(pricesResult.data)
+  const baseMonthEnd = index.monthEnds.get(base) ?? null
+  const perfSettings = { ...settings, startedAt }
+  const satellite = satelliteMonthlyReturns(scope.positions, pricesResult.data, perfSettings, through)
+  const benchmark = benchmarkMonthlyReturns(pricesResult.data, settings.benchmarkTicker, startedAt, through)
   const report = baseMonthEnd ? buildPerformanceReport(satellite, benchmark, baseMonthEnd) : null
 
   return (
-    <PerformanceView
-      settings={settings}
-      positions={positions}
-      report={report}
-      reviews={reviewStats(runsResult.data, reviewsResult.data, settings.startedAt)}
-      today={today}
-    />
+    <>
+      <PerformanceView
+        settings={settings}
+        positions={scope.positions}
+        startedAt={startedAt}
+        paper={scope.kind === "paper"}
+        report={report}
+        reviews={reviewStats(runsResult.data, reviewsResult.data, startedAt)}
+        today={today}
+      />
+      {showPaperBlock && <PaperPositionsBlock positions={scope.paperPositions} index={index} />}
+    </>
   )
 }
 
@@ -64,7 +82,6 @@ export default async function InvestPerformancePage(): Promise<ReactElement> {
   const [settingsResult, positionsResult] = await Promise.all([getInvestSettings(), getPositions()])
   const settings = settingsResult.success ? settingsResult.data : null
   const positions = positionsResult.success ? positionsResult.data : []
-  const started = positions.length > 0
 
   return (
     <div className="flex flex-col h-full">
@@ -76,7 +93,7 @@ export default async function InvestPerformancePage(): Promise<ReactElement> {
         </div>
         {settings && (
           <div className="ml-auto">
-            <SettingsButton settings={settings} started={started} />
+            <SettingsButton settings={settings} />
           </div>
         )}
       </header>
@@ -87,8 +104,8 @@ export default async function InvestPerformancePage(): Promise<ReactElement> {
         </div>
       ) : !settings ? (
         <InvestOnboarding />
-      ) : !started ? (
-        // §1.6: sin posiciones, started_at es provisional: no hay nada que medir.
+      ) : positions.length === 0 ? (
+        // Sin posiciones (ni de papel): nada que medir.
         <div className="flex-1 min-h-0 overflow-auto page-pad">
           <div className="card p-6 flex flex-col items-center gap-3 text-center mx-auto" style={{ maxWidth: 560 }}>
             <span className="inline-flex items-center gap-2 px-2.5 py-1 rounded-full bg-short/10 text-short text-sm font-medium">

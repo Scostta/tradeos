@@ -63,7 +63,8 @@ export function mapInvestSettingsFromDb(row: Record<string, unknown>): InvestSet
     maxPositions:        row["max_positions"],
     positionPct:         row["position_pct"],
     benchmarkTicker:     row["benchmark_ticker"],
-    startedAt:           row["started_at"],
+    startedAt:           row["started_at"] ?? null,
+    paperMode:           row["paper_mode"] ?? false,
     updatedAt:           row["updated_at"] ?? null,
   })
 }
@@ -85,6 +86,7 @@ export function mapInvestPositionFromDb(row: Record<string, unknown>): InvestPos
     feesClose:  row["fees_close"] ?? 0,
     exitReason: row["exit_reason"] ?? null,
     exitNote:   row["exit_note"] ?? null,
+    paper:      row["paper"] ?? false,
     createdAt:  row["created_at"],
   })
 }

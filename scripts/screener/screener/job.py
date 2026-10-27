@@ -251,7 +251,8 @@ def run(
     # alguna posición, desde 12 meses antes de started_at / primera apertura.
     starts: dict[str, date] = {}
     for s in settings:
-        started = min(date.fromisoformat(s["started_at"]), run_date)
+        # started_at es null en modo papel (§1.6): el benchmark desde run_date − 12 m.
+        started = min(date.fromisoformat(s["started_at"]), run_date) if s.get("started_at") else run_date
         starts[s["benchmark_ticker"]] = min(starts.get(s["benchmark_ticker"], started), started)
     starts.setdefault(benchmark, run_date)
     for p in positions:
