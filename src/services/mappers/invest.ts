@@ -64,7 +64,6 @@ export function mapInvestSettingsFromDb(row: Record<string, unknown>): InvestSet
     positionPct:         row["position_pct"],
     benchmarkTicker:     row["benchmark_ticker"],
     startedAt:           row["started_at"],
-    lastReviewedRunId:   row["last_reviewed_run_id"] ?? null,
     updatedAt:           row["updated_at"] ?? null,
   })
 }

@@ -243,7 +243,7 @@ Server action `openInvestPosition` valida con Zod **y además** comprueba en ser
 ### 4.6 Pestaña Performance
 - "Month N of 36" desde `started_at`.
 - Gráfico de dos líneas (cierres mensuales): satélite (TWR, §5.1) vs. benchmark, ambos base 100 en `started_at`. Reutilizar el wrapper de charts existente (`src/components/charts/`); si no encaja, `lightweight-charts` que ya está en dependencias.
-- Tabla: rentabilidad acumulada satélite bruta, neta de comisiones, neta de impuestos estimados; benchmark; diferencia. Nº de operaciones, nº de salidas por motivo, % de meses con revisión hecha (hubo run y el usuario entró a la pestaña ese mes → guardar `last_reviewed_run_id` en `invest_settings`; se actualiza al visitar Screen).
+- Tabla: rentabilidad acumulada satélite bruta, neta de comisiones, neta de impuestos estimados; benchmark; diferencia. Nº de operaciones, nº de salidas por motivo, % de meses con revisión hecha (hubo run y el usuario entró a Screen con ese run vigente → una fila en `invest_reviews (user_id, run_id, reviewed_at)`, PK compuesta, insertada por `markRunReviewed` al visitar Screen).
 
 ---
 
@@ -333,3 +333,4 @@ Ideas surgidas durante la implementación que **no** se hacen ahora (nada de est
 | 2026-10-27 | 4.4 | `openInvestPosition` exige además `run_date < opened_at ≤ hoy` (se decide con el run del mes, sin fechas futuras). Las reglas de bloqueo (run del mes, aprobado, máx. posiciones, ticker abierto, sector) viven en `openBlockers()` y las comparten el botón y la action. |
 | 2026-10-27 | 4.3 | Impuesto estimado por posición cerrada = lo que su cierre añade al impuesto de su año (cierres en orden cronológico; negativo si una pérdida devuelve). Mismo criterio que `netTax`. |
 | 2026-10-27 | 4.3 | En la pestaña Positions, un importe de un mes cuyo cierre de FX aún no existe usa el último cierre del par anterior (solo para mostrar; el rendimiento de §5.1 valora cada mes con su propio cierre). `closeInvestPosition` exige `opened_at ≤ closed_at ≤ hoy`. |
+| 2026-10-27 | 4.6 | Revisiones en `invest_reviews (user_id, run_id, reviewed_at)` (migración `20261027140000_invest_reviews.sql`), insertadas al visitar Screen con el run vigente. Se elimina `invest_settings.last_reviewed_run_id`, que no guardaba histórico. |

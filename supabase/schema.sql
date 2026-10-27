@@ -403,7 +403,6 @@ create table if not exists invest_settings (
   position_pct          numeric(5,4) not null default 0.04,
   benchmark_ticker      text not null default 'IWDA.AS',
   started_at            date not null default current_date,
-  last_reviewed_run_id  uuid references invest_screen_runs(id) on delete set null,
   updated_at            timestamptz default now()
 );
 
@@ -411,6 +410,19 @@ alter table invest_settings enable row level security;
 
 create policy "Users manage own invest settings" on invest_settings
   for all using (auth.uid() = user_id);
+
+-- Una fila por usuario y run revisado (visita a Screen con el run vigente).
+create table if not exists invest_reviews (
+  user_id      uuid references auth.users on delete cascade not null,
+  run_id       uuid references invest_screen_runs(id) on delete cascade not null,
+  reviewed_at  timestamptz not null default now(),
+  primary key (user_id, run_id)
+);
+
+alter table invest_reviews enable row level security;
+
+create policy "Users manage own invest reviews" on invest_reviews
+  for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
 
 -- Benchmarks, tickers con alguna posición y pares FX EUR{divisa}=X (unidades por 1 EUR).
 create table if not exists invest_prices (

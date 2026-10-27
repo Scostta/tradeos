@@ -14,6 +14,7 @@ import { RunSummary } from "./run-summary"
 import { TickerSearch } from "./ticker-search"
 import { PassingTable } from "./passing-table"
 import type { OpenAction } from "./passing-table"
+import { MarkReviewed } from "./mark-reviewed.client"
 
 type Props = {
   query:    string | null
@@ -66,6 +67,7 @@ export async function ScreenTab({ query, settings }: Props): Promise<ReactElemen
 
   return (
     <>
+      {isCurrent && <MarkReviewed runId={run.id} />}
       <RunSummary run={run} isCurrent={isCurrent} />
       <TickerSearch
         query={query}

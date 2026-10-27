@@ -8,6 +8,7 @@ import { isCurrentMonthRun, openBlockers } from "~/lib/calculations/invest-run"
 import type { OpenBlocker } from "~/lib/calculations/invest-run"
 import {
   closeInvestPositionInputSchema,
+  markRunReviewedInputSchema,
   openInvestPositionInputSchema,
   saveInvestSettingsInputSchema,
 } from "~/types/invest"
@@ -185,5 +186,34 @@ export async function closeInvestPosition(input: unknown): Promise<ResultType<{ 
 
   revalidatePath(APP_URLS.INVEST_POSITIONS)
   revalidatePath(APP_URLS.INVEST)
+  return createDataResult({ ok: true })
+}
+
+/**
+ * §4.6: registra que el usuario revisó el run vigente (visita a Screen). Solo
+ * cuenta el run del mes en curso; repetir la visita no cambia nada.
+ */
+export async function markRunReviewed(input: unknown): Promise<ResultType<{ ok: true }, InvestActionError>> {
+  const parsed = markRunReviewedInputSchema.safeParse(input)
+  if (!parsed.success) return createErrorResult("INVALID_INPUT")
+
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return createErrorResult("UNAUTHENTICATED")
+
+  const runResult = await getLatestRun()
+  if (!runResult.success) return createErrorResult("UNKNOWN")
+  const run = runResult.data
+  if (!run || run.id !== parsed.data.runId || !isCurrentMonthRun(run.runDate, todayUtc())) {
+    return createErrorResult("NO_CURRENT_RUN")
+  }
+
+  const { error } = await supabase
+    .from("invest_reviews")
+    .upsert({ user_id: user.id, run_id: run.id }, { onConflict: "user_id,run_id", ignoreDuplicates: true })
+  if (error) {
+    console.error(error)
+    return createErrorResult("UNKNOWN")
+  }
   return createDataResult({ ok: true })
 }

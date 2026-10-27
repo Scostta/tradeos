@@ -75,7 +75,6 @@ export const investSettingsSchema = z.object({
   positionPct:         z.number(),
   benchmarkTicker:     z.string(),
   startedAt:           isoDate,
-  lastReviewedRunId:   z.string().uuid().nullable(),
   updatedAt:           timestamp.nullable(),
 })
 export type InvestSettings = z.infer<typeof investSettingsSchema>
