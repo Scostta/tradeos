@@ -348,11 +348,14 @@ Módulo núcleo/satélite (hipótesis 13): el núcleo es un fondo indexado fuera
 |---|---|---|
 | `invest_screen_runs` | job (service role) | un run por cierre mensual (`run_date` único); un rerun reutiliza la fila |
 | `invest_screen_results` | job | **todos** los tickers evaluados, con ratios, `sector`, `currency`, `passes` y `fail_reasons` |
-| `invest_prices` | job | cierres mensuales `adj_close` y `close` (sin ajustar) del benchmark, de los tickers con posición y de los pares `EUR{divisa}=X` |
+| `invest_prices` | job | cierres mensuales `adj_close` y `close` (sin ajustar): 36 meses de todo el universo evaluado y del benchmark, tickers con posición y pares `EUR{divisa}=X` |
 | `invest_position_checks` | job | señal `hold`/`sell` mensual por posición abierta |
 | `invest_positions` | usuario (RLS) | posiciones con tesis, falsadores, cierre y motivo; `paper` para las de papel |
 | `invest_settings` | usuario (RLS) | patrimonio total, benchmark, `paper_mode`, `started_at` (null hasta la primera posición real); `satellite_pct`, `max_positions`, `position_pct` no se editan desde la UI |
 | `invest_reviews` | usuario (RLS) | una fila por run revisado (visita a Screen con el run vigente) |
+| `invest_tickers` | job | ficha del ticker (sector, industria, resumen del negocio, divisas) para `/invest/[ticker]` |
+| `invest_fundamentals_history` | job | 4 últimos años fiscales de ingresos, margen bruto, FCF, ROIC y deuda neta/EBITDA |
+| `invest_thesis_drafts` | usuario (RLS) | respuestas de "Thesis prompts" por ticker (autoguardado) |
 
 Las cuatro primeras son compartidas: `select` para `authenticated`, sin políticas de escritura.
 
@@ -364,7 +367,7 @@ Las cuatro primeras son compartidas: `select` para `authenticated`, sin polític
 
 ### App
 
-- Rutas: `/invest` (Screen), `/invest/positions`, `/invest/performance`. Sin `invest_settings`, solo el formulario de ajustes.
+- Rutas: `/invest` (Screen), `/invest/positions`, `/invest/performance` y `/invest/[ticker]` (detalle: ayuda a escribir la tesis, no decide nada). Sin `invest_settings`, solo el formulario de ajustes.
 - `src/types/invest.ts` (Zod), `src/services/mappers/invest.ts`, `src/services/queries/invest.ts`, `src/actions/invest.ts` (`saveInvestSettings`, `openInvestPosition`, `closeInvestPosition`, `markRunReviewed`, `startRealTest`), cálculos puros con vitest en `src/lib/calculations/invest-*.ts`, copies en `src/constants/copies/invest/`.
 - **Divisa base EUR**: precios en la divisa de cotización (`GBp` en peniques), pasados a EUR con los pares de `invest_prices`; comisiones en EUR.
 - **Performance** (§5.1): TWR con caja + posiciones (abrir/cerrar son movimientos internos), **total return implícito** `acciones × close(apertura) × adj(m) / adj(apertura)`; dividendos cobrados no se registran. **Positions** muestra el P&L latente con el último `close` real ("si vendiera hoy"), por eso puede diferir.

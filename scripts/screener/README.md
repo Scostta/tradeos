@@ -48,8 +48,13 @@ estados financieros no se convierta en silencio en un fallo fundamental.
 
 - **Precios**: `history(interval="1mo", auto_adjust=False)`, columna `Adj Close`.
   Las barras se indexan por mes (`YYYY-MM`); la del mes en curso es parcial y se
-  descarta. `months_listed` cuenta los cierres de la ventana descargada (2 años),
-  así que su máximo es ~24.
+  descarta. `months_listed` cuenta los cierres de la ventana descargada (3 años),
+  así que su máximo es ~36.
+- **Página de detalle** (`/invest/[ticker]`, §4.7), de lo ya descargado, sin
+  más llamadas a Yahoo: `invest_tickers` (nombre, sector, industria, resumen,
+  divisas), `invest_fundamentals_history` (4 años fiscales con los mismos
+  alias y criterios de `fundamentals.py`, en `history.py`) y 36 meses de
+  cierres de todos los tickers evaluados en `invest_prices`.
 - **Fundamentales**: último año fiscal (`income_stmt`, `cashflow`,
   `balance_sheet`) vs. el anterior. Los nombres de campo pasan por
   `FIELD_ALIASES` (solo variantes de nombre del mismo concepto). Si ninguno

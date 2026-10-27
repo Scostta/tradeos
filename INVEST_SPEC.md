@@ -183,6 +183,12 @@ create table if not exists invest_position_checks (
 ```
 RLS: `select using (exists (select 1 from invest_positions p where p.id = position_id and p.user_id = auth.uid()))`. Escritura solo service role.
 
+### 2.7 Página de detalle (§4.7)
+Migración `20261027170000_invest_ticker_detail.sql`.
+- `invest_tickers (ticker PK, name, exchange, currency, financial_currency, sector, industry, summary, updated_at)`: ficha por ticker; `financial_currency` es la divisa de los estados financieros (puede no coincidir con la de cotización). Job, upsert. RLS `select` para `authenticated`.
+- `invest_fundamentals_history (ticker, fiscal_year, revenue, gross_margin, fcf, roic, net_debt_ebitda; PK ticker + fiscal_year)`: últimos 4 años fiscales. Job, upsert. RLS `select` para `authenticated`.
+- `invest_thesis_drafts (user_id, ticker, answers jsonb, updated_at; PK user_id + ticker)`: respuestas del bloque "Thesis prompts". RLS por usuario.
+
 ---
 
 ## 3. Job de screening (`scripts/screener/`)
@@ -198,7 +204,7 @@ Python, fuera de Next. Carpeta propia con `requirements.txt` (yfinance, pandas, 
 
 ### 3.2 Pasos
 1. `run_date` = último día hábil del mes anterior (el cierre mensual que se evalúa).
-2. Universo (§1.1). Para cada ticker, descargar con yfinance: `history(period="2y", interval="1mo")` para precios y `income_stmt`, `cashflow`, `balance_sheet`, `info` para fundamentales. Calcular todos los campos de §2.2.
+2. Universo (§1.1). Para cada ticker, descargar con yfinance: `history(period="3y", interval="1mo")` para precios (3 años: los cálculos usan 13 meses; el resto es el gráfico de 36 meses de §4.7) y `income_stmt`, `cashflow`, `balance_sheet`, `info` para fundamentales. Calcular todos los campos de §2.2.
 3. Benchmark: leer `benchmark_ticker` de todas las filas de `invest_settings` (normalmente uno); descargar cierres mensuales; escribir en `invest_prices`.
 4. Evaluar reglas §1.2 y §1.3 en una función pura `evaluate(row, benchmark_series) -> ScreenResult` con `fail_reasons`. **Esta función es la única implementación de las reglas en todo el proyecto**; TS no las reimplementa.
 5. Insertar run + resultados.
@@ -244,6 +250,14 @@ Server action `openInvestPosition` valida con Zod **y además** comprueba en ser
 
 ### 4.5 Ajustes (dentro de la pestaña Performance o modal desde cabecera)
 `total_portfolio_value`, `benchmark_ticker`. `started_at` se muestra (modo papel, "Real test" pendiente de la primera posición, o fecha de inicio) pero no se edita: lo fija la primera posición real (§1.6). En modo papel, botón **"Start real test"** (con confirmación). `satellite_pct`, `max_positions` y `position_pct` se muestran pero **no son editables desde la UI** (cambiarlos es cambiar la spec; se haría por SQL a propósito).
+
+### 4.7 Detalle de ticker `/invest/[ticker]`
+Ayuda a **escribir** la tesis y los falsadores; **no decide nada** (las reglas siguen solo en `evaluate()`).
+- Cabecera: nombre, sector, industria; resultado del último run (pasa / no pasa y `fail_reasons`, la misma checklist que el buscador de Screen).
+- Gráfico de los últimos 36 cierres mensuales ajustados con su SMA 10 (línea de referencia visual) y, en un segundo panel, el ratio precio / benchmark (100 = primer mes). Datos de `invest_prices`: el job guarda 36 meses de **todos** los tickers evaluados y del benchmark. Sin histórico, el gráfico lo dice.
+- Tabla de los 4 últimos años fiscales (ingresos, margen bruto, FCF, ROIC, deuda neta/EBITDA) con la variación interanual (%; en puntos para márgenes y ROIC), importes en `financial_currency`. Descripción del negocio plegada.
+- **Thesis prompts**: cuatro preguntas fijas con un textarea cada una (de dónde viene el crecimiento; qué lo pararía; quién pierde si esta empresa gana; qué dato de los próximos dos trimestres lo confirmaría o desmentiría), con autoguardado en `invest_thesis_drafts`. El modal "Open position" precarga la tesis con las cuatro respuestas y propone como falsadores las respuestas 2 y 4; su validación no cambia.
+- Cada fila de Screen y de Positions enlaza al detalle.
 
 ### 4.6 Pestaña Performance
 - "Month N of 36" desde `started_at`. Sin posiciones reales, la curva es la de las posiciones de papel (desde la primera apertura de papel) con la etiqueta **"Paper"** bien visible; con reales, solo las reales y un bloque plegado **"Paper positions"** al final.
@@ -343,3 +357,4 @@ Ideas surgidas durante la implementación que **no** se hacen ahora (nada de est
 | 2026-10-27 | 1.6 | `started_at` se fija al abrir la primera posición con dinero real (`openInvestPosition` lo pone a su `opened_at`); hasta entonces es modo papel. Deja de ser editable en ajustes (§4.5). |
 | 2026-10-27 | 2.5 / 5.1 | `invest_prices.close` (cierre sin ajustar, migración `20261027150000_invest_prices_close.sql`). Performance: `acciones × close(apertura) × adj(m) / adj(apertura)`, el primer tramo deja de ser 0. Positions: P&L latente = `acciones × último close − coste real`. Filas sin `close` (anteriores al job nuevo): la serie de Performance se corta y Positions no muestra último precio hasta que el job las reescriba. |
 | 2026-10-27 | 1.6 / 4.4 | Posiciones de papel (`invest_positions.paper`, migración `20261027160000_invest_paper.sql`): en modo papel (`invest_settings.paper_mode`) el modal las abre con las mismas validaciones y checks. "Start real test" en ajustes sale del modo papel; `started_at` (ahora nullable) lo fija solo la primera posición real. En modo real las de papel abiertas no cuentan para los límites (índice único por `user_id, ticker, paper`). Performance: curva de papel etiquetada sin reales; con reales, solo reales + bloque "Paper positions". |
+| 2026-10-27 | 4.7 | Página de detalle `/invest/[ticker]` con `invest_tickers`, `invest_fundamentals_history` e `invest_thesis_drafts` (migración `20261027170000_invest_ticker_detail.sql`). El job descarga 3 años (antes 2) y guarda 36 meses de cierres de todos los tickers evaluados y del benchmark; la historia de 4 años se calcula una vez por ticker y run reutilizando las funciones de `fundamentals.py` sin tocar `evaluate()`. `months_listed` pasa a contar sobre 3 años (máx. ~36; el umbral de 12 no cambia ningún resultado). Importes en `financial_currency`. Borradores con autoguardado. |

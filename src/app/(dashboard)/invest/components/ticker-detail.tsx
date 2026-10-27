@@ -1,4 +1,6 @@
 import type { ReactElement, ReactNode } from "react"
+import Link from "next/link"
+import { APP_URLS } from "~/constants/app-urls"
 import { INVEST } from "~/constants/copies/invest"
 import { CircleCheckIcon } from "~/lib/ui/icons/circle-check-icon"
 import { CircleXIcon } from "~/lib/ui/icons/circle-x-icon"
@@ -62,7 +64,11 @@ function Chip({ children }: { children: ReactNode }): ReactElement {
   return <span className="mono text-xs px-2 py-0.5 rounded-sm bg-surface-2 text-text-dim">{children}</span>
 }
 
-export function TickerDetail({ result: r, benchmark }: { result: ScreenResult; benchmark: string }): ReactElement {
+export function TickerDetail({ result: r, benchmark, showDetailsLink = false }: {
+  result:           ScreenResult
+  benchmark:        string
+  showDetailsLink?: boolean
+}): ReactElement {
   const failed = new Set(r.failReasons)
   const noData = failed.has("no_data")
 
@@ -74,6 +80,11 @@ export function TickerDetail({ result: r, benchmark }: { result: ScreenResult; b
           <div className="flex items-baseline gap-2.5 min-w-0">
             <span className="mono text-2xl font-semibold tracking-tight text-text">{r.ticker}</span>
             <span className="text-md text-text-dim truncate">{r.name ?? ""}</span>
+            {showDetailsLink && (
+              <Link href={APP_URLS.INVEST_TICKER(r.ticker)} className="text-sm text-accent hover:underline whitespace-nowrap">
+                {INVEST.DETAIL.DETAILS_LINK} →
+              </Link>
+            )}
           </div>
           <div className="flex flex-wrap gap-1.5">
             {r.exchange && <Chip>{r.exchange}</Chip>}

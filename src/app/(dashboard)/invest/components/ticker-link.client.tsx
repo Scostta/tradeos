@@ -10,11 +10,11 @@ function Pending(): ReactElement | null {
   return pending ? <span className="text-accent"><Spinner size={11} /></span> : null
 }
 
-// Abre el detalle del ticker arriba (?q=TICKER) con un spinner mientras carga.
+// Abre la página de detalle del ticker (/invest/[ticker]) con un spinner mientras carga.
 export function TickerLink({ ticker }: { ticker: string }): ReactElement {
   return (
     <Link
-      href={`${APP_URLS.INVEST}?q=${encodeURIComponent(ticker)}`}
+      href={APP_URLS.INVEST_TICKER(ticker)}
       className="inline-flex items-center gap-1.5 mono text-sm font-semibold text-text hover:text-accent"
     >
       {ticker}

@@ -1,18 +1,24 @@
 import {
+  fundamentalsYearSchema,
   investPositionSchema,
+  investTickerSchema,
   investPriceSchema,
   investSettingsSchema,
   positionCheckSchema,
   screenResultSchema,
   screenRunSchema,
+  thesisAnswersSchema,
 } from "~/types/invest"
 import type {
+  FundamentalsYear,
   InvestPosition,
   InvestPrice,
   InvestSettings,
   PositionCheck,
   ScreenResult,
   ScreenRun,
+  InvestTicker,
+  ThesisAnswers,
 } from "~/types/invest"
 
 export function mapScreenRunFromDb(row: Record<string, unknown>): ScreenRun {
@@ -108,4 +114,36 @@ export function mapInvestPriceFromDb(row: Record<string, unknown>): InvestPrice 
     adjClose: row["adj_close"],
     close:    row["close"] ?? null,
   })
+}
+
+export function mapInvestTickerFromDb(row: Record<string, unknown>): InvestTicker {
+  return investTickerSchema.parse({
+    ticker:            row["ticker"],
+    name:              row["name"] ?? null,
+    exchange:          row["exchange"] ?? null,
+    currency:          row["currency"] ?? null,
+    financialCurrency: row["financial_currency"] ?? null,
+    sector:            row["sector"] ?? null,
+    industry:          row["industry"] ?? null,
+    summary:           row["summary"] ?? null,
+    updatedAt:         row["updated_at"],
+  })
+}
+
+export function mapFundamentalsYearFromDb(row: Record<string, unknown>): FundamentalsYear {
+  return fundamentalsYearSchema.parse({
+    ticker:        row["ticker"],
+    fiscalYear:    row["fiscal_year"],
+    revenue:       row["revenue"] ?? null,
+    grossMargin:   row["gross_margin"] ?? null,
+    fcf:           row["fcf"] ?? null,
+    roic:          row["roic"] ?? null,
+    netDebtEbitda: row["net_debt_ebitda"] ?? null,
+  })
+}
+
+/** answers jsonb → respuestas; claves que falten quedan vacías. */
+export function mapThesisAnswersFromDb(value: unknown): ThesisAnswers {
+  const parsed = thesisAnswersSchema.safeParse(value ?? {})
+  return parsed.success ? parsed.data : thesisAnswersSchema.parse({})
 }

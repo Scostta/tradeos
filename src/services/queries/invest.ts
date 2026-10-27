@@ -1,7 +1,10 @@
 import { cache } from "react"
 import { createClient } from "~/utils/supabase/server"
 import {
+  mapFundamentalsYearFromDb,
   mapInvestPositionFromDb,
+  mapInvestTickerFromDb,
+  mapThesisAnswersFromDb,
   mapInvestPriceFromDb,
   mapInvestSettingsFromDb,
   mapPositionCheckFromDb,
@@ -9,7 +12,10 @@ import {
   mapScreenRunFromDb,
 } from "~/services/mappers/invest"
 import type {
+  FundamentalsYear,
   InvestPositionWithMeta,
+  InvestTicker,
+  ThesisAnswers,
   InvestPrice,
   InvestSettings,
   PositionCheck,
@@ -227,3 +233,46 @@ export async function getReviewedRunIds(): Promise<ResultType<Set<string>, strin
   }
   return createDataResult(new Set((data ?? []).map(r => r.run_id as string)))
 }
+
+// ── Página de detalle /invest/[ticker] (§4.7) ────────────────────────────────
+
+export async function getInvestTicker(ticker: string): Promise<ResultType<InvestTicker | null, string>> {
+  const supabase = await createClient()
+  const { data, error } = await supabase.from("invest_tickers").select("*").eq("ticker", ticker).maybeSingle()
+  if (error) {
+    console.error(error)
+    return createErrorResult(error.message)
+  }
+  return createDataResult(data ? mapInvestTickerFromDb(data) : null)
+}
+
+/** Últimos años fiscales guardados del ticker, del más reciente al más antiguo. */
+export async function getFundamentalsHistory(ticker: string): Promise<ResultType<FundamentalsYear[], string>> {
+  const supabase = await createClient()
+  const { data, error } = await supabase
+    .from("invest_fundamentals_history")
+    .select("*")
+    .eq("ticker", ticker)
+    .order("fiscal_year", { ascending: false })
+  if (error) {
+    console.error(error)
+    return createErrorResult(error.message)
+  }
+  return createDataResult((data ?? []).map(mapFundamentalsYearFromDb))
+}
+
+/** Borradores de "Thesis prompts" del usuario, por ticker. */
+export const getThesisDrafts = cache(async (): Promise<ResultType<Record<string, ThesisAnswers>, string>> => {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return createErrorResult("UNAUTHENTICATED")
+
+  const { data, error } = await supabase.from("invest_thesis_drafts").select("ticker, answers").eq("user_id", user.id)
+  if (error) {
+    console.error(error)
+    return createErrorResult(error.message)
+  }
+  return createDataResult(
+    Object.fromEntries((data ?? []).map(r => [r.ticker as string, mapThesisAnswersFromDb(r.answers)])),
+  )
+})

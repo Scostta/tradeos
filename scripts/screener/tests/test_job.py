@@ -23,6 +23,8 @@ class FakeClient:
             "invest_screen_results": [],
             "invest_position_checks": [],
             "invest_prices": [],
+            "invest_tickers": [],
+            "invest_fundamentals_history": [],
         }
         self.calls: list[tuple[str, str]] = []
 
@@ -37,6 +39,12 @@ class FakeClient:
         self.calls.append(("insert", table))
         if table == "invest_screen_runs":
             rows = [{"id": f"run-{len(self.tables[table]) + 1}", **r} for r in rows]
+        if on_conflict:  # upsert: reemplaza la fila con la misma clave
+            keys = on_conflict.split(",")
+            for row in rows:
+                same = lambda r: all(r[k] == row[k] for k in keys)
+                self.tables[table] = [r for r in self.tables[table] if not same(r)] + [row]
+            return []
         self.tables[table].extend(rows)
         return rows if returning else []
 
@@ -118,13 +126,13 @@ def test_run_writes_run_results_checks_and_prices(offline):
     assert checks == {"p1": "sell", "p2": "hold"}
     assert outcome.sell_by_user == Counter({"u1": 1})
 
-    # Precios: benchmark desde 12 meses antes de started_at, tickers desde 12
+    # Precios: benchmark desde 36 meses antes de run_date (o 12 antes de started_at si es antes), tickers desde 12
     # meses antes de su primera apertura (abiertas y cerradas). Los pares FX a
     # EUR, desde el más antiguo de esos inicios.
     starts = dict((t, s) for t, s in offline if s is not None)
     fx_pairs = {"EURUSD=X", "EURGBP=X", "EURCHF=X", "EURSEK=X", "EURDKK=X", "EURNOK=X"}
     assert starts == {
-        "IWDA.AS": date(2025, 4, 1),
+        "IWDA.AS": date(2023, 9, 1),   # benchmark: 36 meses para la página de detalle
         "COST": date(2025, 3, 1),
         "GOOGL": date(2025, 5, 1),
         "AAPL": date(2024, 11, 1),
@@ -146,8 +154,22 @@ def test_paper_mode_settings_without_started_at(offline):
     client = FakeClient(settings=[{"benchmark_ticker": "IWDA.AS", "started_at": None}])
     run(client)
     starts = dict((t, s) for t, s in offline if s is not None)
-    assert starts["IWDA.AS"] == date(2025, 9, 1)
+    assert starts["IWDA.AS"] == date(2023, 9, 1)
     assert {p["ticker"] for p in client.tables["invest_prices"]} >= {"IWDA.AS"}
+
+
+def test_run_writes_detail_data_for_every_loaded_ticker(offline):
+    """invest_tickers, invest_fundamentals_history y 36 meses de precios de todo el universo."""
+    client = FakeClient()
+    run(client)
+    assert {r["ticker"] for r in client.tables["invest_tickers"]} == {"GOOGL", "AAPL"}
+    googl = next(r for r in client.tables["invest_tickers"] if r["ticker"] == "GOOGL")
+    assert googl["name"] == "Alphabet Inc." and googl["updated_at"]
+    # Las fixtures no traen años fiscales: sin historia, pero sin error.
+    assert client.tables["invest_fundamentals_history"] == []
+    months = sorted(p["month_end"] for p in client.tables["invest_prices"] if p["ticker"] == "AAPL")
+    assert months[-1] == "2026-09-30"
+    assert months[0] >= "2023-10-01"   # como mucho 36 cierres hasta t
 
 
 def test_rerun_reuses_run_row_and_replaces_results(offline):

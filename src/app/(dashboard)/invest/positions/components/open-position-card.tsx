@@ -1,4 +1,6 @@
 import type { ReactElement, ReactNode } from "react"
+import Link from "next/link"
+import { APP_URLS } from "~/constants/app-urls"
 import { INVEST } from "~/constants/copies/invest"
 import type { OpenValuation } from "~/lib/calculations/invest-positions"
 import type { LatestCheck } from "~/services/queries/invest"
@@ -51,7 +53,9 @@ export function OpenPositionCard({ position: p, valuation: v, check }: Props): R
     <div className={cn("card flex flex-col", sell && "border-loss/40", p.paper && "border-dashed")}>
       {/* Cabecera */}
       <div className="flex flex-wrap items-center gap-x-3 gap-y-2 px-4 py-3 border-b border-border">
-        <span className="mono text-xl font-semibold tracking-tight text-text">{p.ticker}</span>
+        <Link href={APP_URLS.INVEST_TICKER(p.ticker)} className="mono text-xl font-semibold tracking-tight text-text hover:text-accent">
+          {p.ticker}
+        </Link>
         {p.paper && <span className={PAPER_BADGE_CLS}>{INVEST.PERFORMANCE.PAPER_BADGE}</span>}
         <span className="text-md text-text-dim truncate">{p.name ?? ""}</span>
         <span className="text-xs px-2 py-0.5 rounded-sm bg-surface-2 text-text-dim">{p.sector ?? INVEST.SCREEN.NO_SECTOR}</span>

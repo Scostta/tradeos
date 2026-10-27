@@ -11,6 +11,7 @@ export const APP_URLS = {
   INVEST:             "/invest",
   INVEST_POSITIONS:   "/invest/positions",
   INVEST_PERFORMANCE: "/invest/performance",
+  INVEST_TICKER:      (ticker: string) => `/invest/${encodeURIComponent(ticker)}`,
   MONEY:              "/money",
   INSIGHTS:   "/insights",
   SETTINGS:   "/settings",

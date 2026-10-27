@@ -5,12 +5,14 @@ import type { ReactElement, ReactNode } from "react"
 import { openInvestPosition } from "~/actions/invest"
 import { INVEST } from "~/constants/copies/invest"
 import { suggestedPositionSize } from "~/lib/calculations/invest-sizing"
+import { thesisFromDraft } from "~/lib/calculations/invest-detail"
 import {
   FALSIFIER_MIN_LENGTH,
   MIN_FALSIFIERS,
   THESIS_MIN_LENGTH,
   openInvestPositionInputSchema,
 } from "~/types/invest"
+import type { ThesisAnswers } from "~/types/invest"
 import { Toast } from "~/lib/ui/toast"
 import type { ToastVariant } from "~/lib/ui/toast"
 import { cn } from "~/utils/cn"
@@ -32,6 +34,7 @@ export type OpenCandidate = {
   positionPct:         number
   eurPerUnit:          number | null     // null: sin FX del run → no se calculan acciones
   paper:               boolean           // modo papel (§1.6): la posición se crea con paper = true
+  draft:               ThesisAnswers | null  // borrador de "Thesis prompts" (§4.7) para precargar
 }
 
 const eur = (n: number) =>
@@ -73,8 +76,11 @@ export function OpenPositionModal({ candidate: c, onClose, onOpened }: Props): R
   const [shares, setShares]         = useState(initialShares ? String(initialShares) : "")
   const [sharesTouched, setTouched] = useState(false)
   const [fees, setFees]             = useState("0")
-  const [thesis, setThesis]         = useState("")
-  const [falsifiers, setFalsifiers] = useState<string[]>(Array(MIN_FALSIFIERS).fill(""))
+  // §4.7: precarga desde el borrador de "Thesis prompts" (tesis = las cuatro
+  // respuestas, falsadores = la 2 y la 4). La validación no cambia.
+  const prefill = c.draft ? thesisFromDraft(c.draft, INVEST.DETAIL.PROMPTS) : null
+  const [thesis, setThesis]         = useState(prefill?.thesis ?? "")
+  const [falsifiers, setFalsifiers] = useState<string[]>(prefill?.falsifiers ?? Array(MIN_FALSIFIERS).fill(""))
   const [toast, setToast]           = useState<{ message: string; variant: ToastVariant } | null>(null)
   const [pending, startTransition]  = useTransition()
 

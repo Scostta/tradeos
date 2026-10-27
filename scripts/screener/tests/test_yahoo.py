@@ -87,7 +87,9 @@ def fake_ticker_factory(monkeypatch, failures: list[BaseException]):
             index = pd.DatetimeIndex(["2026-08-01", "2026-09-01"], tz="America/New_York")
             return pd.DataFrame({"Close": [10.2, 11.1], "Adj Close": [10.0, 11.0]}, index=index)
 
-        income_stmt = pd.DataFrame({pd.Timestamp("2025-12-31"): [100.0]}, index=["Total Revenue"])
+        income_stmt = pd.DataFrame(
+            {pd.Timestamp("2024-12-31"): [90.0], pd.Timestamp("2025-12-31"): [100.0]}, index=["Total Revenue"]
+        )
         cashflow = pd.DataFrame()
         balance_sheet = pd.DataFrame()
         info = {
@@ -98,6 +100,9 @@ def fake_ticker_factory(monkeypatch, failures: list[BaseException]):
             "longName": "Fake Inc",
             "exchange": "NMS",
             "sector": "Technology",
+            "industry": "Software",
+            "longBusinessSummary": "Fake makes things.",
+            "financialCurrency": "USD",
         }
 
     monkeypatch.setattr(yahoo.yf, "Ticker", FakeTicker)
@@ -194,3 +199,12 @@ def test_fetch_monthly_prices_returns_adjusted_and_raw_from_one_download(monkeyp
     assert adj == {"2026-08": 10.0, "2026-09": 11.0}
     assert raw == {"2026-08": 10.2, "2026-09": 11.1}
     assert created == ["MU"]
+
+
+def test_fetch_ticker_keeps_detail_fields(monkeypatch, sleeps):
+    fake_ticker_factory(monkeypatch, [])
+    data = yahoo.fetch_ticker("FAKE", "2026-09", {"USD": 1.0})
+    assert data.raw_closes == {"2026-08": 10.2, "2026-09": 11.1}
+    assert (data.industry, data.summary, data.financial_currency) == ("Software", "Fake makes things.", "USD")
+    assert data.fiscal_years == {"income": [2025, 2024], "cashflow": [], "balance": []}
+    assert data.income == {"Total Revenue": [100.0, 90.0]}

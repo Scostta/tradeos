@@ -11,6 +11,7 @@ import {
   markRunReviewedInputSchema,
   openInvestPositionInputSchema,
   saveInvestSettingsInputSchema,
+  saveThesisDraftInputSchema,
 } from "~/types/invest"
 import { createDataResult, createErrorResult } from "~/helpers/result"
 import type { ResultType } from "~/helpers/result"
@@ -257,4 +258,31 @@ export async function startRealTest(): Promise<ResultType<{ ok: true }, InvestAc
   revalidatePath(APP_URLS.INVEST_POSITIONS)
   revalidatePath(APP_URLS.INVEST_PERFORMANCE)
   return createDataResult({ ok: true })
+}
+
+/** §4.7: autoguardado de las respuestas de "Thesis prompts" (una fila por usuario y ticker). */
+export async function saveThesisDraft(input: unknown): Promise<ResultType<{ savedAt: string }, InvestActionError>> {
+  const parsed = saveThesisDraftInputSchema.safeParse(input)
+  if (!parsed.success) return createErrorResult("INVALID_INPUT")
+
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return createErrorResult("UNAUTHENTICATED")
+
+  const savedAt = new Date().toISOString()
+  const { error } = await supabase.from("invest_thesis_drafts").upsert(
+    {
+      user_id:    user.id,
+      ticker:     parsed.data.ticker.toUpperCase(),
+      answers:    parsed.data.answers,
+      updated_at: savedAt,
+    },
+    { onConflict: "user_id,ticker" },
+  )
+  if (error) {
+    console.error(error)
+    return createErrorResult("UNKNOWN")
+  }
+  // Sin revalidatePath: es un autoguardado; Screen lo lee en su próxima carga.
+  return createDataResult({ savedAt })
 }

@@ -27,7 +27,7 @@ export function TickerSearch({ query, runDate, benchmark, result }: Props): Reac
       {query && (
         <div className="border-t border-border">
           {result ? (
-            <TickerDetail result={result} benchmark={benchmark} />
+            <TickerDetail result={result} benchmark={benchmark} showDetailsLink />
           ) : (
             <div className="px-4 py-6 text-sm text-text-mute">
               {INVEST.SCREEN.SEARCH_NOT_FOUND

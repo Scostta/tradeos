@@ -14,6 +14,7 @@ from dataclasses import dataclass, field
 from datetime import date, datetime, timezone
 from typing import Any, Callable, Optional, Protocol
 
+from . import history as hi
 from . import technical as ta
 from . import universe as uv
 from . import yahoo
@@ -24,6 +25,7 @@ log = logging.getLogger(__name__)
 
 DEFAULT_BENCHMARK = "IWDA.AS"
 PRICE_LOOKBACK_MONTHS = 12
+HISTORY_MONTHS = 36  # gráfico de la página de detalle: universo y benchmark
 MAX_NO_DATA_RATIO = 0.05  # §3.3: por encima, el run se aborta sin escribir
 
 
@@ -64,6 +66,7 @@ class RunOutcome:
     checks: list[dict[str, Any]]
     sell_by_user: Counter[str] = field(default_factory=Counter)
     skipped_checks: list[str] = field(default_factory=list)
+    ticker_data: list[TickerData] = field(default_factory=list)  # para la página de detalle
 
     @property
     def passed(self) -> list[ScreenResult]:
@@ -161,6 +164,33 @@ def write_run(client: Client, outcome: RunOutcome, job_version: str) -> str:
     return run_id
 
 
+def write_detail(client: Client, outcome: RunOutcome, through: str) -> None:
+    """Datos de la página /invest/[ticker], de lo ya descargado en el run (sin
+    más llamadas a Yahoo): invest_tickers, invest_fundamentals_history y 36
+    meses de cierres en invest_prices de todo el universo evaluado."""
+    now = datetime.now(timezone.utc).isoformat()
+    loaded = [d for d in outcome.ticker_data if d.error is None]
+    client.insert_chunked(
+        "invest_tickers", [hi.ticker_row(d, now) for d in loaded], on_conflict="ticker"
+    )
+    client.insert_chunked(
+        "invest_fundamentals_history",
+        [row for d in loaded for row in hi.fundamentals_history(d)],
+        on_conflict="ticker,fiscal_year",
+    )
+    oldest = ta.shift_month(through, -(HISTORY_MONTHS - 1))
+    prices = [
+        row
+        for d in loaded
+        for row in price_rows(
+            d.ticker,
+            {k: v for k, v in d.closes.items() if k >= oldest},
+            d.raw_closes,
+        )
+    ]
+    client.insert_chunked("invest_prices", prices, on_conflict="ticker,month_end")
+
+
 def render_summary(outcome: RunOutcome) -> str:
     passed = sorted(r.ticker for r in outcome.passed)
     no_data = sum(1 for r in outcome.results if r.fail_reasons == [FAIL_NO_DATA])
@@ -218,8 +248,11 @@ def run(
         log.warning("sin tipo de cambio para %s: sus market_cap quedan null", missing_fx)
 
     results: list[ScreenResult] = []
+    ticker_data: list[TickerData] = []
     for i, ticker in enumerate(tickers, start=1):
-        results.append(evaluate(fetch_ticker(ticker, t, fx_rates), bench_closes, run_date))
+        data = fetch_ticker(ticker, t, fx_rates)
+        ticker_data.append(data)
+        results.append(evaluate(data, bench_closes, run_date))
         if i % 50 == 0:
             log.info("%d/%d evaluados", i, len(tickers))
         time.sleep(pause)
@@ -241,11 +274,13 @@ def run(
         checks=checks,
         sell_by_user=sell_by_user,
         skipped_checks=skipped,
+        ticker_data=ticker_data,
     )
     if client is None:
         return outcome
 
     write_run(client, outcome, job_version)
+    write_detail(client, outcome, t)
 
     # invest_prices (§2.5): benchmarks de todos los usuarios + tickers con
     # alguna posición, desde 12 meses antes de started_at / primera apertura.
@@ -263,9 +298,14 @@ def run(
     earliest = min(starts.values())
     for pair in sorted(set(yahoo.EUR_FX_TICKERS.values())):
         starts.setdefault(pair, earliest)
+    benchmarks = {s["benchmark_ticker"] for s in settings} | {benchmark}
     for ticker, start in sorted(starts.items()):
+        fetch_from = months_before(start, PRICE_LOOKBACK_MONTHS)
+        if ticker in benchmarks:
+            # Ratio precio/benchmark de la página de detalle: 36 meses.
+            fetch_from = min(fetch_from, months_before(run_date, HISTORY_MONTHS))
         try:
-            adj, closes = yahoo.fetch_monthly_prices(ticker, t, start=months_before(start, PRICE_LOOKBACK_MONTHS))
+            adj, closes = yahoo.fetch_monthly_prices(ticker, t, start=fetch_from)
         except Exception as exc:  # noqa: BLE001 — un ticker sin precios no tumba el run
             log.warning("invest_prices %s: %s", ticker, exc)
             continue

@@ -169,3 +169,47 @@ export const markRunReviewedInputSchema = z.object({
   runId: z.string().uuid(),
 })
 export type MarkRunReviewedInput = z.infer<typeof markRunReviewedInputSchema>
+
+// ── Página de detalle /invest/[ticker] (§4.7) ────────────────────────────────
+
+export const investTickerSchema = z.object({
+  ticker:            z.string(),
+  name:              z.string().nullable(),
+  exchange:          z.string().nullable(),
+  currency:          z.string().nullable(),
+  financialCurrency: z.string().nullable(),
+  sector:            z.string().nullable(),
+  industry:          z.string().nullable(),
+  summary:           z.string().nullable(),
+  updatedAt:         timestamp,
+})
+export type InvestTicker = z.infer<typeof investTickerSchema>
+
+export const fundamentalsYearSchema = z.object({
+  ticker:        z.string(),
+  fiscalYear:    z.number().int(),
+  revenue:       z.number().nullable(),   // financial_currency
+  grossMargin:   z.number().nullable(),
+  fcf:           z.number().nullable(),   // financial_currency
+  roic:          z.number().nullable(),
+  netDebtEbitda: z.number().nullable(),
+})
+export type FundamentalsYear = z.infer<typeof fundamentalsYearSchema>
+
+// Las cuatro preguntas fijas del bloque "Thesis prompts", en orden.
+export const THESIS_PROMPT_KEYS = ["growth", "stopper", "loser", "signal"] as const
+export type ThesisPromptKey = (typeof THESIS_PROMPT_KEYS)[number]
+
+export const thesisAnswersSchema = z.object({
+  growth:  z.string().max(5000).default(""),
+  stopper: z.string().max(5000).default(""),
+  loser:   z.string().max(5000).default(""),
+  signal:  z.string().max(5000).default(""),
+})
+export type ThesisAnswers = z.infer<typeof thesisAnswersSchema>
+
+export const saveThesisDraftInputSchema = z.object({
+  ticker:  z.string().trim().min(1).max(20),
+  answers: thesisAnswersSchema,
+})
+export type SaveThesisDraftInput = z.infer<typeof saveThesisDraftInputSchema>

@@ -1,4 +1,6 @@
 import type { ReactElement } from "react"
+import Link from "next/link"
+import { APP_URLS } from "~/constants/app-urls"
 import { INVEST } from "~/constants/copies/invest"
 import type { ClosedResult } from "~/lib/calculations/invest-positions"
 import { TriangleAlertIcon } from "~/lib/ui/icons/triangle-alert-icon"
@@ -65,7 +67,9 @@ export function ClosedPositionsTable({ rows }: { rows: ClosedRow[] }): ReactElem
                 return (
                   <tr key={p.id} className="border-b border-border last:border-0 hover:bg-surface-2 transition-colors">
                     <td className="px-3 py-2.5 whitespace-nowrap">
-                      <span className="mono text-sm font-semibold text-text">{p.ticker}</span>
+                      <Link href={APP_URLS.INVEST_TICKER(p.ticker)} className="mono text-sm font-semibold text-text hover:text-accent">
+                        {p.ticker}
+                      </Link>
                       {p.paper && <span className={`${PAPER_BADGE_CLS} ml-2`}>{INVEST.PERFORMANCE.PAPER_BADGE}</span>}
                     </td>
                     <td className="px-3 py-2.5 mono text-sm text-text-dim whitespace-nowrap">{fmtDay(p.openedAt)}</td>

@@ -26,6 +26,10 @@ log = logging.getLogger(__name__)
 # ningún caso legítimo cambia de resultado.)
 yf.config.debug.hide_exceptions = False
 
+# 3 años: momentum 12-1 y SMA 10 necesitan 13 meses; el resto es el gráfico de
+# 36 meses de la página de detalle (invest_prices).
+HISTORY_PERIOD = "3y"
+
 ADJ_CLOSE = "Adj Close"
 CLOSE = "Close"  # ajustado por splits, no por dividendos: el precio real de ese día
 
@@ -99,6 +103,13 @@ def monthly_closes(history: pd.DataFrame, through: str, column: str = ADJ_CLOSE)
     return closes
 
 
+def statement_years(df: Optional[pd.DataFrame]) -> list[int]:
+    """Años fiscales de las columnas, en el mismo orden que statement_to_dict()."""
+    if df is None or df.empty:
+        return []
+    return [pd.Timestamp(c).year for c in sorted(df.columns, reverse=True)]
+
+
 def statement_to_dict(df: Optional[pd.DataFrame]) -> dict[str, list[Optional[float]]]:
     """DataFrame de yfinance (filas = campos, columnas = años) -> {campo: [más reciente, ...]}."""
     if df is None or df.empty:
@@ -114,7 +125,7 @@ def _monthly_history(ticker: str, start: Optional[date]) -> pd.DataFrame:
     def download() -> pd.DataFrame:
         tk = yf.Ticker(ticker)
         if start is None:
-            return tk.history(period="2y", interval="1mo", auto_adjust=False, raise_errors=True)
+            return tk.history(period=HISTORY_PERIOD, interval="1mo", auto_adjust=False, raise_errors=True)
         return tk.history(
             start=start.isoformat(), interval="1mo", auto_adjust=False, raise_errors=True
         )
@@ -123,7 +134,7 @@ def _monthly_history(ticker: str, start: Optional[date]) -> pd.DataFrame:
 
 
 def fetch_monthly(ticker: str, through: str, start: Optional[date] = None) -> dict[str, float]:
-    """Cierres mensuales ajustados. Sin `start`: period="2y" (§3.2)."""
+    """Cierres mensuales ajustados. Sin `start`: period="3y" (§3.2)."""
     return monthly_closes(_monthly_history(ticker, start), through)
 
 
@@ -183,7 +194,7 @@ def fetch_ticker(ticker: str, through: str, fx_rates: dict[str, float]) -> Ticke
 
     def download() -> tuple[pd.DataFrame, Any, Any, Any, dict[str, Any]]:
         tk = yf.Ticker(ticker)
-        history = tk.history(period="2y", interval="1mo", auto_adjust=False, raise_errors=True)
+        history = tk.history(period=HISTORY_PERIOD, interval="1mo", auto_adjust=False, raise_errors=True)
         return history, tk.income_stmt, tk.cashflow, tk.balance_sheet, tk.info or {}
 
     try:
@@ -191,10 +202,16 @@ def fetch_ticker(ticker: str, through: str, fx_rates: dict[str, float]) -> Ticke
         if history.empty:
             return TickerData(ticker=ticker, error="empty history")
         closes = monthly_closes(history, through)
-        close_t = monthly_closes(history, through, CLOSE).get(through)
+        raw_closes = monthly_closes(history, through, CLOSE)
+        close_t = raw_closes.get(through)
         income = statement_to_dict(income_df)
         cashflow = statement_to_dict(cashflow_df)
         balance = statement_to_dict(balance_df)
+        fiscal_years = {
+            "income": statement_years(income_df),
+            "cashflow": statement_years(cashflow_df),
+            "balance": statement_years(balance_df),
+        }
     except Exception as exc:  # noqa: BLE001 — §3.3: se registra como no_data
         log.warning("%s: %s", ticker, exc)
         return TickerData(ticker=ticker, error=f"{type(exc).__name__}: {exc}")
@@ -209,4 +226,9 @@ def fetch_ticker(ticker: str, through: str, fx_rates: dict[str, float]) -> Ticke
         cashflow=cashflow,
         balance=balance,
         closes=closes,
+        raw_closes=raw_closes,
+        industry=info.get("industry"),
+        summary=info.get("longBusinessSummary"),
+        financial_currency=info.get("financialCurrency"),
+        fiscal_years=fiscal_years,
     )

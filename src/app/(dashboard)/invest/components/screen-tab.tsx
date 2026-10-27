@@ -6,6 +6,7 @@ import {
   getPricesFor,
   getScreenResult,
   getScreenResults,
+  getThesisDrafts,
 } from "~/services/queries/invest"
 import { isCurrentMonthRun, openBlockers, positionsForLimits } from "~/lib/calculations/invest-run"
 import { EUR_FX_TICKERS, buildPriceIndex, eurPerUnit, monthKey } from "~/lib/calculations/invest-fx"
@@ -31,14 +32,15 @@ export async function ScreenTab({ query, settings }: Props): Promise<ReactElemen
     return <div className="card px-4 py-16 text-sm text-text-mute text-center">{INVEST.SCREEN.NO_RUN}</div>
   }
 
-  const [passing, searched, positions, fx] = await Promise.all([
+  const [passing, searched, positions, fx, drafts] = await Promise.all([
     getScreenResults(run.id, { passesOnly: true }),
     query ? getScreenResult(run.id, query) : Promise.resolve(null),
     getPositions(),
     // FX del mes del run para el importe sugerido en EUR (§5.3).
     getPricesFor([...new Set(Object.values(EUR_FX_TICKERS))], run.runDate),
+    getThesisDrafts(),
   ])
-  if (!passing.success || (searched && !searched.success) || !positions.success || !fx.success) {
+  if (!passing.success || (searched && !searched.success) || !positions.success || !fx.success || !drafts.success) {
     return <div className="card p-4 text-sm text-loss">{INVEST.SCREEN.LOAD_ERROR}</div>
   }
 
@@ -63,6 +65,7 @@ export async function ScreenTab({ query, settings }: Props): Promise<ReactElemen
         positionPct:         settings.positionPct,
         eurPerUnit:          eurPerUnit(r.currency, runMonth, fxIndex),
         paper:               settings.paperMode,
+        draft:               drafts.data[r.ticker] ?? null,
       },
     }
   }

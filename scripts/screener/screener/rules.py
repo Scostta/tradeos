@@ -65,6 +65,13 @@ class TickerData:
     balance: Statement = field(default_factory=dict)
     closes: dict[str, float] = field(default_factory=dict)  # "YYYY-MM" -> adj close
     error: Optional[str] = None
+    # Solo para la página de detalle (invest_tickers, invest_fundamentals_history,
+    # invest_prices); evaluate() no los usa.
+    raw_closes: dict[str, float] = field(default_factory=dict)  # "YYYY-MM" -> close sin ajustar
+    industry: Optional[str] = None
+    summary: Optional[str] = None
+    financial_currency: Optional[str] = None
+    fiscal_years: dict[str, list[int]] = field(default_factory=dict)  # estado -> años, más reciente primero
 
 
 @dataclass
