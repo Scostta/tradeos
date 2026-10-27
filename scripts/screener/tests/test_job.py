@@ -7,7 +7,7 @@ from typing import Any, Optional
 import pytest
 
 from screener import job
-from screener.rules import ScreenResult
+from screener.rules import ScreenResult, TickerData
 
 from .conftest import FIXTURE_RUN_DATE, load_ticker
 
@@ -179,3 +179,54 @@ def test_price_rows_use_last_business_day():
         {"ticker": "X", "month_end": "2026-05-29", "adj_close": 10.1235},
         {"ticker": "X", "month_end": "2029-03-29", "adj_close": 20.0},
     ]
+
+
+# ── §3.3: no_data > 5 % del universo → abortar sin escribir ──────────────────
+
+
+def universe_of(monkeypatch, size: int, no_data: set[int]):
+    tickers = [f"T{i:02d}" for i in range(size)]
+    monkeypatch.setattr(job.uv, "sp500_tickers", lambda: tickers)
+    monkeypatch.setattr(job.uv, "extra_tickers", lambda: [])
+
+    def fetch(ticker, through, fx_rates):
+        if int(ticker[1:]) in no_data:
+            return TickerData(ticker=ticker, error="CurlError: could not resolve host")
+        data = load_ticker("GOOGL")
+        data.ticker = ticker
+        return data
+
+    return fetch
+
+
+def test_run_aborts_without_writing_when_no_data_above_5pct(monkeypatch, offline):
+    fetch = universe_of(monkeypatch, 20, no_data={3, 7})  # 2/20 = 10 %
+    client = FakeClient(positions=POSITIONS)
+    with pytest.raises(job.TooManyNoData) as excinfo:
+        job.run(FIXTURE_RUN_DATE, client, "sha", pause=0, fetch_ticker=fetch)
+    assert excinfo.value.no_data == ["T03", "T07"]
+    assert {method for method, _ in client.calls} == {"select"}
+    assert client.tables["invest_screen_runs"] == []
+    assert client.tables["invest_prices"] == []
+
+
+def test_run_writes_when_no_data_is_exactly_5pct(monkeypatch, offline):
+    fetch = universe_of(monkeypatch, 20, no_data={3})  # 1/20 = 5 %, no supera
+    client = FakeClient()
+    outcome = job.run(FIXTURE_RUN_DATE, client, "sha", pause=0, fetch_ticker=fetch)
+    assert len(client.tables["invest_screen_results"]) == 20
+    assert "sin datos: 1" in job.render_summary(outcome)
+
+
+def test_main_exits_1_and_writes_summary_on_abort(monkeypatch, tmp_path):
+    from screener import __main__ as cli
+
+    def boom(*args, **kwargs):
+        raise job.TooManyNoData(["T03", "T07"], 20)
+
+    summary = tmp_path / "summary.md"
+    monkeypatch.setenv("GITHUB_STEP_SUMMARY", str(summary))
+    monkeypatch.setattr(cli, "run", boom)
+    assert cli.main(["--force", "--dry-run", "--run-date", "2026-09-30"]) == 1
+    text = summary.read_text(encoding="utf-8")
+    assert "ABORTADO" in text and "2/20" in text and "`T07`" in text

@@ -37,6 +37,13 @@ SUPABASE_URL=... SUPABASE_SERVICE_ROLE_KEY=... python -m screener --force --run-
 Un rerun del mismo `run_date` reutiliza la fila del run (mismo `id`) y rehace
 resultados y checks: `invest_positions.run_id` apunta a él sin cascade.
 
+Errores de red (DNS, conexión, timeout, 429 de Yahoo): un solo reintento a los
+3 s por descarga. Si persiste, el ticker queda `no_data`. Si al terminar
+`no_data` supera el 5 % del universo, el run se aborta **sin escribir nada** y
+el job sale con código 1 (el resumen de Actions lista los tickers). yfinance se
+configura con `debug.hide_exceptions = False` para que un fallo de red en los
+estados financieros no se convierta en silencio en un fallo fundamental.
+
 ## Datos y decisiones
 
 - **Precios**: `history(interval="1mo", auto_adjust=False)`, columna `Adj Close`.
@@ -47,8 +54,9 @@ resultados y checks: `invest_positions.run_id` apunta a él sin cascade.
   `balance_sheet`) vs. el anterior. Los nombres de campo pasan por
   `FIELD_ALIASES` (solo variantes de nombre del mismo concepto). Si ninguno
   existe o el valor es NaN, el ratio queda **null y falla**; no hay cálculo
-  alternativo. Consecuencia conocida: empresas sin deuda financiera para las
-  que Yahoo da `Total Debt` = NaN (p. ej. ANET) fallan `net_debt_ebitda` y `roic`.
+  alternativo. Única excepción: `Total Debt` ausente o NaN en un balance que sí
+  cargó cuenta como 0 (Yahoo lo deja así en empresas sin deuda financiera);
+  solo es null si el balance entero no está.
 - **Denominadores ≤ 0** (EBITDA, capital invertido, ingresos): ratio null → falla.
   La caja neta (`net_debt <= 0`) pasa la regla de deuda aunque el EBITDA falte
   o sea negativo.
@@ -64,10 +72,12 @@ resultados y checks: `invest_positions.run_id` apunta a él sin cascade.
   `fcf_margin`, `gross_margin`, `net_debt_ebitda`, `roic`, `sma10m`,
   `momentum_12_1`, `rel_strength_6m`.
 - Festivos NYSE: lista fija 2024–2030 en `market_calendar.py`; un año fuera de
-  la lista lanza error.
+  la lista lanza error. Un test la contrasta con `exchange_calendars`, que solo
+  está en `requirements-dev.txt`.
 
 ## Fixtures
 
 `tests/fixtures/*.json` son datos reales de Yahoo a 2026-09-30: GOOGL (pasa),
-AAPL (falla `revenue_growth`), COST (falla `sma10m` y `rel_strength_6m`) y el
-benchmark IWDA.AS. Para regenerarlos: `python -m tests.fixtures.capture`.
+AAPL (falla `revenue_growth`), COST (falla `sma10m` y `rel_strength_6m`), ANET
+(`Total Debt` NaN → 0) y el benchmark IWDA.AS. Para regenerarlos:
+`python -m tests.fixtures.capture`.

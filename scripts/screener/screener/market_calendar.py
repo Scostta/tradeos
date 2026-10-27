@@ -11,7 +11,8 @@ import calendar
 from datetime import date, timedelta
 
 # Cierres completos de NYSE (sin medias sesiones). Verificada contra
-# exchange_calendars (XNYS). 2028-01-01 cae en sábado y NYSE no lo traslada.
+# exchange_calendars (XNYS) en tests/test_calendar.py, que es dependencia solo
+# de tests. 2028-01-01 cae en sábado y NYSE no lo traslada.
 NYSE_HOLIDAYS: frozenset[date] = frozenset(
     date.fromisoformat(d)
     for d in """

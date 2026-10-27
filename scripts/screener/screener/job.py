@@ -18,12 +18,31 @@ from . import technical as ta
 from . import universe as uv
 from . import yahoo
 from .market_calendar import last_business_day
-from .rules import ScreenResult, TickerData, evaluate
+from .rules import FAIL_NO_DATA, ScreenResult, TickerData, evaluate
 
 log = logging.getLogger(__name__)
 
 DEFAULT_BENCHMARK = "IWDA.AS"
 PRICE_LOOKBACK_MONTHS = 12
+MAX_NO_DATA_RATIO = 0.05  # §3.3: por encima, el run se aborta sin escribir
+
+
+class TooManyNoData(RuntimeError):
+    """Más del 5 % del universo sin datos: probable caída de Yahoo o de la red."""
+
+    def __init__(self, no_data: list[str], universe_size: int) -> None:
+        self.no_data = no_data
+        self.universe_size = universe_size
+        super().__init__(
+            f"{len(no_data)}/{universe_size} tickers sin datos "
+            f"(> {MAX_NO_DATA_RATIO:.0%}): run abortado sin escribir"
+        )
+
+
+def check_no_data(results: list[ScreenResult]) -> None:
+    no_data = [r.ticker for r in results if r.fail_reasons == [FAIL_NO_DATA]]
+    if len(no_data) > MAX_NO_DATA_RATIO * len(results):
+        raise TooManyNoData(no_data, len(results))
 
 
 class Client(Protocol):
@@ -135,7 +154,7 @@ def write_run(client: Client, outcome: RunOutcome, job_version: str) -> str:
 
 def render_summary(outcome: RunOutcome) -> str:
     passed = sorted(r.ticker for r in outcome.passed)
-    no_data = sum(1 for r in outcome.results if r.fail_reasons == ["no_data"])
+    no_data = sum(1 for r in outcome.results if r.fail_reasons == [FAIL_NO_DATA])
     lines = [
         f"## Invest screener — {outcome.run_date.isoformat()}",
         "",
@@ -195,6 +214,7 @@ def run(
         if i % 50 == 0:
             log.info("%d/%d evaluados", i, len(tickers))
         time.sleep(pause)
+    check_no_data(results)
     results_by_ticker = {r.ticker: r for r in results}
 
     # Posiciones abiertas fuera del universo (p. ej. salió del S&P 500): se

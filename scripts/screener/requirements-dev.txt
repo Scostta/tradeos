@@ -1,2 +1,4 @@
 -r requirements.txt
 pytest==8.4.2
+# Solo tests: verifica la lista fija de festivos NYSE (el job no la usa).
+exchange_calendars==4.13.2

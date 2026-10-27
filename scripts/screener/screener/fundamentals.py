@@ -5,6 +5,8 @@ anterior, ...]}. yfinance cambia los nombres de fila con cierta frecuencia, así
 que todos los accesos pasan por FIELD_ALIASES. Los alias son solo variantes de
 nombre del MISMO concepto ("Total Revenue" / "TotalRevenue"), nunca un cálculo
 alternativo: si ningún alias existe, el valor es None y el ratio queda null.
+Única excepción (INVEST_SPEC.md §1.2): TotalDebt ausente en un balance que sí
+cargó cuenta como 0 (ver total_debt()).
 """
 
 from __future__ import annotations
@@ -77,8 +79,28 @@ def gross_margin(income: Statement, year_index: int, ticker: str = "") -> Option
     )
 
 
-def net_debt(balance: Statement, ticker: str = "") -> Optional[float]:
+def balance_loaded(balance: Statement) -> bool:
+    """El balance del último año fiscal trae algún dato (no está vacío entero)."""
+    return any(
+        values and values[0] is not None and not math.isnan(values[0])
+        for values in balance.values()
+    )
+
+
+def total_debt(balance: Statement, ticker: str = "") -> Optional[float]:
+    """TotalDebt del último año. Ausente o NaN en un balance que sí cargó → 0.
+
+    Yahoo deja Total Debt en NaN (o sin fila) para empresas sin deuda
+    financiera (p. ej. ANET). Solo es None si el balance entero no está.
+    """
     debt = get_field(balance, "TotalDebt", 0, ticker)
+    if debt is None and balance_loaded(balance):
+        return 0.0
+    return debt
+
+
+def net_debt(balance: Statement, ticker: str = "") -> Optional[float]:
+    debt = total_debt(balance, ticker)
     cash = get_field(balance, "CashAndCashEquivalents", 0, ticker)
     if debt is None or cash is None:
         return None
@@ -96,7 +118,7 @@ def roic(income: Statement, balance: Statement, ticker: str = "") -> Optional[fl
     None si falta algún campo o el capital invertido es <= 0.
     """
     ebit = get_field(income, "EBIT", 0, ticker)
-    debt = get_field(balance, "TotalDebt", 0, ticker)
+    debt = total_debt(balance, ticker)
     equity = get_field(balance, "StockholdersEquity", 0, ticker)
     cash = get_field(balance, "CashAndCashEquivalents", 0, ticker)
     if ebit is None or debt is None or equity is None or cash is None:

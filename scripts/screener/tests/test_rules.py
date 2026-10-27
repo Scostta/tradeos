@@ -248,7 +248,6 @@ def test_huge_ratio_out_of_numeric_range_is_null():
         ("income", "EBITDA", ["net_debt_ebitda"]),
         ("income", "EBIT", ["roic"]),
         ("cashflow", "Free Cash Flow", ["fcf_margin"]),
-        ("balance", "Total Debt", ["net_debt_ebitda", "roic"]),
         ("balance", "Stockholders Equity", ["roic"]),
         ("balance", "Cash And Cash Equivalents", ["net_debt_ebitda", "roic"]),
     ],
@@ -262,11 +261,45 @@ def test_missing_field_fails_its_rules(statement, field, expected):
     [
         ("income", "Total Revenue", [120.0, None], ["revenue_growth", "gross_margin"]),
         ("income", "Gross Profit", [60.0], ["gross_margin"]),  # sin año anterior
-        ("balance", "Total Debt", [float("nan")], ["net_debt_ebitda", "roic"]),
     ],
 )
 def test_nan_or_missing_year_fails_its_rules(statement, field, values, expected):
     assert reasons(with_field(statement, field, values)) == expected
+
+
+# ── Total Debt ausente en un balance que sí cargó → 0 (§1.2) ─────────────────
+
+
+def test_fixture_anet_total_debt_nan_counts_as_zero(fixture_ticker, benchmark):
+    """ANET: Yahoo da Total Debt = NaN (sin deuda financiera) con Cash y Equity presentes."""
+    row = fixture_ticker("ANET")
+    assert row.balance["Total Debt"][0] is None
+    assert row.balance["Cash And Cash Equivalents"][0] is not None
+    result = evaluate(row, benchmark, FIXTURE_RUN_DATE)
+    assert "net_debt_ebitda" not in result.fail_reasons
+    assert "roic" not in result.fail_reasons
+    assert result.net_debt_ebitda is not None and result.net_debt_ebitda < 0  # caja neta
+    assert result.roic is not None and result.roic > 0.10
+
+
+@pytest.mark.parametrize("values", [None, [float("nan")], [None, 10.0]])
+def test_total_debt_absent_with_loaded_balance_is_zero(values):
+    # Deuda 0, caja 30 → deuda neta −30 / EBITDA 40 ; ROIC 30×0,79 / (0+100−30).
+    result = evaluate(with_field("balance", "Total Debt", values), FLAT_BENCHMARK, RUN_DATE)
+    assert result.fail_reasons == []
+    assert result.net_debt_ebitda == -0.75
+    assert result.roic == 0.3386
+
+
+@pytest.mark.parametrize(
+    "balance",
+    [
+        {},
+        {"Total Debt": [None], "Stockholders Equity": [None], "Cash And Cash Equivalents": [None]},
+    ],
+)
+def test_total_debt_with_missing_balance_fails(balance):
+    assert reasons(make_row(balance=balance)) == ["net_debt_ebitda", "roic"]
 
 
 # ── §1.3 técnico ─────────────────────────────────────────────────────────────

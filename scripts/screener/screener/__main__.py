@@ -4,6 +4,7 @@
   sale con código 0 sin hacer nada (el cron cae los días 1–4).
 - workflow_dispatch pasa --force: corre siempre.
 - --run-date por defecto: último día hábil del mes anterior.
+- Sale con código 1 si más del 5 % del universo queda sin datos (no escribe).
 """
 
 from __future__ import annotations
@@ -15,7 +16,7 @@ import sys
 import warnings
 from datetime import date, datetime, timezone
 
-from .job import render_summary, run
+from .job import TooManyNoData, render_summary, run
 from .market_calendar import first_business_day, last_business_day, previous_month_run_date
 from .supabase_rest import SupabaseRest
 
@@ -59,15 +60,25 @@ def main(argv: list[str] | None = None) -> int:
         client = SupabaseRest(url, key)
 
     job_version = os.environ.get("JOB_VERSION") or os.environ.get("GITHUB_SHA") or "local"
-    outcome = run(run_date, client, job_version, limit=args.limit, pause=args.pause)
+    try:
+        outcome = run(run_date, client, job_version, limit=args.limit, pause=args.pause)
+    except TooManyNoData as exc:
+        write_summary(
+            f"## Invest screener — {run_date.isoformat()} ABORTADO\n\n{exc}\n\n"
+            f"Sin datos: {', '.join(f'`{t}`' for t in exc.no_data)}\n"
+        )
+        return 1
 
-    summary = render_summary(outcome)
+    write_summary(render_summary(outcome))
+    return 0
+
+
+def write_summary(summary: str) -> None:
     print(summary)
     summary_path = os.environ.get("GITHUB_STEP_SUMMARY")
     if summary_path:
         with open(summary_path, "a", encoding="utf-8") as f:
             f.write(summary)
-    return 0
 
 
 if __name__ == "__main__":

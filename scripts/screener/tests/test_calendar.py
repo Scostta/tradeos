@@ -67,3 +67,14 @@ def test_holidays_are_all_weekdays():
 def test_year_outside_the_list_raises():
     with pytest.raises(ValueError, match="NYSE_HOLIDAYS"):
         first_business_day(2031, 1)
+
+
+def test_holidays_match_exchange_calendars():
+    """La lista fija coincide con el calendario XNYS (dependencia solo de tests)."""
+    import exchange_calendars as xc
+    import pandas as pd
+
+    nyse = xc.get_calendar("XNYS", start="2023-12-01", end="2030-12-31")
+    weekdays = pd.bdate_range("2024-01-01", "2030-12-31")
+    closed = {d.date() for d in weekdays if not nyse.is_session(d)}
+    assert closed == set(NYSE_HOLIDAYS)
