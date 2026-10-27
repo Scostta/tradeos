@@ -1,0 +1,311 @@
+# INVEST — Núcleo/satélite con screener mensual
+
+Módulo nuevo de TradeOS: gestión de una cartera de largo plazo con **núcleo indexado** (fuera de la app, solo se registra su benchmark) y **satélite de acciones individuales** decidido una vez al mes con un screener de reglas fijas. Es la hipótesis 13 del pipeline: forward test de 3 años, satélite vs. núcleo neto de impuestos, sin backtest.
+
+Principio de diseño: **el screener dice qué se puede comprar; el usuario decide si lo compra con una tesis escrita.** La app impide abrir una posición que no esté en la lista aprobada del mes, y obliga a escribir tesis y falsadores antes de guardar.
+
+Lo que NO se construye (ver §9): backtest, alertas, integración con bróker, cotizaciones intradía, optimización de parámetros.
+
+---
+
+## 1. Reglas (fijas; no se tocan sin cambiar esta spec)
+
+### 1.1 Universo
+- Constituyentes actuales del **S&P 500** (lista de Wikipedia, scrapeada en el job) + `scripts/screener/universe_extra.csv` (tickers Yahoo de grandes capitalizadas europeas, mantenido a mano; empieza con ~40).
+- Capitalización > 2.000 M USD. `info.marketCap` viene en la divisa de cotización: se convierte a USD con el cierre mensual del par de Yahoo (`EURUSD=X`, …) a `run_date`. Las cotizadas en Londres declaran `GBp` pero Yahoo da su marketCap en libras → par GBP. Divisa sin par conocido o sin cierre → `market_cap` null → falla.
+- Al menos **12 meses de cotización** (hay que poder calcular momentum 12-1). Las IPOs recientes quedan fuera automáticamente.
+
+### 1.2 Filtro fundamental (calidad, no "barato")
+Todas obligatorias. Un ratio que no se puede calcular (`null`) **falla** el filtro; no se asume.
+- Denominador ≤ 0 (ingresos, EBITDA, capital invertido) → ratio `null` → falla. En deuda: EBITDA ≤ 0 con deuda neta > 0 falla; la caja neta (`net_debt <= 0`) pasa aunque el EBITDA falte o sea negativo.
+- **Excepción**: `TotalDebt` ausente o NaN en un balance que sí cargó (hay Cash, StockholdersEquity, etc.) cuenta como **0** (Yahoo lo deja así en empresas sin deuda financiera, p. ej. ANET). Solo es `null` si el balance entero no está.
+
+| Regla | Cálculo (yfinance) |
+|---|---|
+| Ingresos creciendo | `revenue_growth_yoy > 0.10` — último año fiscal vs. anterior (`income_stmt` TotalRevenue) |
+| Caja libre positiva | `fcf_margin > 0` — `cashflow` FreeCashFlow / TotalRevenue |
+| Margen bruto estable | `gross_margin >= gross_margin_prev - 0.01` — GrossProfit / TotalRevenue, año actual vs. anterior |
+| Deuda controlada | `net_debt_ebitda < 2` o caja neta (`net_debt <= 0`) — (TotalDebt − CashAndCashEquivalents) / EBITDA |
+| Rentabilidad del capital | `roic > 0.10` — EBIT × (1 − 0,21) / (TotalDebt + StockholdersEquity − Cash) |
+
+Sin PER, sin "ha caído un X %". Documentado así a propósito.
+
+### 1.3 Filtro técnico (confirmación del mercado)
+Sobre **cierres mensuales ajustados** (Yahoo `Adj Close`, último cierre de cada mes):
+
+| Regla | Cálculo |
+|---|---|
+| Por encima de la media de 10 meses | `price > sma10m` — media simple de los 10 últimos cierres mensuales (incluido el actual) |
+| Momentum 12-1 positivo | `momentum_12_1 = P[t-1] / P[t-12] - 1 > 0` |
+| Fuerza relativa positiva | `rel_strength_6m = (P[t]/P[t-6]) - (B[t]/B[t-6]) > 0`, con `B` = benchmark (§1.5) |
+
+### 1.4 Ejecución y gestión
+- Se decide solo con el run del **primer día hábil del mes** (§3). Si no hay run del mes en curso, la app no deja abrir posiciones.
+- Máximo **5 posiciones** abiertas. Tamaño objetivo **4 % del patrimonio total** por posición (el satélite es el 20 %). La app sugiere el importe y bloquea la 6ª.
+- **Nunca se promedia a la baja**: no se puede abrir una segunda posición en un ticker ya abierto.
+- Salida mecánica: en el run mensual, si `price < sma10m` para una posición abierta → señal `sell`. La app lo marca y precarga el cierre con motivo `sma_exit`.
+- Salida discrecional: al abrir, el usuario escribe **≥ 2 falsadores** de la tesis. Si se cumple uno, cierra con motivo `falsifier` indicando cuál.
+- Cierre `manual` permitido pero obliga a escribir motivo; cuenta como desviación en el reporte.
+
+### 1.5 Benchmark
+- `IWDA.AS` (iShares Core MSCI World, EUR, acumulación) en Yahoo, cierres mensuales ajustados. Representa el núcleo.
+- Si el usuario tiene otro fondo, lo cambia en ajustes (§2.4); el job lee el ticker de ahí.
+
+### 1.6 Evaluación de la hipótesis
+- Horizonte: **36 meses** desde `invest_settings.started_at`.
+- Métrica: rentabilidad del satélite neta de costes e impuestos estimados vs. rentabilidad del benchmark en el mismo periodo, ambas como TWR mensual encadenada (§5).
+- La app muestra "mes X de 36" y la diferencia acumulada. Si a los 36 meses el satélite no bate al benchmark, se liquida. El criterio queda escrito aquí; no se decide al final.
+
+---
+
+## 2. Schema (Supabase)
+
+Migración `supabase/migrations/20261027120000_invest.sql`, rollback en `supabase/rollbacks/20261027120000_invest_down.sql`, y añadir las tablas a `supabase/schema.sql`. Misma cabecera comentada que las migraciones existentes.
+
+### 2.1 `invest_screen_runs` — un run por mes (datos compartidos, no por usuario)
+```sql
+create table if not exists invest_screen_runs (
+  id             uuid primary key default gen_random_uuid(),
+  run_date       date not null unique,       -- fecha del cierre mensual evaluado (último día hábil del mes anterior)
+  executed_at    timestamptz default now(),
+  universe_size  integer not null,
+  passed_count   integer not null,
+  benchmark      text not null,               -- ticker usado (IWDA.AS)
+  job_version    text not null                -- git sha del job
+);
+```
+RLS: `select` para `authenticated`; sin políticas de escritura (solo service role).
+
+### 2.2 `invest_screen_results` — todos los tickers evaluados en cada run
+Se guardan **todos**, no solo los que pasan, para poder ver por qué algo no pasa (p. ej. LULU).
+```sql
+create table if not exists invest_screen_results (
+  id                  uuid primary key default gen_random_uuid(),
+  run_id              uuid references invest_screen_runs(id) on delete cascade not null,
+  ticker              text not null,
+  name                text,
+  exchange            text,
+  market_cap          numeric(16,0),
+  revenue_growth_yoy  numeric(8,4),
+  fcf_margin          numeric(8,4),
+  gross_margin        numeric(8,4),
+  gross_margin_prev   numeric(8,4),
+  net_debt_ebitda     numeric(8,4),
+  roic                numeric(8,4),
+  price               numeric(12,4),
+  sma10m              numeric(12,4),
+  momentum_12_1       numeric(8,4),
+  rel_strength_6m     numeric(8,4),
+  months_listed       integer,
+  passes_fundamental  boolean not null,
+  passes_technical    boolean not null,
+  passes              boolean not null,       -- fundamental and technical and months_listed >= 12 and market_cap > 2e9
+  fail_reasons        text[] not null default '{}',  -- p.ej. {'revenue_growth','sma10m'}
+  unique (run_id, ticker)
+);
+create index on invest_screen_results (run_id, passes);
+```
+RLS: `select` para `authenticated`; escritura solo service role.
+
+### 2.3 `invest_positions` — por usuario
+```sql
+create table if not exists invest_positions (
+  id            uuid primary key default gen_random_uuid(),
+  user_id       uuid references auth.users on delete cascade not null,
+  ticker        text not null,
+  run_id        uuid references invest_screen_runs(id) not null,  -- run que lo aprobó
+  opened_at     date not null,
+  entry_price   numeric(12,4) not null,
+  shares        numeric(14,4) not null,
+  fees_open     numeric(10,2) default 0,
+  thesis        text not null,
+  falsifiers    text[] not null,              -- check: array_length >= 2
+  closed_at     date,
+  exit_price    numeric(12,4),
+  fees_close    numeric(10,2) default 0,
+  exit_reason   text check (exit_reason in ('sma_exit','falsifier','manual')),
+  exit_note     text,                         -- qué falsador saltó / motivo manual
+  created_at    timestamptz default now(),
+  constraint invest_positions_falsifiers_min check (array_length(falsifiers, 1) >= 2),
+  constraint invest_positions_close_consistent check (
+    (closed_at is null and exit_price is null and exit_reason is null)
+    or (closed_at is not null and exit_price is not null and exit_reason is not null)
+  )
+);
+create unique index invest_positions_one_open_per_ticker
+  on invest_positions (user_id, ticker) where closed_at is null;
+```
+RLS: `for all using (auth.uid() = user_id)`.
+
+### 2.4 `invest_settings` — una fila por usuario
+```sql
+create table if not exists invest_settings (
+  user_id               uuid primary key references auth.users on delete cascade,
+  total_portfolio_value numeric(14,2) not null,   -- núcleo + satélite, lo actualiza el usuario
+  satellite_pct         numeric(5,4) not null default 0.20,
+  max_positions         integer not null default 5,
+  position_pct          numeric(5,4) not null default 0.04,
+  benchmark_ticker      text not null default 'IWDA.AS',
+  started_at            date not null default current_date,
+  updated_at            timestamptz default now()
+);
+```
+RLS: `for all using (auth.uid() = user_id)`.
+
+### 2.5 `invest_prices` — cierres mensuales ajustados (compartidos)
+```sql
+create table if not exists invest_prices (
+  ticker     text not null,
+  month_end  date not null,
+  adj_close  numeric(12,4) not null,
+  primary key (ticker, month_end)
+);
+```
+El job escribe aquí: el benchmark, y cada ticker que tenga alguna posición (abierta o cerrada) de cualquier usuario, desde 12 meses antes de la primera apertura. RLS: `select` para `authenticated`.
+
+### 2.6 `invest_position_checks` — señal mensual por posición abierta
+```sql
+create table if not exists invest_position_checks (
+  position_id  uuid references invest_positions(id) on delete cascade not null,
+  run_id       uuid references invest_screen_runs(id) on delete cascade not null,
+  price        numeric(12,4) not null,
+  sma10m       numeric(12,4) not null,
+  signal       text not null check (signal in ('hold','sell')),
+  primary key (position_id, run_id)
+);
+```
+RLS: `select using (exists (select 1 from invest_positions p where p.id = position_id and p.user_id = auth.uid()))`. Escritura solo service role.
+
+---
+
+## 3. Job de screening (`scripts/screener/`)
+
+Python, fuera de Next. Carpeta propia con `requirements.txt` (yfinance, pandas, requests), `README.md` corto, y tests con pytest.
+
+### 3.1 Ejecución
+- Workflow `.github/workflows/screener.yml`: `schedule` con cron `0 7 1-4 * *` (07:00 UTC los días 1–4) + `workflow_dispatch` con input opcional `run_date`. El script comprueba si hoy es el **primer día hábil del mes** (lunes–viernes, excluyendo festivos NYSE de una lista fija en el código) y sale sin hacer nada si no lo es. Así se evita depender de que el cron caiga en día hábil.
+- `workflow_dispatch` **corre siempre** (se salta el check de primer día hábil). `run_date` vacío = último día hábil del mes anterior; si se da, debe ser el último día hábil de un mes pasado.
+- Secrets: `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`. Escribe por la REST API de Supabase (PostgREST) con la service role; no necesita el cliente oficial.
+- Idempotente: si ya existe un run con ese `run_date`, **reutiliza su fila** (mismo `id`, actualiza sus campos) y borra y rehace sus resultados y checks. No se borra el run: `invest_positions.run_id` lo referencia sin `on delete cascade` y el DELETE fallaría.
+- Job summary de Actions con: fecha, universo, cuántos pasan, lista de tickers aprobados, y las señales `sell` por usuario (solo recuento, sin datos personales).
+
+### 3.2 Pasos
+1. `run_date` = último día hábil del mes anterior (el cierre mensual que se evalúa).
+2. Universo (§1.1). Para cada ticker, descargar con yfinance: `history(period="2y", interval="1mo")` para precios y `income_stmt`, `cashflow`, `balance_sheet`, `info` para fundamentales. Calcular todos los campos de §2.2.
+3. Benchmark: leer `benchmark_ticker` de todas las filas de `invest_settings` (normalmente uno); descargar cierres mensuales; escribir en `invest_prices`.
+4. Evaluar reglas §1.2 y §1.3 en una función pura `evaluate(row, benchmark_series) -> ScreenResult` con `fail_reasons`. **Esta función es la única implementación de las reglas en todo el proyecto**; TS no las reimplementa.
+5. Insertar run + resultados.
+6. Posiciones abiertas (todas las de `invest_positions` con `closed_at is null`): para cada ticker, precio y `sma10m` → `invest_position_checks` con `signal`. Escribir también sus cierres mensuales en `invest_prices`.
+7. Resumen.
+
+### 3.3 Robustez de datos
+- Tickers que fallen en descarga: se registran con `fail_reasons = {'no_data'}` y `passes = false`; no se reintenta en bucle.
+- Error de red (DNS, conexión, timeout, 429): **un solo reintento** por ticker tras 3 s. Si vuelve a fallar → `no_data`. yfinance se configura con `debug.hide_exceptions = False` para que un error de red en los estados financieros no se convierta en un fallo fundamental silencioso.
+- Si al terminar `no_data` > **5 %** del universo, el run se **aborta sin escribir nada** y el job termina con error (el resumen lista los tickers sin datos).
+- Pausa de 0,3 s entre tickers para no provocar bloqueos de Yahoo. ~600 tickers ≈ 10–15 min; aceptable en Actions.
+- Fundamentales de yfinance cambian de nombre de campo con cierta frecuencia: encapsular los accesos en una función con los alias conocidos y test con fixtures JSON reales de 3 tickers (uno que pasa, uno que falla por fundamental, uno que falla por técnico).
+
+### 3.4 Tests (pytest)
+- `test_rules.py`: `evaluate()` con fixtures; cada regla con un caso que pasa y uno que falla; `null` en cualquier ratio → falla con el `fail_reason` correcto.
+- `test_calendar.py`: primer día hábil del mes con fines de semana y un festivo.
+- `test_technical.py`: `sma10m`, `momentum_12_1` y `rel_strength_6m` sobre series sintéticas con valores esperados calculados a mano.
+
+---
+
+## 4. App (Next)
+
+### 4.1 Ruta y navegación
+- `APP_URLS.INVEST = "/invest"`, entrada en `NAV_ITEMS` (label `COMMON.NAV_LABELS.INVEST = "Invest"`) con un icono nuevo en `src/lib/ui/icons/trend-icon.tsx` siguiendo el estilo de los existentes.
+- Página `src/app/(dashboard)/invest/page.tsx` (Server Component) con tres pestañas por query param `?tab=screen|positions|performance`. Componentes exclusivos en `src/app/(dashboard)/invest/components/`.
+- Copies en `src/constants/copies/invest/index.ts` (inglés, como el resto).
+- Primera vez sin `invest_settings`: estado vacío con formulario de ajustes (§4.5). No se puede hacer nada más hasta rellenarlo.
+
+### 4.2 Pestaña Screen
+- Cabecera: fecha del último run, universo, nº que pasan, estado "run del mes en curso: sí/no".
+- Tabla de los que **pasan**: ticker, nombre, precio, distancia a `sma10m` (%), momentum 12-1, RS 6m, growth, FCF margin, ROIC, net debt/EBITDA. Mono para números (DESIGN.md).
+- Buscador de ticker que muestra **cualquier** ticker del run con sus ratios y `fail_reasons` en rojo. Es para responder "¿por qué no pasa X?".
+- Botón "Open position" en cada fila aprobada → modal §4.4. Deshabilitado si hay 5 abiertas o el ticker ya está abierto, con el motivo en tooltip.
+
+### 4.3 Pestaña Positions
+- Abiertas: ticker, fecha, entrada, acciones, importe, último precio (de `invest_prices`), P&L latente, **señal del último check** (`hold` / `sell` en badge; `sell` en `text-loss`), tesis plegada, falsadores como lista.
+- Botón "Close" → modal con `exit_reason` (precargado `sma_exit` si la señal es `sell`), precio, fecha, comisiones y nota (obligatoria si `falsifier` o `manual`).
+- Cerradas: tabla con P&L realizado bruto, comisiones, impuesto estimado (§5.2), motivo de salida. Las salidas `manual` llevan un marcador visible.
+
+### 4.4 Modal Open position
+Campos: ticker (fijo), fecha, precio, acciones (con el importe sugerido = `total_portfolio_value × position_pct` y el nº de acciones resultante precargado, editable), comisiones, **tesis** (textarea, mín. 200 caracteres), **falsadores** (lista dinámica, mín. 2, cada uno mín. 30 caracteres).
+Server action `openInvestPosition` valida con Zod **y además** comprueba en servidor: existe run del mes en curso; el ticker está en ese run con `passes = true`; abiertas < `max_positions`; no hay otra abierta del mismo ticker. Cualquier fallo → error con copy claro. La regla vive en el servidor, no solo en el botón.
+
+### 4.5 Ajustes (dentro de la pestaña Performance o modal desde cabecera)
+`total_portfolio_value`, `benchmark_ticker`, `started_at`. `satellite_pct`, `max_positions` y `position_pct` se muestran pero **no son editables desde la UI** (cambiarlos es cambiar la spec; se haría por SQL a propósito).
+
+### 4.6 Pestaña Performance
+- "Month N of 36" desde `started_at`.
+- Gráfico de dos líneas (cierres mensuales): satélite (TWR, §5.1) vs. benchmark, ambos base 100 en `started_at`. Reutilizar el wrapper de charts existente (`src/components/charts/`); si no encaja, `lightweight-charts` que ya está en dependencias.
+- Tabla: rentabilidad acumulada satélite bruta, neta de comisiones, neta de impuestos estimados; benchmark; diferencia. Nº de operaciones, nº de salidas por motivo, % de meses con revisión hecha (hubo run y el usuario entró a la pestaña ese mes → guardar `last_reviewed_run_id` en `invest_settings`; se actualiza al visitar Screen).
+
+---
+
+## 5. Cálculos (`src/lib/calculations/invest-*.ts`, puros, con vitest)
+
+### 5.1 `invest-performance.ts`
+- `satelliteMonthlyReturns(positions, prices, settings)`: para cada mes desde `started_at`, valor del satélite = suma de posiciones abiertas a `adj_close` del mes + caja realizada acumulada; aportaciones/retiradas = aperturas y cierres del mes. TWR mensual = `(V_end - flows) / V_start - 1`, con el satélite arrancando en `total_portfolio_value × satellite_pct` como caja. Devuelve `{ monthEnd, gross, netFees, netTax }[]`.
+- `benchmarkMonthlyReturns(prices, ticker, from)`.
+- `chainReturns(returns)` → índice base 100.
+- Tests con un caso de 6 meses calculado a mano, con una apertura, un cierre y un mes sin movimientos.
+
+### 5.2 `invest-tax.ts`
+- `estimateSpanishCapitalGainsTax(realizedGainsByYear)`: tramos 19 % (≤ 6.000), 21 % (≤ 50.000), 23 % (≤ 200.000), aplicados sobre la ganancia neta anual (las pérdidas del año compensan). Etiquetar en UI como estimación. Tests por tramo y con pérdidas que compensan.
+
+### 5.3 `invest-sizing.ts`
+- `suggestedPositionSize(settings, price)` → `{ amount, shares }` con `shares = floor(amount / price)`.
+
+---
+
+## 6. Queries, mappers, actions (convenciones del repo)
+- `src/types/invest.ts`: schemas Zod (`investSettingsSchema`, `investPositionSchema`, `screenRunSchema`, `screenResultSchema`, `positionCheckSchema`) e inputs de actions.
+- `src/services/mappers/invest.ts`: `mapXFromDb` con `schema.parse`.
+- `src/services/queries/invest.ts`: `getLatestRun()`, `getScreenResults(runId, { passesOnly })`, `getScreenResult(runId, ticker)`, `getPositions(userId)`, `getInvestSettings()`, `getPricesFor(tickers, from)`, `getPerformance()`.
+- `src/actions/invest.ts`: `saveInvestSettings`, `openInvestPosition`, `closeInvestPosition`, `markRunReviewed`. Todas devuelven `ResultType` y muestran toast en cliente.
+
+---
+
+## 7. Orden de implementación
+1. Migración + rollback + `schema.sql`.
+2. Job Python con tests; correrlo a mano con `workflow_dispatch` contra Supabase y comprobar filas.
+3. Tipos, mappers, queries, cálculos con tests.
+4. Pestaña Screen (lectura).
+5. Ajustes + modal Open position + action con validaciones de servidor.
+6. Pestaña Positions + Close.
+7. Pestaña Performance.
+8. Actualizar `CLAUDE.md` con una sección "Invest" que resuma reglas (§1), tablas y job.
+
+Commit por paso. Lint, `npm test` y `pytest` en verde antes de cada commit. Añadir `pytest` al workflow `ci.yml` (job separado con Python 3.12, solo si cambian archivos bajo `scripts/screener/`).
+
+---
+
+## 8. Variables y secretos
+- Vercel: nada nuevo (la app solo lee tablas con el cliente de usuario y RLS).
+- GitHub Actions secrets: `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`. Documentar en `scripts/screener/README.md` y en `.env.example` como comentario (sin valores).
+
+---
+
+## 9. Fuera de alcance (no hacer aunque parezca fácil)
+- Backtest del screener. Sin datos point-in-time es un número falso; el test es el forward de 36 meses.
+- Alertas por email/push. El usuario entra una vez al mes; la señal está en la app.
+- Cotizaciones intradía o diarias en el módulo. Todo es cierre mensual.
+- Parámetros editables (umbrales, lookbacks, nº de posiciones). Cambiarlos es cambiar la spec.
+- Integración con bróker o importación de operaciones. Se registran a mano: son ≤ 5 al mes.
+- Cortos, apalancamiento, opciones.
+
+---
+
+## 10. Registro de decisiones
+
+| Fecha | § | Decisión |
+|---|---|---|
+| 2026-10-27 | 3.1 | Rerun del mismo `run_date`: se reutiliza la fila del run y se rehacen resultados y checks (no se borra el run). |
+| 2026-10-27 | 1.2 | Denominador ≤ 0 → ratio `null` → falla. La caja neta pasa la regla de deuda aunque el EBITDA falte o sea negativo. |
+| 2026-10-27 | 1.1 | Market cap convertido a USD con FX de Yahoo a `run_date`; `GBp` usa el par GBP. Sin FX → `null` → falla. |
+| 2026-10-27 | 3.1 | `workflow_dispatch` corre siempre; `run_date` por defecto = último día hábil del mes anterior. |
+| 2026-10-27 | 1.2 | `TotalDebt` ausente/NaN en un balance que sí cargó = 0; solo `null` si falta el balance entero. |
+| 2026-10-27 | 3.3 | Un reintento por ticker tras 3 s en error de red; `no_data` > 5 % del universo aborta el run sin escribir y el job termina con error. |
