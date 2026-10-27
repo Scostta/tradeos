@@ -8,6 +8,7 @@ export const APP_URLS = {
   JOURNAL:    "/journal",
   ACCOUNTS:   "/accounts",
   GOALS:      "/goals",
+  INVEST:     "/invest",
   INSIGHTS:   "/insights",
   SETTINGS:   "/settings",
 

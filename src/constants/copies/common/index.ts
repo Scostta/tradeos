@@ -17,6 +17,7 @@ export const COMMON = {
     JOURNAL:    "Journal",
     ACCOUNTS:   "Accounts",
     GOALS:      "Goals",
+    INVEST:     "Invest",
     INSIGHTS:   "AI Insights",
   },
   SESSION: {

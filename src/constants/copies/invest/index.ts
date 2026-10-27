@@ -1,0 +1,85 @@
+import type { FailReason } from "~/types/invest"
+
+export const INVEST = {
+  TITLE:    "Invest",
+  SUBTITLE: "Core/satellite · monthly screener",
+
+  TABS: {
+    SCREEN:      "Screen",
+    POSITIONS:   "Positions",
+    PERFORMANCE: "Performance",
+  },
+
+  SCREEN: {
+    NO_RUN:        "No screener run yet. The job runs on the first business day of each month.",
+    LOAD_ERROR:    "Could not load the screener run.",
+    LAST_RUN:      "Last run",
+    EXECUTED:      "Executed",
+    UNIVERSE:      "Universe",
+    PASSING:       "Passing",
+    CURRENT_RUN:   "Current-month run",
+    YES:           "Yes",
+    NO:            "No",
+    NO_CURRENT_RUN_HINT: "No run for this month yet: opening positions is disabled until it runs.",
+    BENCHMARK:     "Benchmark",
+
+    TABLE_TITLE:   "Approved this month",
+    TABLE_EMPTY:   "No ticker passes every rule this month.",
+    HEADERS: {
+      TICKER:     "Ticker",
+      NAME:       "Name",
+      SECTOR:     "Sector",
+      PRICE:      "Price",
+      VS_SMA:     "vs SMA10",
+      MOMENTUM:   "Mom 12-1",
+      RS:         "RS 6m",
+      GROWTH:     "Growth",
+      FCF:        "FCF margin",
+      ROIC:       "ROIC",
+      ND_EBITDA:  "ND/EBITDA",
+    },
+
+    SEARCH_TITLE:       "Why doesn't it pass?",
+    SEARCH_PLACEHOLDER: "Ticker, e.g. LULU",
+    SEARCH_CTA:         "Check",
+    SEARCH_NOT_FOUND:   "{ticker} is not in the {date} run.",
+    SEARCH_PASSES:      "Passes every rule.",
+    SEARCH_FAILS:       "Fails",
+    NO_SECTOR:          "No sector",
+
+    GROUPS: {
+      UNIVERSE:    "Universe",
+      FUNDAMENTAL: "Fundamental",
+      TECHNICAL:   "Technical",
+    },
+    METRICS: {
+      MARKET_CAP:    "Market cap",
+      MONTHS_LISTED: "Months listed",
+      GROWTH:        "Revenue growth YoY",
+      FCF:           "FCF margin",
+      GROSS_MARGIN:  "Gross margin",
+      GROSS_PREV:    "Gross margin (prev. year)",
+      ND_EBITDA:     "Net debt / EBITDA",
+      ROIC:          "ROIC",
+      PRICE:         "Price",
+      SMA10:         "SMA 10m",
+      MOMENTUM:      "Momentum 12-1",
+      RS:            "Rel. strength 6m",
+    },
+  },
+
+  FAIL_REASONS: {
+    no_data:         "No data from Yahoo",
+    market_cap:      "Market cap ≤ $2B",
+    months_listed:   "Less than 12 months listed",
+    revenue_growth:  "Revenue growth ≤ 10%",
+    fcf_margin:      "Free cash flow margin ≤ 0",
+    gross_margin:    "Gross margin fell more than 1 pt",
+    net_debt_ebitda: "Net debt / EBITDA ≥ 2 without net cash",
+    roic:            "ROIC ≤ 10%",
+    sma10m:          "Price below the 10-month SMA",
+    momentum_12_1:   "12-1 momentum ≤ 0",
+    rel_strength_6m: "6-month relative strength ≤ 0",
+  } satisfies Record<FailReason, string>,
+  NOT_COMPUTABLE: "not computable",
+} as const
