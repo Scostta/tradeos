@@ -22,6 +22,8 @@ import { SparklesIcon } from "~/lib/ui/icons/sparkles-icon";
 import { SettingsIcon } from "~/lib/ui/icons/settings-icon";
 import { XIcon } from "~/lib/ui/icons/x-icon";
 import { BrandMark } from "~/lib/ui/icons/brand-mark";
+import { getActiveModule } from "~/helpers/active-module";
+import { ModuleSwitcher } from "./module-switcher.client";
 
 interface NavItem {
   id: string;
@@ -65,6 +67,7 @@ export function Sidebar({
   const pathname = usePathname();
   const [pending, startSignOut] = useTransition();
   const initials = getInitials(userName ?? userEmail);
+  const activeModule = getActiveModule(pathname);
 
   function isActive(path: string): boolean {
     if (path === "/dashboard") return pathname === "/dashboard";
@@ -102,6 +105,11 @@ export function Sidebar({
           <div className="font-semibold text-md text-text tracking-mono">{COMMON.BRAND.NAME}</div>
           <div className="mono text-xs text-text-mute tracking-wide">{COMMON.BRAND.VERSION}</div>
         </div>
+      </div>
+
+      {/* Module switcher (en móvil, dentro del drawer) */}
+      <div className="pb-3">
+        <ModuleSwitcher active={activeModule} onNavigate={onClose} />
       </div>
 
       {/* Nav */}

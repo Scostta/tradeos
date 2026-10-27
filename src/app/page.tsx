@@ -1,6 +1,5 @@
-import { redirect } from "next/navigation";
-import { APP_URLS } from "~/constants/app-urls";
+import { RootRedirect } from "./root-redirect.client";
 
 export default function RootPage() {
-  redirect(APP_URLS.DASHBOARD);
+  return <RootRedirect />;
 }
