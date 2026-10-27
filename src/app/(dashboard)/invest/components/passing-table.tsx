@@ -1,5 +1,7 @@
 import type { ReactElement } from "react"
 import { INVEST } from "~/constants/copies/invest"
+import { APP_URLS } from "~/constants/app-urls"
+import { ClickableRow } from "./clickable-row.client"
 import { distanceToSma } from "~/lib/calculations/invest-run"
 import type { ScreenResult } from "~/types/invest"
 import { fmtMultiple, fmtPct, fmtPrice, signColor } from "./invest-format"
@@ -66,7 +68,7 @@ export function PassingTable({ rows, actions }: Props): ReactElement {
               rows.map(r => {
                 const vsSma = distanceToSma(r.price, r.sma10m)
                 return (
-                  <tr key={r.id} className="border-b border-border last:border-0 hover:bg-surface-2 transition-colors">
+                  <ClickableRow key={r.id} href={APP_URLS.INVEST_TICKER(r.ticker)} className="border-b border-border last:border-0 hover:bg-surface-2 transition-colors">
                     <td className="px-3 py-2" style={{ maxWidth: 240 }}>
                       <TickerLink ticker={r.ticker} />
                       <div className="text-xs text-text-mute truncate">{r.name ?? "—"}</div>
@@ -92,7 +94,7 @@ export function PassingTable({ rows, actions }: Props): ReactElement {
                         />
                       )}
                     </td>
-                  </tr>
+                  </ClickableRow>
                 )
               })
             )}

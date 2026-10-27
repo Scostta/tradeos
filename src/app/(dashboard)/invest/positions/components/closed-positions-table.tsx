@@ -2,6 +2,7 @@ import type { ReactElement } from "react"
 import Link from "next/link"
 import { APP_URLS } from "~/constants/app-urls"
 import { INVEST } from "~/constants/copies/invest"
+import { ClickableRow } from "../../components/clickable-row.client"
 import type { ClosedResult } from "~/lib/calculations/invest-positions"
 import { TriangleAlertIcon } from "~/lib/ui/icons/triangle-alert-icon"
 import type { InvestPositionWithMeta } from "~/types/invest"
@@ -65,7 +66,7 @@ export function ClosedPositionsTable({ rows }: { rows: ClosedRow[] }): ReactElem
                 const manual = p.exitReason === "manual"
                 const net = r && tax != null ? r.netPnlEur - tax : null
                 return (
-                  <tr key={p.id} className="border-b border-border last:border-0 hover:bg-surface-2 transition-colors">
+                  <ClickableRow key={p.id} href={APP_URLS.INVEST_TICKER(p.ticker)} className="border-b border-border last:border-0 hover:bg-surface-2 transition-colors">
                     <td className="px-3 py-2.5 whitespace-nowrap">
                       <Link href={APP_URLS.INVEST_TICKER(p.ticker)} className="mono text-sm font-semibold text-text hover:text-accent">
                         {p.ticker}
@@ -93,7 +94,7 @@ export function ClosedPositionsTable({ rows }: { rows: ClosedRow[] }): ReactElem
                       </span>
                       {manual && <span className="ml-2 text-xs text-short" title={P.DEVIATION_HINT}>{P.DEVIATION}</span>}
                     </td>
-                  </tr>
+                  </ClickableRow>
                 )
               })
             )}
