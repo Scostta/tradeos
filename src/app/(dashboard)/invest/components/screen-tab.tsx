@@ -32,6 +32,7 @@ export async function ScreenTab({ query }: { query: string | null }): Promise<Re
       <TickerSearch
         query={query}
         runDate={run.runDate}
+        benchmark={run.benchmark}
         result={searched?.success ? searched.data : null}
       />
       <PassingTable rows={passing.data} />

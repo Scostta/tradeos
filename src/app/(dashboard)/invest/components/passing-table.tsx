@@ -1,16 +1,14 @@
 import type { ReactElement } from "react"
-import Link from "next/link"
-import { APP_URLS } from "~/constants/app-urls"
 import { INVEST } from "~/constants/copies/invest"
 import { distanceToSma } from "~/lib/calculations/invest-run"
 import type { ScreenResult } from "~/types/invest"
 import { fmtMultiple, fmtPct, fmtPrice, signColor } from "./invest-format"
+import { TickerLink } from "./ticker-link.client"
 
 const H = INVEST.SCREEN.HEADERS
 
 const HEADERS = [
   { label: H.TICKER,    align: "left"  },
-  { label: H.NAME,      align: "left"  },
   { label: H.SECTOR,    align: "left"  },
   { label: H.PRICE,     align: "right" },
   { label: H.VS_SMA,    align: "right" },
@@ -27,9 +25,9 @@ const CELL = "px-3 py-2.5 mono text-sm text-right whitespace-nowrap"
 export function PassingTable({ rows }: { rows: ScreenResult[] }): ReactElement {
   return (
     <div className="card p-0 overflow-hidden">
-      <div className="flex items-center gap-2 px-4 py-3 border-b border-border">
-        <span className="label-caps">{INVEST.SCREEN.TABLE_TITLE}</span>
-        <span className="mono text-xs text-text-mute">{rows.length}</span>
+      <div className="flex items-center gap-2 px-4 py-3.5 border-b border-border">
+        <span className="text-md font-semibold text-text">{INVEST.SCREEN.TABLE_TITLE}</span>
+        <span className="mono text-xs px-1.5 py-0.5 rounded-sm bg-accent/10 text-accent">{rows.length}</span>
       </div>
       <div className="overflow-x-auto">
         <table className="w-full border-collapse" style={{ minWidth: 960 }}>
@@ -58,19 +56,14 @@ export function PassingTable({ rows }: { rows: ScreenResult[] }): ReactElement {
                 const vsSma = distanceToSma(r.price, r.sma10m)
                 return (
                   <tr key={r.id} className="border-b border-border last:border-0 hover:bg-surface-2 transition-colors">
-                    <td className="px-3 py-2.5">
-                      <Link
-                        href={`${APP_URLS.INVEST}?tab=screen&q=${encodeURIComponent(r.ticker)}`}
-                        className="mono text-sm font-semibold text-text hover:text-accent"
-                      >
-                        {r.ticker}
-                      </Link>
+                    <td className="px-3 py-2" style={{ maxWidth: 240 }}>
+                      <TickerLink ticker={r.ticker} />
+                      <div className="text-xs text-text-mute truncate">{r.name ?? "—"}</div>
                     </td>
-                    <td className="px-3 py-2.5 text-sm text-text-dim truncate" style={{ maxWidth: 220 }}>
-                      {r.name ?? "—"}
-                    </td>
-                    <td className="px-3 py-2.5 text-sm text-text-mute whitespace-nowrap">
-                      {r.sector ?? INVEST.SCREEN.NO_SECTOR}
+                    <td className="px-3 py-2.5 whitespace-nowrap">
+                      <span className="text-xs px-2 py-0.5 rounded-sm bg-surface-2 text-text-dim">
+                        {r.sector ?? INVEST.SCREEN.NO_SECTOR}
+                      </span>
                     </td>
                     <td className={`${CELL} text-text`}>{fmtPrice(r.price, r.currency)}</td>
                     <td className={`${CELL} ${signColor(vsSma)}`}>{fmtPct(vsSma, { sign: true })}</td>
