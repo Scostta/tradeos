@@ -27,6 +27,9 @@ export async function middleware(request: NextRequest) {
   const { data: { user } } = await supabase.auth.getUser();
   const { pathname } = request.nextUrl;
 
+  // Las rutas de los módulos (/dashboard…, /invest, /money) son privadas por
+  // no estar aquí. "/" sin sesión va a /login; con sesión, RootRedirect
+  // (src/app/root-redirect.client.tsx) la manda al home del último módulo.
   const isPublic =
     pathname === APP_URLS.LOGIN ||
     pathname === APP_URLS.REGISTER ||
