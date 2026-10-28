@@ -217,3 +217,15 @@ export const splitTransactionInputSchema = z.object({
 export type SplitTransactionInput = z.infer<typeof splitTransactionInputSchema>
 
 export const unsplitTransactionInputSchema = z.object({ transactionId: z.string().uuid() })
+
+// ── Suscripciones (§5.3) ────────────────────────────────────────────────────
+
+export const subscriptionStatusInputSchema = z.object({
+  subscriptionId: z.string().uuid(),
+  status:         subscriptionStatusSchema,
+})
+
+export const subscriptionUsageInputSchema = z.object({
+  subscriptionId: z.string().uuid(),
+  usage:          subscriptionUsageSchema,
+})

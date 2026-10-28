@@ -22,6 +22,7 @@ import { CoinsIcon } from "~/lib/ui/icons/coins-icon";
 import { SparklesIcon } from "~/lib/ui/icons/sparkles-icon";
 import { SettingsIcon } from "~/lib/ui/icons/settings-icon";
 import { XIcon } from "~/lib/ui/icons/x-icon";
+import { RepeatIcon } from "~/lib/ui/icons/repeat-icon";
 import { BrandMark } from "~/lib/ui/icons/brand-mark";
 import type { AppModule } from "~/helpers/active-module";
 import { ModuleSwitcher } from "./module-switcher.client";
@@ -54,6 +55,7 @@ const NAV_BY_MODULE: Record<AppModule, NavItem[]> = {
   money: [
     { id: "overview", label: COMMON.NAV_LABELS.OVERVIEW, path: APP_URLS.MONEY, Icon: CoinsIcon, exact: true },
     { id: "money-transactions", label: COMMON.NAV_LABELS.TRANSACTIONS, path: APP_URLS.MONEY_TRANSACTIONS, Icon: ListIcon },
+    { id: "money-subscriptions", label: COMMON.NAV_LABELS.SUBSCRIPTIONS, path: APP_URLS.MONEY_SUBSCRIPTIONS, Icon: RepeatIcon },
     { id: "money-import", label: COMMON.NAV_LABELS.IMPORT, path: APP_URLS.MONEY_IMPORT, Icon: UploadIcon },
   ],
 };

@@ -5,9 +5,17 @@ import {
   mapFinanceCategoryFromDb,
   mapFinanceRuleFromDb,
   mapFinanceSettingsFromDb,
+  mapFinanceSubscriptionFromDb,
   mapFinanceTransactionFromDb,
 } from "~/services/mappers/finance"
-import type { FinanceAccount, FinanceCategory, FinanceRule, FinanceSettings, FinanceTransaction } from "~/types/finance"
+import type {
+  FinanceAccount,
+  FinanceCategory,
+  FinanceRule,
+  FinanceSettings,
+  FinanceSubscription,
+  FinanceTransaction,
+} from "~/types/finance"
 import { monthOf, monthPeriod } from "~/lib/finance/dates"
 import type { MonthKey } from "~/lib/finance/dates"
 import { createDataResult, createErrorResult } from "~/helpers/result"
@@ -161,4 +169,21 @@ export const getTransactionsIndex = cache(async (startDay = 1): Promise<ResultTy
     uncategorized,
     lastBookedAt,
   })
+})
+
+export const getSubscriptions = cache(async (): Promise<ResultType<FinanceSubscription[], string>> => {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return createErrorResult("UNAUTHENTICATED")
+
+  const { data, error } = await supabase
+    .from("finance_subscriptions")
+    .select("*")
+    .eq("user_id", user.id)
+    .order("next_expected", { ascending: true, nullsFirst: false })
+  if (error) {
+    console.error(error)
+    return createErrorResult(error.message)
+  }
+  return createDataResult((data ?? []).map(mapFinanceSubscriptionFromDb))
 })

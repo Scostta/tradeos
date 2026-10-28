@@ -15,6 +15,8 @@ import {
   importTransactionsInputSchema,
   setupMoneyInputSchema,
   splitTransactionInputSchema,
+  subscriptionStatusInputSchema,
+  subscriptionUsageInputSchema,
   unsplitTransactionInputSchema,
 } from "~/types/finance"
 import type { CategorizeResult, ImportPreview, ImportPreviewRow, ImportResult, ImportRow } from "~/types/finance"
@@ -352,7 +354,8 @@ async function recomputeSubscriptions(supabase: Supabase, userId: string): Promi
       last_seen:     c.lastSeen,
       next_expected: c.nextExpected,
       occurrences:   c.occurrences,
-      updated_at:    new Date().toISOString(),
+      // updated_at no se envía: marca el último cambio del usuario (status /
+      // usage) y así sirve para saber si una cancelada ha vuelto a cobrar.
     })),
     { onConflict: "user_id,counterparty,cadence" },
   )
@@ -546,6 +549,70 @@ export async function unsplitTransaction(input: unknown): Promise<ResultType<{ o
     .eq("id", parsed.data.transactionId).eq("user_id", user.id)
   if (parentError) {
     console.error(parentError)
+    return createErrorResult("UNKNOWN")
+  }
+
+  revalidatePath(APP_URLS.MONEY, "layout")
+  return createDataResult({ ok: true })
+}
+
+// ── Suscripciones (§5.3) ────────────────────────────────────────────────────
+
+/** Confirmar, descartar ("Not a subscription"), cancelar o volver a pendiente. */
+export async function setSubscriptionStatus(input: unknown): Promise<ResultType<{ ok: true }, FinanceActionError>> {
+  const parsed = subscriptionStatusInputSchema.safeParse(input)
+  if (!parsed.success) return createErrorResult("INVALID_INPUT")
+
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return createErrorResult("UNAUTHENTICATED")
+
+  const { data, error } = await supabase
+    .from("finance_subscriptions")
+    .update({ status: parsed.data.status, updated_at: new Date().toISOString() })
+    .eq("id", parsed.data.subscriptionId)
+    .eq("user_id", user.id)
+    .select("id")
+  if (error) {
+    console.error(error)
+    return createErrorResult("UNKNOWN")
+  }
+  if (!data || data.length === 0) return createErrorResult("NOT_FOUND")
+
+  revalidatePath(APP_URLS.MONEY, "layout")
+  return createDataResult({ ok: true })
+}
+
+/** Uso marcado por el usuario; "unused" guarda desde cuándo (candidatas a cancelar). */
+export async function setSubscriptionUsage(input: unknown): Promise<ResultType<{ ok: true }, FinanceActionError>> {
+  const parsed = subscriptionUsageInputSchema.safeParse(input)
+  if (!parsed.success) return createErrorResult("INVALID_INPUT")
+  const { subscriptionId, usage } = parsed.data
+
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return createErrorResult("UNAUTHENTICATED")
+
+  const { data: current, error: readError } = await supabase
+    .from("finance_subscriptions").select("usage, unused_since").eq("id", subscriptionId).eq("user_id", user.id).maybeSingle()
+  if (readError) {
+    console.error(readError)
+    return createErrorResult("UNKNOWN")
+  }
+  if (!current) return createErrorResult("NOT_FOUND")
+
+  // Si ya estaba sin usar, se conserva desde cuándo.
+  const unusedSince = usage !== "unused" ? null
+    : current.usage === "unused" && current.unused_since ? current.unused_since as string
+    : new Date().toISOString().slice(0, 10)
+
+  const { error } = await supabase
+    .from("finance_subscriptions")
+    .update({ usage, unused_since: unusedSince, updated_at: new Date().toISOString() })
+    .eq("id", subscriptionId)
+    .eq("user_id", user.id)
+  if (error) {
+    console.error(error)
     return createErrorResult("UNKNOWN")
   }
 
