@@ -57,6 +57,20 @@ def test_years_follow_each_statement_dates_not_positions():
     assert rows[2023]["roic"] == round(30 * 0.79 / (30 + 200 - 60), 4)
 
 
+def test_fiscal_year_end_change_does_not_repeat_a_year():
+    # Cambio de cierre fiscal: dos columnas en 2024. Se queda la más reciente
+    # y se siguen dando 4 años distintos (el upsert no admite filas repetidas).
+    data = make(fiscal_years={
+        "income": [2025, 2024, 2024, 2023, 2022],
+        "cashflow": [2025, 2024, 2024],
+        "balance": [2025, 2024, 2024],
+    })
+    rows = fundamentals_history(data)
+    assert [r["fiscal_year"] for r in rows] == [2025, 2024, 2023, 2022]
+    assert rows[1]["revenue"] == 160 and rows[1]["fcf"] == 30
+    assert rows[2]["revenue"] == 120
+
+
 def test_no_data_ticker_has_no_history():
     assert fundamentals_history(TickerData(ticker="BAD", error="boom")) == []
 

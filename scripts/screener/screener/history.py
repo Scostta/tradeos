@@ -39,12 +39,16 @@ def _amount(value: Optional[float]) -> Optional[int]:
 
 def fundamentals_history(row: TickerData) -> list[dict[str, Any]]:
     """Filas de invest_fundamentals_history: los últimos 4 años fiscales del
-    estado de resultados (años según su fecha de cierre)."""
+    estado de resultados (años según su fecha de cierre).
+
+    Si la empresa cambió de cierre fiscal, dos columnas caen en el mismo año
+    natural; se queda la más reciente (la que _from_year encuentra) para no
+    repetir (ticker, fiscal_year) en el upsert."""
     if row.error is not None:
         return []
     income_years = row.fiscal_years.get("income", [])
     rows = []
-    for year in income_years[:HISTORY_YEARS]:
+    for year in list(dict.fromkeys(income_years))[:HISTORY_YEARS]:
         income = _from_year(row.income, income_years, year)
         cashflow = _from_year(row.cashflow, row.fiscal_years.get("cashflow", []), year)
         balance = _from_year(row.balance, row.fiscal_years.get("balance", []), year)
