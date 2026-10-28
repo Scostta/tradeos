@@ -38,7 +38,12 @@ export const INVEST = {
     DEVIATION_HINT: "Manual exit: outside the plan.",
     HEADERS: {
       TICKER:  "Ticker",
+      SECTOR:  "Sector",
       OPENED:  "Opened",
+      COST:    "Cost",
+      LAST:    "Last close",
+      PNL:     "P&L",
+      SIGNAL:  "Signal",
       CLOSED:  "Closed",
       SHARES:  "Shares",
       ENTRY:   "Entry",
@@ -54,6 +59,21 @@ export const INVEST = {
       falsifier: "Falsifier",
       manual:    "Manual",
     },
+  },
+
+  POSITION: {
+    BACK:          "Positions",
+    SCREEN_DETAIL: "Screen detail",
+    LOAD_ERROR:    "Could not load this position.",
+    NOT_FOUND:     "No positions for {ticker}.",
+    STATUS_OPEN:   "Open",
+    STATUS_CLOSED: "Closed",
+    CLOSED:        "Closed",
+    EXIT:          "Exit",
+    NET:           "Net P&L",
+    NET_HINT:      "After fees and estimated tax.",
+    EXIT_REASON:   "Exit reason",
+    EXIT_NOTE:     "Note",
   },
 
   CLOSE: {

@@ -19,6 +19,9 @@ import { fmtDay } from "../components/invest-format"
 import { PriceChart } from "./components/price-chart.client"
 import { FundamentalsTable } from "./components/fundamentals-table"
 import { ThesisPrompts } from "./components/thesis-prompts.client"
+import { ThesisDraftProvider } from "./components/thesis-draft-context.client"
+import { DetailOpenButton } from "./components/detail-open-button.client"
+import { loadOpenContext, openActionFor } from "../components/open-action"
 
 const D = INVEST.DETAIL
 
@@ -55,15 +58,20 @@ export default async function InvestTickerPage({
 
   const benchmark = run?.benchmark ?? settings?.benchmarkTicker ?? "IWDA.AS"
   const today = new Date().toISOString().slice(0, 10)
-  const [resultResult, pricesResult] = await Promise.all([
+  const [resultResult, pricesResult, openCtx] = await Promise.all([
     run ? getScreenResult(run.id, ticker) : Promise.resolve(null),
     getPricesFor([ticker, benchmark], chartFrom(today)),
+    run && settings ? loadOpenContext(run, settings) : Promise.resolve(null),
   ])
   const result = resultResult?.success ? resultResult.data : null
+  const draft = mapThesisAnswersFromDb(draftsResult.success ? draftsResult.data[ticker] : undefined)
+  // Mismo botón que Screen (§4.4): deshabilitado con el motivo si no se puede abrir.
+  const openAction = openCtx && result ? openActionFor(openCtx, result, draft) : null
 
   const loadFailed =
     !settingsResult.success || !runResult.success || !tickerResult.success || !historyResult.success ||
-    !draftsResult.success || !pricesResult.success || (resultResult != null && !resultResult.success)
+    !draftsResult.success || !pricesResult.success || (resultResult != null && !resultResult.success) ||
+    (run != null && settings != null && openCtx == null)
 
   const name = info?.name ?? result?.name ?? null
   const chips = [info?.exchange ?? result?.exchange, info?.sector ?? result?.sector, info?.industry, info?.currency ?? result?.currency]
@@ -85,6 +93,11 @@ export default async function InvestTickerPage({
           </div>
         )}
       </div>
+      {openAction && (
+        <div className="ml-auto shrink-0">
+          <DetailOpenButton action={openAction} />
+        </div>
+      )}
     </header>
   )
 
@@ -99,7 +112,6 @@ export default async function InvestTickerPage({
     }
     const series = pricesResult.success ? priceChartSeries(pricesResult.data, ticker, benchmark) : []
     const fundamentals = historyResult.success ? fundamentalsWithChanges(historyResult.data) : []
-    const draft = mapThesisAnswersFromDb(draftsResult.success ? draftsResult.data[ticker] : undefined)
     const currency = info?.currency ?? result?.currency ?? null
 
     return (
@@ -161,11 +173,13 @@ export default async function InvestTickerPage({
   })()
 
   return (
-    <div className="flex flex-col h-full">
-      {header}
-      <div className="flex-1 min-h-0 overflow-auto page-pad">
-        <div className="flex flex-col gap-4">{body}</div>
+    <ThesisDraftProvider initial={draft}>
+      <div className="flex flex-col h-full">
+        {header}
+        <div className="flex-1 min-h-0 overflow-auto page-pad">
+          <div className="flex flex-col gap-4">{body}</div>
+        </div>
       </div>
-    </div>
+    </ThesisDraftProvider>
   )
 }

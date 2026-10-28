@@ -1,19 +1,11 @@
 import type { ReactElement, ReactNode } from "react"
-import Link from "next/link"
-import { APP_URLS } from "~/constants/app-urls"
 import { INVEST } from "~/constants/copies/invest"
-import { getInvestSettings, getLatestChecks, getPositions, getPricesFor } from "~/services/queries/invest"
-import { EUR_FX_TICKERS, buildPriceIndex, monthKey, shiftMonth } from "~/lib/calculations/invest-fx"
-import {
-  closedPositionResult,
-  estimatedTaxByClose,
-  valueOpenPosition,
-} from "~/lib/calculations/invest-positions"
+import { getInvestSettings } from "~/services/queries/invest"
 import { InvestOnboarding } from "../components/invest-onboarding"
 import { fmtEur, signColor } from "../components/invest-format"
-import { OpenPositionCard } from "./components/open-position-card"
+import { OpenPositionsTable } from "./components/open-positions-table"
 import { ClosedPositionsTable } from "./components/closed-positions-table"
-import type { ClosedRow } from "./components/closed-positions-table"
+import { loadPositionsData } from "./components/positions-data"
 
 const P = INVEST.POSITIONS
 
@@ -27,47 +19,18 @@ function Tile({ label, children }: { label: string; children: ReactNode }): Reac
 }
 
 async function PositionsContent({ maxPositions, paperMode }: { maxPositions: number; paperMode: boolean }): Promise<ReactElement> {
-  const positionsResult = await getPositions()
-  if (!positionsResult.success) {
+  const data = await loadPositionsData()
+  if (!data) {
     return <div className="card p-4 text-sm text-loss">{P.LOAD_ERROR}</div>
   }
-  const positions = positionsResult.data
-  const open = positions.filter(p => p.closedAt == null)
-  const closed = positions.filter(p => p.closedAt != null)
 
-  // Precios de los tickers + pares FX desde un mes antes de la primera apertura
-  // (el FX de un mes aún abierto es el del cierre anterior).
-  const earliest = positions.map(p => p.openedAt).sort()[0]
-  const from = earliest ? `${shiftMonth(monthKey(earliest), -1)}-01` : null
-  const [checksResult, pricesResult] = await Promise.all([
-    getLatestChecks(open.map(p => p.id)),
-    from
-      ? getPricesFor([...positions.map(p => p.ticker), ...Object.values(EUR_FX_TICKERS)], from)
-      : Promise.resolve({ success: true as const, data: [] }),
-  ])
-  if (!checksResult.success || !pricesResult.success) {
-    return <div className="card p-4 text-sm text-loss">{P.LOAD_ERROR}</div>
-  }
-  const index = buildPriceIndex(pricesResult.data)
-
-  const valued = open.map(p => ({ position: p, valuation: valueOpenPosition(p, index) }))
   // §1.6: el resumen (y el máximo) es del modo actual; en modo real, las de
   // papel abiertas se listan pero no suman.
-  const counted = valued.filter(v => v.position.paper === paperMode)
+  const counted = data.open.filter(v => v.position.paper === paperMode)
   const sum = (xs: (number | null)[]) => (xs.some(x => x == null) ? null : xs.reduce<number>((a, x) => a + (x ?? 0), 0))
   const invested = sum(counted.map(v => v.valuation.costEur))
   const marketValue = sum(counted.map(v => v.valuation.valueEur))
   const unrealized = sum(counted.map(v => v.valuation.pnlEur))
-
-  const closedResults = closed.map(p => ({ position: p, result: closedPositionResult(p, index) }))
-  const taxes = estimatedTaxByClose(
-    closedResults
-      .filter(c => c.result != null)
-      .map(c => ({ id: c.position.id, closedAt: c.position.closedAt as string, netPnlEur: c.result!.netPnlEur })),
-  )
-  const closedRows: ClosedRow[] = closedResults
-    .map(c => ({ ...c, tax: taxes.get(c.position.id) ?? null }))
-    .sort((a, b) => (b.position.closedAt ?? "").localeCompare(a.position.closedAt ?? ""))
 
   return (
     <>
@@ -82,29 +45,8 @@ async function PositionsContent({ maxPositions, paperMode }: { maxPositions: num
         </Tile>
       </div>
 
-      <div className="flex flex-col gap-3">
-        <div className="flex items-center gap-2">
-          <span className="text-md font-semibold text-text">{P.OPEN_TITLE}</span>
-          <span className="mono text-xs px-1.5 py-0.5 rounded-sm bg-accent/10 text-accent">{open.length}</span>
-        </div>
-        {open.length === 0 ? (
-          <div className="card px-4 py-10 flex flex-col items-center gap-3 text-center">
-            <span className="text-sm text-text-mute">{P.OPEN_EMPTY}</span>
-            <Link href={APP_URLS.INVEST} className="btn-ghost">{P.GO_TO_SCREEN}</Link>
-          </div>
-        ) : (
-          valued.map(({ position, valuation }) => (
-            <OpenPositionCard
-              key={position.id}
-              position={position}
-              valuation={valuation}
-              check={checksResult.data[position.id] ?? null}
-            />
-          ))
-        )}
-      </div>
-
-      <ClosedPositionsTable rows={closedRows} />
+      <OpenPositionsTable rows={data.open} />
+      <ClosedPositionsTable rows={data.closed} />
     </>
   )
 }

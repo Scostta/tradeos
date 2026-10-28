@@ -150,6 +150,8 @@ export async function openInvestPosition(input: unknown): Promise<ResultType<{ i
   revalidatePath(APP_URLS.INVEST)
   revalidatePath(APP_URLS.INVEST_POSITIONS)
   revalidatePath(APP_URLS.INVEST_PERFORMANCE)
+  // Detalles de ticker y de posición (/invest/[ticker], /invest/positions/[ticker]).
+  revalidatePath(APP_URLS.INVEST, "layout")
   return createDataResult({ id: inserted.id as string })
 }
 
@@ -204,6 +206,8 @@ export async function closeInvestPosition(input: unknown): Promise<ResultType<{ 
 
   revalidatePath(APP_URLS.INVEST_POSITIONS)
   revalidatePath(APP_URLS.INVEST)
+  // Detalles de ticker y de posición (/invest/[ticker], /invest/positions/[ticker]).
+  revalidatePath(APP_URLS.INVEST, "layout")
   return createDataResult({ ok: true })
 }
 
@@ -257,6 +261,8 @@ export async function startRealTest(): Promise<ResultType<{ ok: true }, InvestAc
   revalidatePath(APP_URLS.INVEST)
   revalidatePath(APP_URLS.INVEST_POSITIONS)
   revalidatePath(APP_URLS.INVEST_PERFORMANCE)
+  // Detalles de ticker y de posición (/invest/[ticker], /invest/positions/[ticker]).
+  revalidatePath(APP_URLS.INVEST, "layout")
   return createDataResult({ ok: true })
 }
 

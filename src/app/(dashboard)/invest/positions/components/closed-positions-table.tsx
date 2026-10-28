@@ -3,11 +3,10 @@ import Link from "next/link"
 import { APP_URLS } from "~/constants/app-urls"
 import { INVEST } from "~/constants/copies/invest"
 import { ClickableRow } from "../../components/clickable-row.client"
-import type { ClosedResult } from "~/lib/calculations/invest-positions"
 import { TriangleAlertIcon } from "~/lib/ui/icons/triangle-alert-icon"
-import type { InvestPositionWithMeta } from "~/types/invest"
 import { cn } from "~/utils/cn"
 import { PAPER_BADGE_CLS, fmtDay, fmtEur, fmtPrice, fmtShares, signColor } from "../../components/invest-format"
+import type { ClosedRow } from "./positions-data"
 
 const P = INVEST.POSITIONS
 const H = P.HEADERS
@@ -25,12 +24,6 @@ const HEADERS = [
   { label: H.NET,    align: "right" },
   { label: H.REASON, align: "left"  },
 ] as const
-
-export type ClosedRow = {
-  position: InvestPositionWithMeta
-  result:   ClosedResult | null    // null: falta FX
-  tax:      number | null
-}
 
 const CELL = "px-3 py-2.5 mono text-sm text-right whitespace-nowrap"
 
@@ -66,9 +59,9 @@ export function ClosedPositionsTable({ rows }: { rows: ClosedRow[] }): ReactElem
                 const manual = p.exitReason === "manual"
                 const net = r && tax != null ? r.netPnlEur - tax : null
                 return (
-                  <ClickableRow key={p.id} href={APP_URLS.INVEST_TICKER(p.ticker)} className="border-b border-border last:border-0 hover:bg-surface-2 transition-colors">
+                  <ClickableRow key={p.id} href={APP_URLS.INVEST_POSITION(p.ticker)} className="border-b border-border last:border-0 hover:bg-surface-2 transition-colors">
                     <td className="px-3 py-2.5 whitespace-nowrap">
-                      <Link href={APP_URLS.INVEST_TICKER(p.ticker)} className="mono text-sm font-semibold text-text hover:text-accent">
+                      <Link href={APP_URLS.INVEST_POSITION(p.ticker)} className="mono text-sm font-semibold text-text hover:text-accent">
                         {p.ticker}
                       </Link>
                       {p.paper && <span className={`${PAPER_BADGE_CLS} ml-2`}>{INVEST.PERFORMANCE.PAPER_BADGE}</span>}

@@ -7,8 +7,7 @@ import type { ScreenResult } from "~/types/invest"
 import { fmtMultiple, fmtPct, fmtPrice, signColor } from "./invest-format"
 import { TickerLink } from "./ticker-link.client"
 import { OpenPositionButton } from "./open-position-button.client"
-import type { OpenCandidate } from "./open-position-modal.client"
-import type { OpenBlocker } from "~/lib/calculations/invest-run"
+import type { OpenAction } from "./open-action"
 
 const H = INVEST.SCREEN.HEADERS
 
@@ -27,8 +26,6 @@ const HEADERS = [
 ] as const
 
 const CELL = "px-3 py-2.5 mono text-sm text-right whitespace-nowrap"
-
-export type OpenAction = { candidate: OpenCandidate; blockers: OpenBlocker[] }
 
 type Props = {
   rows:    ScreenResult[]

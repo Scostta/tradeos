@@ -9,6 +9,7 @@ import type { ThesisAnswers, ThesisPromptKey } from "~/types/invest"
 import { cn } from "~/utils/cn"
 import { INPUT_CLS } from "../../components/settings-form.client"
 import { Spinner } from "../../components/spinner"
+import { useThesisDraft } from "./thesis-draft-context.client"
 
 const D = INVEST.DETAIL
 const AUTOSAVE_MS = 1500
@@ -16,8 +17,10 @@ const AUTOSAVE_MS = 1500
 type Status = "idle" | "dirty" | "saving" | "saved" | "error"
 
 // Autoguardado (§4.7): 1,5 s después de dejar de escribir y al salir de un campo.
+// Las respuestas viven en ThesisDraftProvider (las lee también el botón Open).
 export function ThesisPrompts({ ticker, initial }: { ticker: string; initial: ThesisAnswers }): ReactElement {
-  const [answers, setAnswers] = useState<ThesisAnswers>(initial)
+  const { answers: shared, setAnswers } = useThesisDraft()
+  const answers = shared ?? initial
   const [status, setStatus] = useState<Status>("idle")
   const [, startTransition] = useTransition()
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null)

@@ -367,7 +367,7 @@ Las cuatro primeras son compartidas: `select` para `authenticated`, sin polític
 
 ### App
 
-- Rutas: `/invest` (Screen), `/invest/positions`, `/invest/performance` y `/invest/[ticker]` (detalle: ayuda a escribir la tesis, no decide nada). Sin `invest_settings`, solo el formulario de ajustes.
+- Rutas: `/invest` (Screen), `/invest/positions` (tablas de abiertas y cerradas), `/invest/positions/[ticker]` (posiciones del ticker con tesis y falsadores), `/invest/performance` y `/invest/[ticker]` (detalle: ayuda a escribir la tesis y abre posición, no decide nada). Sin `invest_settings`, solo el formulario de ajustes.
 - `src/types/invest.ts` (Zod), `src/services/mappers/invest.ts`, `src/services/queries/invest.ts`, `src/actions/invest.ts` (`saveInvestSettings`, `openInvestPosition`, `closeInvestPosition`, `markRunReviewed`, `startRealTest`), cálculos puros con vitest en `src/lib/calculations/invest-*.ts`, copies en `src/constants/copies/invest/`.
 - **Divisa base EUR**: precios en la divisa de cotización (`GBp` en peniques), pasados a EUR con los pares de `invest_prices`; comisiones en EUR.
 - **Performance** (§5.1): TWR con caja + posiciones (abrir/cerrar son movimientos internos), **total return implícito** `acciones × close(apertura) × adj(m) / adj(apertura)`; dividendos cobrados no se registran. **Positions** muestra el P&L latente con el último `close` real ("si vendiera hoy"), por eso puede diferir.
