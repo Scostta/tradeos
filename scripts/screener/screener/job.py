@@ -25,7 +25,7 @@ log = logging.getLogger(__name__)
 
 DEFAULT_BENCHMARK = "IWDA.AS"
 PRICE_LOOKBACK_MONTHS = 12
-HISTORY_MONTHS = 36  # gráfico de la página de detalle: universo y benchmark
+HISTORY_MONTHS = yahoo.HISTORY_MONTHS  # gráfico de la página de detalle: universo y benchmark
 MAX_NO_DATA_RATIO = 0.05  # §3.3: por encima, el run se aborta sin escribir
 
 

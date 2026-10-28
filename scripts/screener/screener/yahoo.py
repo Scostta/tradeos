@@ -26,9 +26,11 @@ log = logging.getLogger(__name__)
 # ningún caso legítimo cambia de resultado.)
 yf.config.debug.hide_exceptions = False
 
-# 3 años: momentum 12-1 y SMA 10 necesitan 13 meses; el resto es el gráfico de
-# 36 meses de la página de detalle (invest_prices).
-HISTORY_PERIOD = "3y"
+# 36 cierres mensuales hasta `through` incluido: momentum 12-1 y SMA 10 necesitan
+# 13; el resto es el gráfico de la página de detalle (invest_prices). Se pide con
+# `start` explícito: period="3y" cuenta desde hoy y dejaba fuera el primer mes
+# (35 cierres), y en un rerun de un run_date antiguo aún menos.
+HISTORY_MONTHS = 36
 
 ADJ_CLOSE = "Adj Close"
 CLOSE = "Close"  # ajustado por splits, no por dividendos: el precio real de ese día
@@ -121,21 +123,22 @@ def statement_to_dict(df: Optional[pd.DataFrame]) -> dict[str, list[Optional[flo
     }
 
 
-def _monthly_history(ticker: str, start: Optional[date]) -> pd.DataFrame:
-    def download() -> pd.DataFrame:
-        tk = yf.Ticker(ticker)
-        if start is None:
-            return tk.history(period=HISTORY_PERIOD, interval="1mo", auto_adjust=False, raise_errors=True)
-        return tk.history(
-            start=start.isoformat(), interval="1mo", auto_adjust=False, raise_errors=True
-        )
+def history_start(through: str) -> date:
+    """Primer día del mes más antiguo de los HISTORY_MONTHS que acaban en `through`."""
+    return date.fromisoformat(ta.shift_month(through, -(HISTORY_MONTHS - 1)) + "-01")
 
-    return with_retry(download, ticker)
+
+def _download_monthly(tk: Any, start: date) -> pd.DataFrame:
+    return tk.history(start=start.isoformat(), interval="1mo", auto_adjust=False, raise_errors=True)
+
+
+def _monthly_history(ticker: str, start: date) -> pd.DataFrame:
+    return with_retry(lambda: _download_monthly(yf.Ticker(ticker), start), ticker)
 
 
 def fetch_monthly(ticker: str, through: str, start: Optional[date] = None) -> dict[str, float]:
-    """Cierres mensuales ajustados. Sin `start`: period="3y" (§3.2)."""
-    return monthly_closes(_monthly_history(ticker, start), through)
+    """Cierres mensuales ajustados. Sin `start`: los HISTORY_MONTHS hasta `through` (§3.2)."""
+    return monthly_closes(_monthly_history(ticker, start or history_start(through)), through)
 
 
 def fetch_monthly_prices(
@@ -146,7 +149,7 @@ def fetch_monthly_prices(
     Close (ajustado por splits, no por dividendos) lo usa la app para el primer
     tramo del total return y para el P&L latente de Positions (§5.1).
     """
-    history = _monthly_history(ticker, start)
+    history = _monthly_history(ticker, start or history_start(through))
     return monthly_closes(history, through), monthly_closes(history, through, CLOSE)
 
 
@@ -194,7 +197,7 @@ def fetch_ticker(ticker: str, through: str, fx_rates: dict[str, float]) -> Ticke
 
     def download() -> tuple[pd.DataFrame, Any, Any, Any, dict[str, Any]]:
         tk = yf.Ticker(ticker)
-        history = tk.history(period=HISTORY_PERIOD, interval="1mo", auto_adjust=False, raise_errors=True)
+        history = _download_monthly(tk, history_start(through))
         return history, tk.income_stmt, tk.cashflow, tk.balance_sheet, tk.info or {}
 
     try:

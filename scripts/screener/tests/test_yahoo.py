@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from datetime import date
+
 import pandas as pd
 import pytest
 import yfinance as yf
@@ -137,6 +139,25 @@ def test_fetch_monthly_retries_too(monkeypatch, sleeps):
     fake_ticker_factory(monkeypatch, [DNS_ERROR])
     assert yahoo.fetch_monthly("IWDA.AS", "2026-09") == {"2026-08": 10.0, "2026-09": 11.0}
     assert sleeps == [3.0]
+
+
+def test_downloads_the_36_months_ending_at_through(monkeypatch, sleeps):
+    """start explícito (no period="3y", que cuenta desde hoy y perdía el primer mes)."""
+    calls: list[dict] = []
+    fake_ticker_factory(monkeypatch, [])
+    original = yahoo.yf.Ticker.history
+
+    def recording(self, **kwargs):
+        calls.append(kwargs)
+        return original(self, **kwargs)
+
+    monkeypatch.setattr(yahoo.yf.Ticker, "history", recording)
+    yahoo.fetch_ticker("FAKE", "2026-09", {"USD": 1.0})
+    yahoo.fetch_monthly("IWDA.AS", "2026-09")
+    yahoo.fetch_monthly_prices("ASML.AS", "2026-09")
+    assert yahoo.history_start("2026-09") == date(2023, 10, 1)
+    assert [c["start"] for c in calls] == ["2023-10-01"] * 3
+    assert all("period" not in c for c in calls)
 
 
 def test_fetch_ticker_market_cap_uses_unadjusted_close_at_run_date(monkeypatch, sleeps):

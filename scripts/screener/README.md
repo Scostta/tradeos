@@ -46,10 +46,11 @@ estados financieros no se convierta en silencio en un fallo fundamental.
 
 ## Datos y decisiones
 
-- **Precios**: `history(interval="1mo", auto_adjust=False)`, columna `Adj Close`.
-  Las barras se indexan por mes (`YYYY-MM`); la del mes en curso es parcial y se
-  descarta. `months_listed` cuenta los cierres de la ventana descargada (3 años),
-  así que su máximo es ~36.
+- **Precios**: `history(start=…, interval="1mo", auto_adjust=False)`, columna
+  `Adj Close`, desde el día 1 del mes `run_date − 35 meses` (`history_start()`):
+  36 cierres hasta el run incluido. Las barras se indexan por mes (`YYYY-MM`); la
+  del mes en curso es parcial y se descarta. `months_listed` cuenta los cierres
+  de esa ventana, así que su máximo es 36.
 - **Página de detalle** (`/invest/[ticker]`, §4.7), de lo ya descargado, sin
   más llamadas a Yahoo: `invest_tickers` (nombre, sector, industria, resumen,
   divisas), `invest_fundamentals_history` (4 años fiscales con los mismos
