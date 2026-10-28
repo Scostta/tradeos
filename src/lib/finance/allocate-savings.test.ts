@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest"
-import { allocateSavings, goalEta, requiredMonthly } from "./allocate-savings"
+import { allocateSavings, closeMonths, goalEta, requiredMonthly } from "./allocate-savings"
 import type { GoalInput } from "./allocate-savings"
 
 const goal = (id: string, priority: number, monthlyAlloc: number, extra: Partial<GoalInput> = {}): GoalInput => ({
@@ -68,5 +68,37 @@ describe("requiredMonthly", () => {
     // Nov → feb = 4 meses; faltan 1.000.
     expect(requiredMonthly({ targetAmount: 1000, savedAmount: 0, deadline: "2027-02-28" }, "2026-11")).toBe(250)
     expect(requiredMonthly({ targetAmount: 1000, savedAmount: 0, deadline: null }, "2026-11")).toBeNull()
+  })
+})
+
+describe("closeMonths", () => {
+  const savings = new Map([["2026-09", 500], ["2026-10", 300], ["2026-11", -100]])
+
+  it("reparte cada mes en orden y suma al ahorrado", () => {
+    const goals = [
+      { ...goal("a", 1, 300, { targetAmount: 5000 }), createdMonth: "2026-09" },
+      { ...goal("b", 2, 300, { targetAmount: 5000 }), createdMonth: "2026-09" },
+    ]
+    expect(closeMonths(goals, savings, "2026-09", "2026-11")).toEqual({
+      closed: ["2026-09", "2026-10", "2026-11"],
+      goals: [{ id: "a", savedAmount: 600, completed: false }, { id: "b", savedAmount: 200, completed: false }],
+    })
+  })
+
+  it("un objetivo no recibe de meses anteriores a su creación", () => {
+    const goals = [{ ...goal("late", 1, 300), createdMonth: "2026-10" }]
+    expect(closeMonths(goals, savings, "2026-09", "2026-10").goals).toEqual([{ id: "late", savedAmount: 300, completed: false }])
+  })
+
+  it("al llegar a la meta pasa a completado y el resto va al siguiente", () => {
+    const goals = [
+      { ...goal("near", 1, 300, { targetAmount: 1000, savedAmount: 900 }), createdMonth: "2026-09" },
+      { ...goal("next", 2, 300), createdMonth: "2026-09" },
+    ]
+    const r = closeMonths(goals, savings, "2026-09", "2026-10")
+    expect(r.goals).toEqual([
+      { id: "near", savedAmount: 1000, completed: true },
+      { id: "next", savedAmount: 600, completed: false },   // sep: 300 (de 400 libres); oct: 300
+    ])
   })
 })

@@ -47,6 +47,54 @@ export function allocateSavings(goals: GoalInput[], realSavings: number): Alloca
   return { allocations, unallocated: available }
 }
 
+export type ClosableGoal = GoalInput & { createdMonth: MonthKey }
+
+export type CloseResult = {
+  closed:  MonthKey[]                                             // meses cerrados, en orden
+  goals:   { id: string; savedAmount: number; completed: boolean }[]   // solo los que cambian
+}
+
+/**
+ * Cierra los meses `from`…`to` (incluidos) en orden: el ahorro real de cada mes
+ * se reparte con allocateSavings entre los objetivos activos que ya existían
+ * ese mes, y suma a su saved_amount. Un objetivo que llega a su meta pasa a
+ * completado y deja de recibir.
+ */
+export function closeMonths(
+  goals: ClosableGoal[],
+  realSavingsByMonth: Map<MonthKey, number>,
+  from: MonthKey,
+  to: MonthKey,
+): CloseResult {
+  const state = new Map(goals.map(g => [g.id, { ...g }]))
+  const changed = new Set<string>()
+  const closed: MonthKey[] = []
+  for (let m = from; m <= to; m = shiftMonth(m, 1)) {
+    const eligible = [...state.values()].filter(g => g.status === "active" && g.createdMonth <= m)
+    const { allocations } = allocateSavings(eligible, realSavingsByMonth.get(m) ?? 0)
+    for (const a of allocations) {
+      if (a.allocated <= 0) continue
+      const g = state.get(a.goalId)!
+      g.savedAmount = round2(g.savedAmount + a.allocated)
+      if (g.savedAmount >= g.targetAmount) g.status = "completed"
+      changed.add(g.id)
+    }
+    closed.push(m)
+  }
+  return {
+    closed,
+    goals: [...changed].map(id => {
+      const g = state.get(id)!
+      return { id, savedAmount: g.savedAmount, completed: g.status === "completed" }
+    }),
+  }
+}
+
+/** Primer mes que aún aportará a los objetivos: el actual, o el siguiente al último cerrado si ya se cerró. */
+export function firstOpenMonth(current: MonthKey, closedThrough: MonthKey | null): MonthKey {
+  return closedThrough != null && closedThrough >= current ? shiftMonth(closedThrough, 1) : current
+}
+
 export type GoalEta = {
   month: MonthKey | null   // mes estimado de completar; null si no tiene aportación
   tight: boolean           // la fecha límite llega antes que la estimada

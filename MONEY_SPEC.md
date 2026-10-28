@@ -156,6 +156,7 @@ create table if not exists finance_settings (
   user_id          uuid primary key references auth.users on delete cascade,
   month_start_day  integer not null default 1,
   default_account  uuid references finance_accounts(id) on delete set null,
+  closed_through   text,          -- último mes (YYYY-MM) repartido a objetivos; null = ninguno (migración 20261103130000)
   created_at       timestamptz default now()
 );
 ```
@@ -203,6 +204,8 @@ Ingresos (`income`), gastos (`expense`) separados en fijo/variable por `is_fixed
 
 ### 4.5 `allocateSavings(goals, realSavings): Allocation[]`
 Reparte el ahorro real del mes cerrado entre objetivos activos según `monthly_alloc` y `priority`: si el ahorro no llega, se recorta primero el de menor prioridad (número más alto). Devuelve lo asignado a cada uno y el sobrante sin asignar. `saved_amount` se actualiza al cerrar el mes (action manual "Close month" o automáticamente la primera vez que se visita Money en el mes siguiente). Fecha estimada de completar = meses restantes a `monthly_alloc`. Tests: ahorro suficiente, insuficiente con recorte por prioridad, objetivo completado a mitad.
+
+**Decisión (28/10/2026):** el cierre guarda `finance_settings.closed_through` y se reclama con un update condicional sobre ese valor, así dos visitas simultáneas no reparten dos veces. Se cierran en orden todos los meses pendientes hasta el último terminado (`closeMonths`); un objetivo solo recibe de meses desde el de su creación; sin nada cerrado, se empieza por el mes del objetivo más antiguo. Al llegar a la meta pasa a `completed`. Lo cierran `/money` y `/money/goals` antes de leer los objetivos. La fecha estimada cuenta desde el primer mes aún abierto (`firstOpenMonth`).
 
 ---
 

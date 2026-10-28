@@ -26,3 +26,8 @@ export function displayName(counterparty: string | null, fallback = "—"): stri
   if (!counterparty) return fallback
   return counterparty.replace(/(^|[\s&])([a-z])/g, (_, sep: string, ch: string) => sep + ch.toUpperCase())
 }
+
+/** "Feb 2027" a partir de "2027-02". */
+export function fmtMonth(month: string): string {
+  return new Date(`${month}-01T00:00:00Z`).toLocaleDateString("en-US", { month: "short", year: "numeric", timeZone: "UTC" })
+}

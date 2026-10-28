@@ -1,5 +1,6 @@
 import type { ReactElement } from "react"
 import Link from "next/link"
+import { ensureMonthsClosed } from "~/actions/finance"
 import { APP_URLS } from "~/constants/app-urls"
 import { MONEY } from "~/constants/copies/money"
 import { monthOf } from "~/lib/finance/dates"
@@ -115,6 +116,7 @@ export default async function MoneyPage({
   searchParams: Promise<{ month?: string }>
 }): Promise<ReactElement> {
   const params = await searchParams
+  await ensureMonthsClosed()
   const settingsResult = await getFinanceSettings()
   const settings = settingsResult.success ? settingsResult.data : null
 
@@ -166,7 +168,7 @@ export default async function MoneyPage({
 
   const d = buildOverview({
     transactions: txResult.data, categories: categoriesResult.data, subscriptions: subsResult.data,
-    goals: goalsResult.data, month, today, startDay,
+    goals: goalsResult.data, month, today, startDay, closedThrough: settings.closedThrough,
   })
   const s = d.summary
   const rate = savingsRate(s)
@@ -262,7 +264,7 @@ export default async function MoneyPage({
             >
               <CashFlowCard months={d.history} selected={month} />
             </Card>
-            <Card title={O.GOALS}><Goals d={d} /></Card>
+            <Card title={O.GOALS} link={{ href: APP_URLS.MONEY_GOALS, label: O.VIEW_ALL }}><Goals d={d} /></Card>
           </div>
         </div>
 

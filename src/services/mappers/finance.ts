@@ -123,6 +123,7 @@ export function mapFinanceSettingsFromDb(row: Record<string, unknown>): FinanceS
     userId:         row["user_id"],
     monthStartDay:  row["month_start_day"] ?? 1,
     defaultAccount: row["default_account"] ?? null,
+    closedThrough:  row["closed_through"] ?? null,
     createdAt:      row["created_at"],
   })
 }

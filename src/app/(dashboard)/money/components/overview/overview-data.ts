@@ -1,6 +1,6 @@
 import { daysBetween, monthOf, shiftMonth } from "~/lib/finance/dates"
 import type { MonthKey } from "~/lib/finance/dates"
-import { goalEta } from "~/lib/finance/allocate-savings"
+import { firstOpenMonth, goalEta } from "~/lib/finance/allocate-savings"
 import { paceVsPreviousMonth } from "~/lib/finance/overview"
 import { daysToNext, monthlyCost, yearlyCost } from "~/lib/finance/subscriptions"
 import { monthlySummary } from "~/lib/finance/summary"
@@ -47,8 +47,9 @@ export function buildOverview(args: {
   month:         MonthKey
   today:         string
   startDay:      number
+  closedThrough: MonthKey | null
 }): OverviewData {
-  const { transactions, categories, subscriptions, goals, month, today, startDay } = args
+  const { transactions, categories, subscriptions, goals, month, today, startDay, closedThrough } = args
   const isCurrent = monthOf(today, startDay) === month
   const summary = monthlySummary(transactions, categories, month, { startDay, today: isCurrent ? today : undefined })
 
@@ -102,7 +103,7 @@ export function buildOverview(args: {
     })),
     goals: goals
       .filter(g => g.status === "active")
-      .map(goal => ({ goal, eta: goalEta(goal, shiftMonth(month, 1)).month })),
+      .map(goal => ({ goal, eta: goalEta(goal, firstOpenMonth(monthOf(today, startDay), closedThrough)).month })),
     lastImportDays: lastImport ? daysBetween(lastImport.slice(0, 10), today) : null,
   }
 }

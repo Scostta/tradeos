@@ -3,21 +3,29 @@
 import { revalidatePath } from "next/cache"
 import { createClient } from "~/utils/supabase/server"
 import { APP_URLS } from "~/constants/app-urls"
+import { closeMonths } from "~/lib/finance/allocate-savings"
+import { monthOf, monthPeriod, shiftMonth } from "~/lib/finance/dates"
+import type { MonthKey } from "~/lib/finance/dates"
 import { CASH_ACCOUNT_NAME, DEFAULT_CATEGORIES } from "~/lib/finance/default-categories"
 import { manualImportKey, withFinanceImportKeys } from "~/lib/finance/fingerprint"
 import { applyRules } from "~/lib/finance/match-rule"
 import type { RuleAssignment } from "~/lib/finance/match-rule"
 import { normalizeConcept } from "~/lib/finance/normalize-concept"
 import { detectRecurring } from "~/lib/finance/recurring"
+import { monthlySummary } from "~/lib/finance/summary"
+import { mapFinanceCategoryFromDb, mapFinanceGoalFromDb, mapFinanceTransactionFromDb } from "~/services/mappers/finance"
 import {
+  archiveGoalInputSchema,
   categorizeTransactionInputSchema,
   createFinanceAccountInputSchema,
+  createGoalInputSchema,
   importTransactionsInputSchema,
   setupMoneyInputSchema,
   splitTransactionInputSchema,
   subscriptionStatusInputSchema,
   subscriptionUsageInputSchema,
   unsplitTransactionInputSchema,
+  updateGoalInputSchema,
 } from "~/types/finance"
 import type { CategorizeResult, ImportPreview, ImportPreviewRow, ImportResult, ImportRow } from "~/types/finance"
 import { createDataResult, createErrorResult } from "~/helpers/result"
@@ -689,4 +697,211 @@ export async function setSubscriptionUsage(input: unknown): Promise<ResultType<{
 
   revalidatePath(APP_URLS.MONEY, "layout")
   return createDataResult({ ok: true })
+}
+
+// ── Objetivos (§4.5, §5.4) ──────────────────────────────────────────────────
+
+/** Nuevo objetivo, el último en prioridad. */
+export async function createGoal(input: unknown): Promise<ResultType<{ id: string }, FinanceActionError>> {
+  const parsed = createGoalInputSchema.safeParse(input)
+  if (!parsed.success) return createErrorResult("INVALID_INPUT")
+
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return createErrorResult("UNAUTHENTICATED")
+
+  const { data: last, error: lastError } = await supabase
+    .from("finance_goals")
+    .select("priority")
+    .eq("user_id", user.id)
+    .neq("status", "archived")
+    .order("priority", { ascending: false })
+    .limit(1)
+  if (lastError) {
+    console.error(lastError)
+    return createErrorResult("UNKNOWN")
+  }
+
+  const { name, targetAmount, monthlyAlloc, deadline } = parsed.data
+  const { data, error } = await supabase
+    .from("finance_goals")
+    .insert({
+      user_id:       user.id,
+      name,
+      target_amount: targetAmount,
+      monthly_alloc: monthlyAlloc,
+      deadline,
+      priority:      ((last?.[0]?.priority as number | undefined) ?? 0) + 1,
+    })
+    .select("id")
+    .single()
+  if (error) {
+    console.error(error)
+    return createErrorResult("UNKNOWN")
+  }
+
+  revalidatePath(APP_URLS.MONEY, "layout")
+  return createDataResult({ id: data.id as string })
+}
+
+/** Editar un objetivo. Si la meta queda en lo ahorrado o por debajo se completa; si sube, vuelve a activo. */
+export async function updateGoal(input: unknown): Promise<ResultType<{ ok: true }, FinanceActionError>> {
+  const parsed = updateGoalInputSchema.safeParse(input)
+  if (!parsed.success) return createErrorResult("INVALID_INPUT")
+
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return createErrorResult("UNAUTHENTICATED")
+
+  const { goalId, name, targetAmount, monthlyAlloc, priority, deadline } = parsed.data
+  const { data: current, error: readError } = await supabase
+    .from("finance_goals")
+    .select("saved_amount, status")
+    .eq("id", goalId)
+    .eq("user_id", user.id)
+    .maybeSingle()
+  if (readError) {
+    console.error(readError)
+    return createErrorResult("UNKNOWN")
+  }
+  if (!current || current.status === "archived") return createErrorResult("NOT_FOUND")
+
+  const { error } = await supabase
+    .from("finance_goals")
+    .update({
+      name,
+      target_amount: targetAmount,
+      monthly_alloc: monthlyAlloc,
+      priority,
+      deadline,
+      status: Number(current.saved_amount) >= targetAmount ? "completed" : "active",
+    })
+    .eq("id", goalId)
+    .eq("user_id", user.id)
+  if (error) {
+    console.error(error)
+    return createErrorResult("UNKNOWN")
+  }
+
+  revalidatePath(APP_URLS.MONEY, "layout")
+  return createDataResult({ ok: true })
+}
+
+/** Archivar: deja de recibir y sale de la página; lo ahorrado no se toca. */
+export async function archiveGoal(input: unknown): Promise<ResultType<{ ok: true }, FinanceActionError>> {
+  const parsed = archiveGoalInputSchema.safeParse(input)
+  if (!parsed.success) return createErrorResult("INVALID_INPUT")
+
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return createErrorResult("UNAUTHENTICATED")
+
+  const { data, error } = await supabase
+    .from("finance_goals")
+    .update({ status: "archived" })
+    .eq("id", parsed.data.goalId)
+    .eq("user_id", user.id)
+    .select("id")
+  if (error) {
+    console.error(error)
+    return createErrorResult("UNKNOWN")
+  }
+  if (!data || data.length === 0) return createErrorResult("NOT_FOUND")
+
+  revalidatePath(APP_URLS.MONEY, "layout")
+  return createDataResult({ ok: true })
+}
+
+/**
+ * Reparte el ahorro real de los meses sin cerrar hasta `through` (incluido)
+ * entre los objetivos activos (§4.5) y lo suma a saved_amount. El cierre se
+ * reclama antes con un update condicional sobre closed_through: si otra
+ * petición ya lo hizo, no se reparte dos veces. Devuelve si cambió algún objetivo.
+ */
+async function runMonthClose(supabase: Supabase, userId: string, through: MonthKey): Promise<boolean> {
+  const { data: settings, error: settingsError } = await supabase
+    .from("finance_settings")
+    .select("month_start_day, closed_through")
+    .eq("user_id", userId)
+    .maybeSingle()
+  if (settingsError || !settings) {
+    if (settingsError) console.error(settingsError)
+    return false
+  }
+  const startDay = (settings.month_start_day as number | null) ?? 1
+  const closedThrough = (settings.closed_through as MonthKey | null) ?? null
+  if (closedThrough != null && closedThrough >= through) return false
+
+  const { data: goalRows, error: goalsError } = await supabase
+    .from("finance_goals").select("*").eq("user_id", userId).eq("status", "active")
+  if (goalsError) {
+    console.error(goalsError)
+    return false
+  }
+  const goals = (goalRows ?? []).map(mapFinanceGoalFromDb)
+    .map(g => ({ ...g, createdMonth: monthOf(g.createdAt.slice(0, 10), startDay) }))
+
+  // Sin nada cerrado aún, se empieza por el mes del objetivo más antiguo.
+  const firstGoalMonth = goals.reduce<MonthKey | null>((m, g) => (m == null || g.createdMonth < m ? g.createdMonth : m), null)
+  const from = closedThrough != null ? shiftMonth(closedThrough, 1) : firstGoalMonth
+
+  const claim = supabase.from("finance_settings").update({ closed_through: through }).eq("user_id", userId)
+  const { data: claimed, error: claimError } = await (closedThrough == null
+    ? claim.is("closed_through", null)
+    : claim.eq("closed_through", closedThrough)
+  ).select("user_id")
+  if (claimError) {
+    console.error(claimError)
+    return false
+  }
+  if (!claimed || claimed.length === 0 || from == null || from > through) return false
+
+  const period = { from: monthPeriod(from, startDay).from, to: monthPeriod(through, startDay).to }
+  const [txRes, catRes] = await Promise.all([
+    supabase.from("finance_transactions").select("*").eq("user_id", userId)
+      .gte("booked_at", period.from).lt("booked_at", period.to).range(0, 9999),
+    supabase.from("finance_categories").select("*").eq("user_id", userId),
+  ])
+  if (txRes.error || catRes.error) {
+    console.error(txRes.error ?? catRes.error)
+    // Devolver el cierre para que la próxima visita lo reintente.
+    await supabase.from("finance_settings").update({ closed_through: closedThrough }).eq("user_id", userId)
+    return false
+  }
+  const transactions = (txRes.data ?? []).map(mapFinanceTransactionFromDb)
+  const categories = (catRes.data ?? []).map(mapFinanceCategoryFromDb)
+
+  const savings = new Map<MonthKey, number>()
+  for (let m = from; m <= through; m = shiftMonth(m, 1)) {
+    savings.set(m, monthlySummary(transactions, categories, m, { startDay }).realSavings)
+  }
+
+  const result = closeMonths(goals, savings, from, through)
+  for (const g of result.goals) {
+    const { error } = await supabase
+      .from("finance_goals")
+      .update({ saved_amount: g.savedAmount, status: g.completed ? "completed" : "active" })
+      .eq("id", g.id)
+      .eq("user_id", userId)
+    if (error) console.error(error)
+  }
+  return result.goals.length > 0
+}
+
+/**
+ * Cierre automático (§4.5): la primera visita a Money en un mes reparte los
+ * meses ya terminados. La llaman las páginas que muestran objetivos antes de
+ * leerlos; no revalida porque se ejecuta durante el render.
+ */
+export async function ensureMonthsClosed(): Promise<void> {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return
+
+  const { data: settings } = await supabase
+    .from("finance_settings").select("month_start_day").eq("user_id", user.id).maybeSingle()
+  if (!settings) return
+  const today = new Date().toISOString().slice(0, 10)
+  const current = monthOf(today, (settings.month_start_day as number | null) ?? 1)
+  await runMonthClose(supabase, user.id, shiftMonth(current, -1))
 }

@@ -127,6 +127,7 @@ export const financeSettingsSchema = z.object({
   userId:         z.string().uuid(),
   monthStartDay:  z.number().int().min(1).max(28),
   defaultAccount: z.string().uuid().nullable(),
+  closedThrough:  z.string().regex(/^\d{4}-\d{2}$/).nullable(),   // último mes repartido a objetivos
   createdAt:      timestamp,
 })
 export type FinanceSettings = z.infer<typeof financeSettingsSchema>
@@ -229,3 +230,24 @@ export const subscriptionUsageInputSchema = z.object({
   subscriptionId: z.string().uuid(),
   usage:          subscriptionUsageSchema,
 })
+
+// ── Objetivos (§5.4) ────────────────────────────────────────────────────────
+
+const goalFields = {
+  name:         z.string().trim().min(1).max(60),
+  targetAmount: z.number().finite().positive().max(100_000_000),
+  monthlyAlloc: z.number().finite().min(0).max(100_000_000),
+  deadline:     isoDate.nullable(),
+}
+
+export const createGoalInputSchema = z.object(goalFields)
+export type CreateGoalInput = z.infer<typeof createGoalInputSchema>
+
+export const updateGoalInputSchema = z.object({
+  goalId:   z.string().uuid(),
+  ...goalFields,
+  priority: z.number().int().min(1).max(99),
+})
+export type UpdateGoalInput = z.infer<typeof updateGoalInputSchema>
+
+export const archiveGoalInputSchema = z.object({ goalId: z.string().uuid() })
