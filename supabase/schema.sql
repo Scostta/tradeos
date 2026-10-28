@@ -374,6 +374,7 @@ create table if not exists invest_positions (
   fees_open     numeric(10,2) default 0,
   thesis        text not null,
   falsifiers    text[] not null,
+  falsifier_status jsonb not null default '[]'::jsonb,  -- "ok" | "review" por índice de falsifiers (§4.3)
   closed_at     date,
   exit_price    numeric(12,4),
   fees_close    numeric(10,2) default 0,
@@ -382,6 +383,7 @@ create table if not exists invest_positions (
   paper         boolean not null default false,  -- posición de papel (§1.6)
   created_at    timestamptz default now(),
   constraint invest_positions_falsifiers_min check (array_length(falsifiers, 1) >= 2),
+  constraint invest_positions_falsifier_status_array check (jsonb_typeof(falsifier_status) = 'array'),
   constraint invest_positions_close_consistent check (
     (closed_at is null and exit_price is null and exit_reason is null)
     or (closed_at is not null and exit_price is not null and exit_reason is not null)
