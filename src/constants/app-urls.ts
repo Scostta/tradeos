@@ -14,6 +14,12 @@ export const APP_URLS = {
   INVEST_TICKER:      (ticker: string) => `/invest/${encodeURIComponent(ticker)}`,
   INVEST_POSITION:    (id: string) => `/invest/positions/${id}`,
   MONEY:              "/money",
+  MONEY_TRANSACTIONS: "/money/transactions",
+  MONEY_SUBSCRIPTIONS: "/money/subscriptions",
+  MONEY_GOALS:        "/money/goals",
+  MONEY_IMPORT:       "/money/import",
+  MONEY_SETTINGS:     "/money/settings",
+  MONEY_CASH:         "/money/cash",
   INSIGHTS:   "/insights",
   SETTINGS:   "/settings",
 
