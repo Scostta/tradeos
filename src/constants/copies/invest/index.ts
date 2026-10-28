@@ -63,9 +63,9 @@ export const INVEST = {
 
   POSITION: {
     BACK:          "Positions",
-    SCREEN_DETAIL: "Screen detail",
+    TICKER_DETAIL: "Ticker detail",
     LOAD_ERROR:    "Could not load this position.",
-    NOT_FOUND:     "No positions for {ticker}.",
+    NOT_FOUND:     "Position not found.",
     STATUS_OPEN:   "Open",
     STATUS_CLOSED: "Closed",
     CLOSED:        "Closed",
@@ -73,7 +73,33 @@ export const INVEST = {
     NET:           "Net P&L",
     NET_HINT:      "After fees and estimated tax.",
     EXIT_REASON:   "Exit reason",
-    EXIT_NOTE:     "Note",
+
+    CHART_TITLE:   "Daily price · last 18 months",
+    CHART_NOTE:    "Adjusted for dividends, like the SMA rule.",
+    LEGEND_SMA:    "SMA 10 monthly closes",
+    LEGEND_ENTRY:  "Entry",
+    LEGEND_EXIT:   "Exit level for the next close",
+    LEGEND_EXIT_PRICE: "Exit",
+    ENTRY_LINE:    "Entry · {date}",
+    EXIT_LINE:     "Exit",
+    EXIT_PRICE_LINE: "Exit · {date}",
+    CHART_LOADING: "Loading daily prices…",
+    CHART_ERROR:   "Could not load daily prices from Yahoo.",
+    EXIT_RULE:     "The exit is decided at the last monthly close; next evaluation: {date}.",
+
+    THESIS_TITLE:  "Thesis and falsifiers",
+    STATUS_OK:     "No news",
+    STATUS_REVIEW: "Review",
+    STATUS_HINT:   "Mark a falsifier to review when news touches it. It is a note to yourself: the exit is still the monthly rule.",
+
+    CHECKS_TITLE:  "Monthly checks",
+    CHECKS_EMPTY:  "No checks yet: the job adds one after each monthly close while the position is open.",
+    CHECKS_HEADERS: {
+      RUN:    "Monthly close",
+      CLOSE:  "Close",
+      SMA:    "SMA 10",
+      SIGNAL: "Signal",
+    },
   },
 
   CLOSE: {

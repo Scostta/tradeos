@@ -83,6 +83,10 @@ export type InvestSettings = z.infer<typeof investSettingsSchema>
 export const exitReasonSchema = z.enum(["sma_exit", "falsifier", "manual"])
 export type ExitReason = z.infer<typeof exitReasonSchema>
 
+// Estado manual de cada falsador (§4.3): "ok" = sin novedad, "review" = revisar.
+export const falsifierStatusSchema = z.enum(["ok", "review"])
+export type FalsifierStatus = z.infer<typeof falsifierStatusSchema>
+
 export const investPositionSchema = z.object({
   id:         z.string().uuid(),
   userId:     z.string().uuid(),
@@ -94,6 +98,7 @@ export const investPositionSchema = z.object({
   feesOpen:   z.number(),                    // EUR
   thesis:     z.string(),
   falsifiers: z.array(z.string()),
+  falsifierStatus: z.array(falsifierStatusSchema),  // alineado con falsifiers; lo que falta es "ok"
   closedAt:   isoDate.nullable(),
   exitPrice:  z.number().nullable(),
   feesClose:  z.number(),
@@ -164,6 +169,13 @@ export const closeInvestPositionInputSchema = z
     { message: "EXIT_NOTE_REQUIRED", path: ["exitNote"] },
   )
 export type CloseInvestPositionInput = z.infer<typeof closeInvestPositionInputSchema>
+
+export const setFalsifierStatusInputSchema = z.object({
+  positionId: z.string().uuid(),
+  index:      z.number().int().nonnegative(),
+  status:     falsifierStatusSchema,
+})
+export type SetFalsifierStatusInput = z.infer<typeof setFalsifierStatusInputSchema>
 
 export const markRunReviewedInputSchema = z.object({
   runId: z.string().uuid(),

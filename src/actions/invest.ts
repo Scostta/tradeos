@@ -8,6 +8,7 @@ import { isCurrentMonthRun, openBlockers, positionsForLimits, startedAtAfterOpen
 import type { OpenBlocker } from "~/lib/calculations/invest-run"
 import {
   closeInvestPositionInputSchema,
+  setFalsifierStatusInputSchema,
   markRunReviewedInputSchema,
   openInvestPositionInputSchema,
   saveInvestSettingsInputSchema,
@@ -208,6 +209,51 @@ export async function closeInvestPosition(input: unknown): Promise<ResultType<{ 
   revalidatePath(APP_URLS.INVEST)
   // Detalles de ticker y de posición (/invest/[ticker], /invest/positions/[ticker]).
   revalidatePath(APP_URLS.INVEST, "layout")
+  return createDataResult({ ok: true })
+}
+
+/**
+ * §4.3: marca a mano un falsador como "sin novedad" o "revisar". Solo en
+ * posiciones abiertas; no decide nada (la salida es la de §1.4).
+ */
+export async function setFalsifierStatus(input: unknown): Promise<ResultType<{ ok: true }, InvestActionError>> {
+  const parsed = setFalsifierStatusInputSchema.safeParse(input)
+  if (!parsed.success) return createErrorResult("INVALID_INPUT")
+  const { positionId, index, status } = parsed.data
+
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return createErrorResult("UNAUTHENTICATED")
+
+  const { data: position, error: readError } = await supabase
+    .from("invest_positions")
+    .select("falsifiers, falsifier_status, closed_at")
+    .eq("id", positionId)
+    .eq("user_id", user.id)
+    .maybeSingle()
+  if (readError) {
+    console.error(readError)
+    return createErrorResult("UNKNOWN")
+  }
+  if (!position) return createErrorResult("POSITION_NOT_FOUND")
+  if (position.closed_at != null) return createErrorResult("NOT_OPEN")
+  const falsifiers = position.falsifiers as string[]
+  if (index >= falsifiers.length) return createErrorResult("INVALID_INPUT")
+
+  const current = Array.isArray(position.falsifier_status) ? (position.falsifier_status as string[]) : []
+  const next = falsifiers.map((_, i) => (i === index ? status : current[i] === "review" ? "review" : "ok"))
+
+  const { error } = await supabase
+    .from("invest_positions")
+    .update({ falsifier_status: next })
+    .eq("id", positionId)
+    .eq("user_id", user.id)
+  if (error) {
+    console.error(error)
+    return createErrorResult("UNKNOWN")
+  }
+
+  revalidatePath(APP_URLS.INVEST_POSITION(positionId))
   return createDataResult({ ok: true })
 }
 

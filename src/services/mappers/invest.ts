@@ -87,6 +87,7 @@ export function mapInvestPositionFromDb(row: Record<string, unknown>): InvestPos
     feesOpen:   row["fees_open"] ?? 0,
     thesis:     row["thesis"],
     falsifiers: row["falsifiers"],
+    falsifierStatus: row["falsifier_status"] ?? [],
     closedAt:   row["closed_at"] ?? null,
     exitPrice:  row["exit_price"] ?? null,
     feesClose:  row["fees_close"] ?? 0,

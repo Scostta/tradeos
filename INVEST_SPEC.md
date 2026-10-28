@@ -124,6 +124,7 @@ create table if not exists invest_positions (
   fees_open     numeric(10,2) default 0,
   thesis        text not null,
   falsifiers    text[] not null,              -- check: array_length >= 2
+  falsifier_status jsonb not null default '[]', -- "ok" | "review" por índice de falsifiers; manual (§4.3)
   closed_at     date,
   exit_price    numeric(12,4),
   fees_close    numeric(10,2) default 0,
@@ -241,7 +242,9 @@ Python, fuera de Next. Carpeta propia con `requirements.txt` (yfinance, pandas, 
 
 ### 4.3 Pestaña Positions
 - Abiertas: tabla con ticker (con badge **"Paper"** si `paper`), sector, fecha, entrada, acciones, importe, último precio (de `invest_prices`), P&L latente y **señal del último check** (`hold` / `sell` en badge; las filas `sell` resaltadas en `loss`).
-- Cada fila (abierta o cerrada) lleva a `/invest/positions/[ticker]`: todas las posiciones de ese ticker (abiertas primero, luego cerradas) con sus números, la **tesis completa** y los **falsadores**, el motivo y la nota de salida de las cerradas, y el botón Close de las abiertas. Enlaza al detalle de Screen (`/invest/[ticker]`).
+- Cada fila (abierta o cerrada) lleva a `/invest/positions/[id]`, la página de esa posición: sus números (y la salida, si está cerrada), el gráfico, la **tesis** y los **falsadores** con su estado manual, los **checks mensuales** del job y el botón Close de las abiertas. Enlaza al detalle del ticker (`/invest/[ticker]`); los fundamentales no se repiten.
+- Gráfico (lightweight-charts): velas diarias de 18 meses de `/api/invest/bars?ticker=` (Yahoo, `interval=1d`, caché 24 h, sesión obligatoria), ajustadas por dividendos como la regla. Overlays: línea del precio de entrada con su fecha; SMA de 10 cierres mensuales como línea escalonada (cambia solo a fin de mes, calculada de `invest_prices.adj_close`, no del diario); y, en abiertas, el **nivel de salida del próximo cierre** (discontinua, `text-loss`): la media de los 9 cierres mensuales anteriores, porque cierre < (S₉ + cierre) / 10 ⇔ cierre < S₉ / 9. En cerradas, en su lugar, la línea del **precio de salida** con su fecha, en el color del P&L neto realizado (el del resumen: verde, rojo o gris si es 0 o no se puede calcular). Debajo, en abiertas, texto fijo: la salida se decide al último cierre mensual y la fecha de la próxima evaluación (último día hábil NYSE del mes). Nada más en el gráfico.
+- Falsadores: estado manual "sin novedad" / "revisar" (`invest_positions.falsifier_status`, acción `setFalsifierStatus`), solo en abiertas. Es una nota: no decide nada.
 - Botón "Close" → modal con `exit_reason` (precargado `sma_exit` si la señal es `sell`), precio, fecha, comisiones y nota (obligatoria si `falsifier` o `manual`).
 - Cerradas: tabla con P&L realizado bruto, comisiones, impuesto estimado (§5.2), motivo de salida. Las salidas `manual` llevan un marcador visible.
 
@@ -361,3 +364,4 @@ Nada pendiente por ahora.
 | 2026-10-28 | 4.3 / 4.7 | Positions: las abiertas pasan de tarjetas a tabla; tesis y falsadores salen de la lista y viven en `/invest/positions/[ticker]` (todas las posiciones del ticker). `/invest/[ticker]` tiene el botón "Open position" de Screen en la cabecera, que precarga la tesis con lo escrito en Thesis prompts aunque no se haya guardado. |
 | 2026-10-28 | 3.2 | Precios con `start` = día 1 del mes `run_date − 35 meses` en vez de `period="3y"`: "3 años desde hoy" dejaba fuera el primer mes (35 cierres en el run de 2026-09-30) y en un rerun de un `run_date` antiguo aún menos. `months_listed` llega a 36; el umbral de 12 no cambia. |
 | 2026-10-28 | Later (shell) | Hechas las tres ideas del shell: el último módulo pasa a la cookie `active_module` y las rutas compartidas (`/settings`) lo mantienen; `/` y el login con sesión van al home de ese módulo desde el middleware (se elimina `root-redirect.client.tsx`); las rutas de Trading pasan al route group `(dashboard)/(trading)/`, cuyo layout es el único que pide las alertas de prop firm. |
+| 2026-10-28 | 4.3 | Página por posición `/invest/positions/[id]` (sustituye a `/invest/positions/[ticker]`): gráfico diario de 18 meses (`/api/invest/bars`, Yahoo, caché 24 h) con entrada, SMA 10 mensual escalonada y nivel de salida del próximo cierre (media de los 9 cierres anteriores), o el precio de salida en el color del P&L realizado en las cerradas; tesis y falsadores con estado manual (`invest_positions.falsifier_status`, migración `20261028120000_invest_falsifier_status.sql`); checks mensuales; cierre. Velas ajustadas por dividendos para compararlas con la SMA sobre `adj_close`. Calendario NYSE copiado a TS (`invest-calendar.ts`), con un test que lo compara con el del job. |

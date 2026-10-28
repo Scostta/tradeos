@@ -204,6 +204,26 @@ export async function getLatestChecks(
   return createDataResult(latest)
 }
 
+/** Todos los checks mensuales (§2.6) de una posición, del más reciente al más antiguo. */
+export async function getPositionChecks(positionId: string): Promise<ResultType<LatestCheck[], string>> {
+  const supabase = await createClient()
+  const { data, error } = await supabase
+    .from("invest_position_checks")
+    .select("position_id, run_id, price, sma10m, signal, invest_screen_runs(run_date)")
+    .eq("position_id", positionId)
+
+  if (error) {
+    console.error(error)
+    return createErrorResult(error.message)
+  }
+  const checks: LatestCheck[] = []
+  for (const row of data ?? []) {
+    const run = row.invest_screen_runs as unknown as { run_date: string } | null
+    if (run) checks.push({ ...mapPositionCheckFromDb(row), runDate: run.run_date })
+  }
+  return createDataResult(checks.sort((a, b) => b.runDate.localeCompare(a.runDate)))
+}
+
 /** Runs con run_date >= from (YYYY-MM-DD), para el % de meses revisados (§4.6). */
 export async function getRunsSince(from: string): Promise<ResultType<{ id: string; runDate: string }[], string>> {
   const supabase = await createClient()

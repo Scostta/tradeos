@@ -27,7 +27,7 @@ const HEADERS = [
 
 const CELL = "px-3 py-2.5 mono text-sm text-right whitespace-nowrap"
 
-// §4.3: tesis y falsadores viven en /invest/positions/[ticker]; aquí solo números.
+// §4.3: gráfico, tesis, falsadores y checks viven en /invest/positions/[id]; aquí solo números.
 export function OpenPositionsTable({ rows }: { rows: OpenRow[] }): ReactElement {
   return (
     <div className="card p-0 overflow-hidden">
@@ -62,7 +62,7 @@ export function OpenPositionsTable({ rows }: { rows: OpenRow[] }): ReactElement 
                 return (
                   <ClickableRow
                     key={p.id}
-                    href={APP_URLS.INVEST_POSITION(p.ticker)}
+                    href={APP_URLS.INVEST_POSITION(p.id)}
                     className={cn(
                       "border-b border-border last:border-0 transition-colors",
                       sell ? "bg-loss/5 hover:bg-loss/10" : "hover:bg-surface-2",
@@ -70,7 +70,7 @@ export function OpenPositionsTable({ rows }: { rows: OpenRow[] }): ReactElement 
                   >
                     <td className="px-3 py-2" style={{ maxWidth: 240 }}>
                       <div className="flex items-center gap-2">
-                        <Link href={APP_URLS.INVEST_POSITION(p.ticker)} className="mono text-sm font-semibold text-text hover:text-accent">
+                        <Link href={APP_URLS.INVEST_POSITION(p.id)} className="mono text-sm font-semibold text-text hover:text-accent">
                           {p.ticker}
                         </Link>
                         {p.paper && <span className={PAPER_BADGE_CLS}>{INVEST.PERFORMANCE.PAPER_BADGE}</span>}

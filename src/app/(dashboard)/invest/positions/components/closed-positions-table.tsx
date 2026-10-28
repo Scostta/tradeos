@@ -59,9 +59,9 @@ export function ClosedPositionsTable({ rows }: { rows: ClosedRow[] }): ReactElem
                 const manual = p.exitReason === "manual"
                 const net = r && tax != null ? r.netPnlEur - tax : null
                 return (
-                  <ClickableRow key={p.id} href={APP_URLS.INVEST_POSITION(p.ticker)} className="border-b border-border last:border-0 hover:bg-surface-2 transition-colors">
+                  <ClickableRow key={p.id} href={APP_URLS.INVEST_POSITION(p.id)} className="border-b border-border last:border-0 hover:bg-surface-2 transition-colors">
                     <td className="px-3 py-2.5 whitespace-nowrap">
-                      <Link href={APP_URLS.INVEST_POSITION(p.ticker)} className="mono text-sm font-semibold text-text hover:text-accent">
+                      <Link href={APP_URLS.INVEST_POSITION(p.id)} className="mono text-sm font-semibold text-text hover:text-accent">
                         {p.ticker}
                       </Link>
                       {p.paper && <span className={`${PAPER_BADGE_CLS} ml-2`}>{INVEST.PERFORMANCE.PAPER_BADGE}</span>}
