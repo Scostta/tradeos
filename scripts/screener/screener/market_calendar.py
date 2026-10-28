@@ -1,8 +1,8 @@
 """Días hábiles NYSE con una lista fija de festivos (INVEST_SPEC.md §3.1).
 
-La lista cubre 2024–2030 (ventana de precios de 2 años + forward test de 36
-meses). Un año fuera de la lista lanza error en vez de tratar todos sus días
-como hábiles: hay que ampliar NYSE_HOLIDAYS.
+La lista cubre 2023–2030 (gráfico de 36 meses de la página de detalle +
+forward test de 36 meses). Un año fuera de la lista lanza error en vez de
+tratar todos sus días como hábiles: hay que ampliar NYSE_HOLIDAYS.
 """
 
 from __future__ import annotations
@@ -16,6 +16,8 @@ from datetime import date, timedelta
 NYSE_HOLIDAYS: frozenset[date] = frozenset(
     date.fromisoformat(d)
     for d in """
+    2023-01-02 2023-01-16 2023-02-20 2023-04-07 2023-05-29 2023-06-19
+    2023-07-04 2023-09-04 2023-11-23 2023-12-25
     2024-01-01 2024-01-15 2024-02-19 2024-03-29 2024-05-27 2024-06-19
     2024-07-04 2024-09-02 2024-11-28 2024-12-25
     2025-01-01 2025-01-09 2025-01-20 2025-02-17 2025-04-18 2025-05-26
@@ -32,7 +34,7 @@ NYSE_HOLIDAYS: frozenset[date] = frozenset(
     2030-07-04 2030-09-02 2030-11-28 2030-12-25
     """.split()
 )
-COVERED_YEARS = range(2024, 2031)
+COVERED_YEARS = range(2023, 2031)
 
 
 def is_business_day(d: date) -> bool:
