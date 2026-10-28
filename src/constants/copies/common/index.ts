@@ -28,6 +28,7 @@ export const COMMON = {
     POSITIONS:   "Positions",
     PERFORMANCE: "Performance",
     OVERVIEW:    "Overview",
+    TRANSACTIONS: "Transactions",
   },
   SESSION: {
     LABEL:    "Session · —",

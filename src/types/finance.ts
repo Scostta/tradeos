@@ -189,3 +189,31 @@ export type ImportResult = {
   duplicates:  number
   categorized: number
 }
+
+// ── Movimientos: categorizar, excluir, dividir (§5.2) ───────────────────────
+
+export const categorizeTransactionInputSchema = z.object({
+  transactionId: z.string().uuid(),
+  categoryId:    z.string().uuid().nullable(),
+  notes:         z.string().trim().max(500).nullable(),
+  excluded:      z.boolean(),
+  // Regla a crear con esta categoría (§4.2 aprendizaje); null = no crear.
+  rulePattern:   z.string().trim().min(2).max(100).nullable(),
+})
+export type CategorizeTransactionInput = z.infer<typeof categorizeTransactionInputSchema>
+
+export type CategorizeResult = {
+  ruleCreated: boolean
+  applied:     number   // movimientos pendientes que la regla ha categorizado además de este
+}
+
+export const splitTransactionInputSchema = z.object({
+  transactionId: z.string().uuid(),
+  parts: z.array(z.object({
+    categoryId: z.string().uuid(),
+    amount:     z.number().finite().refine(n => n !== 0),
+  })).min(2).max(10),
+})
+export type SplitTransactionInput = z.infer<typeof splitTransactionInputSchema>
+
+export const unsplitTransactionInputSchema = z.object({ transactionId: z.string().uuid() })

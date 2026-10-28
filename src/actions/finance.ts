@@ -4,17 +4,20 @@ import { revalidatePath } from "next/cache"
 import { createClient } from "~/utils/supabase/server"
 import { APP_URLS } from "~/constants/app-urls"
 import { CASH_ACCOUNT_NAME, DEFAULT_CATEGORIES } from "~/lib/finance/default-categories"
-import { withFinanceImportKeys } from "~/lib/finance/fingerprint"
+import { manualImportKey, withFinanceImportKeys } from "~/lib/finance/fingerprint"
 import { applyRules } from "~/lib/finance/match-rule"
 import type { RuleAssignment } from "~/lib/finance/match-rule"
 import { normalizeConcept } from "~/lib/finance/normalize-concept"
 import { detectRecurring } from "~/lib/finance/recurring"
 import {
+  categorizeTransactionInputSchema,
   createFinanceAccountInputSchema,
   importTransactionsInputSchema,
   setupMoneyInputSchema,
+  splitTransactionInputSchema,
+  unsplitTransactionInputSchema,
 } from "~/types/finance"
-import type { ImportPreview, ImportPreviewRow, ImportResult, ImportRow } from "~/types/finance"
+import type { CategorizeResult, ImportPreview, ImportPreviewRow, ImportResult, ImportRow } from "~/types/finance"
 import { createDataResult, createErrorResult } from "~/helpers/result"
 import type { ResultType } from "~/helpers/result"
 
@@ -27,6 +30,8 @@ export type FinanceActionError =
   | "ALREADY_SET_UP"
   | "NO_SETTINGS"
   | "ACCOUNT_EXISTS"
+  | "NOT_FOUND"
+  | "SPLIT_SUM"
   | "UNKNOWN"
 
 type Supabase = Awaited<ReturnType<typeof createClient>>
@@ -352,4 +357,198 @@ async function recomputeSubscriptions(supabase: Supabase, userId: string): Promi
     { onConflict: "user_id,counterparty,cadence" },
   )
   if (error) console.error(error)
+}
+
+// ── Movimientos (§5.2) ──────────────────────────────────────────────────────
+
+/**
+ * Reaplica todas las reglas a lo pendiente del usuario (sin categoría o
+ * categorizado por regla; nunca manual ni split). Devuelve cuántos cambia.
+ */
+async function reapplyRules(supabase: Supabase, userId: string): Promise<number | null> {
+  const rules = await loadRules(supabase, userId)
+  if (!rules) return null
+  const targets: { id: string; counterparty: string | null; categoryId: string | null; categorySource: "rule" | null }[] = []
+  for (let from = 0; ; from += READ_PAGE) {
+    const { data, error } = await supabase
+      .from("finance_transactions")
+      .select("id, counterparty, category_id, category_source")
+      .eq("user_id", userId)
+      .is("parent_id", null)
+      .eq("excluded", false)
+      .or("category_id.is.null,category_source.eq.rule")
+      .range(from, from + READ_PAGE - 1)
+    if (error) {
+      console.error(error)
+      return null
+    }
+    for (const r of data ?? []) {
+      targets.push({
+        id: r.id as string, counterparty: (r.counterparty as string | null) ?? null,
+        categoryId: (r.category_id as string | null) ?? null, categorySource: r.category_source === "rule" ? "rule" : null,
+      })
+    }
+    if (!data || data.length < READ_PAGE) break
+  }
+  const assignments = applyRules(targets.map(t => ({ ...t, parentId: null, excluded: false })), rules)
+  return (await writeRuleAssignments(supabase, userId, assignments)) ? assignments.length : null
+}
+
+/**
+ * Panel del movimiento: categoría, nota y excluir. Con categoría a mano
+ * (source "manual") y, si se pide, crea o actualiza la regla del patrón y la
+ * reaplica a todo lo pendiente (§4.2 aprendizaje). En las partes de un split
+ * la categoría sigue siendo "split" y no se crean reglas.
+ */
+export async function categorizeTransaction(input: unknown): Promise<ResultType<CategorizeResult, FinanceActionError>> {
+  const parsed = categorizeTransactionInputSchema.safeParse(input)
+  if (!parsed.success) return createErrorResult("INVALID_INPUT")
+  const data = parsed.data
+
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return createErrorResult("UNAUTHENTICATED")
+
+  const { data: tx, error: readError } = await supabase
+    .from("finance_transactions").select("id, parent_id").eq("id", data.transactionId).eq("user_id", user.id).maybeSingle()
+  if (readError) {
+    console.error(readError)
+    return createErrorResult("UNKNOWN")
+  }
+  if (!tx) return createErrorResult("NOT_FOUND")
+  const isPart = tx.parent_id != null
+
+  const { error } = await supabase
+    .from("finance_transactions")
+    .update({
+      category_id:     data.categoryId,
+      category_source: data.categoryId == null ? null : isPart ? "split" : "manual",
+      notes:           data.notes || null,
+      excluded:        isPart ? false : data.excluded,
+    })
+    .eq("id", data.transactionId)
+    .eq("user_id", user.id)
+  if (error) {
+    console.error(error)
+    return createErrorResult("UNKNOWN")
+  }
+
+  let ruleCreated = false
+  let applied = 0
+  if (data.rulePattern && data.categoryId && !isPart) {
+    const { error: ruleError } = await supabase.from("finance_category_rules").upsert(
+      {
+        user_id:      user.id,
+        pattern:      normalizeConcept(data.rulePattern),
+        category_id:  data.categoryId,
+        created_from: data.transactionId,
+      },
+      { onConflict: "user_id,pattern" },
+    )
+    if (ruleError) {
+      console.error(ruleError)
+      return createErrorResult("UNKNOWN")
+    }
+    ruleCreated = true
+    applied = (await reapplyRules(supabase, user.id)) ?? 0
+  }
+
+  revalidatePath(APP_URLS.MONEY, "layout")
+  return createDataResult({ ruleCreated, applied })
+}
+
+/**
+ * Dividir (§2.3): N partes con su categoría que suman el importe del padre.
+ * El padre queda excluido (conserva su import_key para el dedupe) y cuentan
+ * las partes. Dividir otra vez sustituye las partes anteriores.
+ */
+export async function splitTransaction(input: unknown): Promise<ResultType<{ parts: number }, FinanceActionError>> {
+  const parsed = splitTransactionInputSchema.safeParse(input)
+  if (!parsed.success) return createErrorResult("INVALID_INPUT")
+  const { transactionId, parts } = parsed.data
+
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return createErrorResult("UNAUTHENTICATED")
+
+  const { data: parent, error: readError } = await supabase
+    .from("finance_transactions")
+    .select("id, account_id, booked_at, amount, currency, concept_raw, counterparty, parent_id")
+    .eq("id", transactionId).eq("user_id", user.id).maybeSingle()
+  if (readError) {
+    console.error(readError)
+    return createErrorResult("UNKNOWN")
+  }
+  if (!parent) return createErrorResult("NOT_FOUND")
+  if (parent.parent_id != null) return createErrorResult("INVALID_INPUT")   // una parte no se vuelve a dividir
+
+  const cents = (n: number) => Math.round(n * 100)
+  if (parts.reduce((a, p) => a + cents(p.amount), 0) !== cents(Number(parent.amount))) return createErrorResult("SPLIT_SUM")
+
+  const { error: deleteError } = await supabase
+    .from("finance_transactions").delete().eq("parent_id", transactionId).eq("user_id", user.id)
+  if (deleteError) {
+    console.error(deleteError)
+    return createErrorResult("UNKNOWN")
+  }
+  const { error: insertError } = await supabase.from("finance_transactions").insert(
+    parts.map(p => {
+      const id = crypto.randomUUID()
+      return {
+        id,
+        user_id:         user.id,
+        account_id:      parent.account_id,
+        booked_at:       parent.booked_at,
+        amount:          p.amount,
+        currency:        parent.currency,
+        concept_raw:     parent.concept_raw,
+        counterparty:    parent.counterparty,
+        category_id:     p.categoryId,
+        category_source: "split",
+        parent_id:       transactionId,
+        source:          "manual",
+        import_key:      manualImportKey(id),
+      }
+    }),
+  )
+  if (insertError) {
+    console.error(insertError)
+    return createErrorResult("UNKNOWN")
+  }
+  const { error: parentError } = await supabase
+    .from("finance_transactions").update({ excluded: true }).eq("id", transactionId).eq("user_id", user.id)
+  if (parentError) {
+    console.error(parentError)
+    return createErrorResult("UNKNOWN")
+  }
+
+  revalidatePath(APP_URLS.MONEY, "layout")
+  return createDataResult({ parts: parts.length })
+}
+
+/** Deshace un split: borra las partes y el padre vuelve a contar. */
+export async function unsplitTransaction(input: unknown): Promise<ResultType<{ ok: true }, FinanceActionError>> {
+  const parsed = unsplitTransactionInputSchema.safeParse(input)
+  if (!parsed.success) return createErrorResult("INVALID_INPUT")
+
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return createErrorResult("UNAUTHENTICATED")
+
+  const { error } = await supabase
+    .from("finance_transactions").delete().eq("parent_id", parsed.data.transactionId).eq("user_id", user.id)
+  if (error) {
+    console.error(error)
+    return createErrorResult("UNKNOWN")
+  }
+  const { error: parentError } = await supabase
+    .from("finance_transactions").update({ excluded: false })
+    .eq("id", parsed.data.transactionId).eq("user_id", user.id)
+  if (parentError) {
+    console.error(parentError)
+    return createErrorResult("UNKNOWN")
+  }
+
+  revalidatePath(APP_URLS.MONEY, "layout")
+  return createDataResult({ ok: true })
 }
