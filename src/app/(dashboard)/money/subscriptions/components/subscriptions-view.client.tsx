@@ -23,7 +23,7 @@ const S = MONEY.SUBSCRIPTIONS
 
 export type Evidence = { intervalMedian: number; intervalSpread: number; amountSpread: number }
 
-type Tab = "confirmed" | "pending" | "ignored"
+type Tab = "confirmed" | "pending" | "cancelled" | "ignored"
 
 const pct = (n: number, digits = 0) => `${(n * 100).toFixed(digits)}%`
 
@@ -91,7 +91,8 @@ export function SubscriptionsView({ subscriptions, evidence, avgMonthlySpent, to
 }): ReactElement {
   const confirmed = subscriptions.filter(s => s.status === "confirmed")
   const pending = subscriptions.filter(s => s.status === "pending")
-  const inactive = subscriptions.filter(s => s.status === "ignored" || s.status === "cancelled")
+  const cancelled = subscriptions.filter(s => s.status === "cancelled")
+  const ignored = subscriptions.filter(s => s.status === "ignored")
   const [tab, setTab] = useState<Tab>(confirmed.length ? "confirmed" : "pending")
   const [editing, setEditing] = useState<FinanceSubscription | null>(null)
   const [error, setError] = useState<string | null>(null)
@@ -101,7 +102,7 @@ export function SubscriptionsView({ subscriptions, evidence, avgMonthlySpent, to
   const cancel = candidatesToCancel(subscriptions, today)
   const unusedYearly = cancel.reduce((a, s) => a + yearlyCost(s), 0)
   const again = chargingAgain(subscriptions)
-  const rows = { confirmed, pending, ignored: inactive }[tab]
+  const rows = { confirmed, pending, cancelled, ignored }[tab]
 
   function run(action: () => Promise<{ success: boolean; error?: unknown }>) {
     startTransition(async () => {
@@ -120,7 +121,8 @@ export function SubscriptionsView({ subscriptions, evidence, avgMonthlySpent, to
   const tabs: { id: Tab; label: string }[] = [
     { id: "confirmed", label: S.TAB_CONFIRMED.replace("{n}", String(confirmed.length)) },
     { id: "pending", label: S.TAB_PENDING.replace("{n}", String(pending.length)) },
-    { id: "ignored", label: S.TAB_IGNORED.replace("{n}", String(inactive.length)) },
+    { id: "cancelled", label: S.TAB_CANCELLED.replace("{n}", String(cancelled.length)) },
+    { id: "ignored", label: S.TAB_IGNORED.replace("{n}", String(ignored.length)) },
   ]
   // El modal lee la versión actual (tras guardar, la página se revalida).
   const editingNow = editing ? subscriptions.find(s => s.id === editing.id) ?? null : null
@@ -174,7 +176,7 @@ export function SubscriptionsView({ subscriptions, evidence, avgMonthlySpent, to
             <div className="card p-0 overflow-x-auto min-w-0" style={{ flex: "999 1 520px" }}>
               {rows.length === 0 ? (
                 <div className="px-4 py-14 text-center text-sm text-text-mute">
-                  {{ confirmed: S.EMPTY_CONFIRMED, pending: S.EMPTY_PENDING, ignored: S.EMPTY_IGNORED }[tab]}
+                  {{ confirmed: S.EMPTY_CONFIRMED, pending: S.EMPTY_PENDING, cancelled: S.EMPTY_CANCELLED, ignored: S.EMPTY_IGNORED }[tab]}
                 </div>
               ) : (
                 <table className="w-full border-collapse" style={{ minWidth: 640 }}>
@@ -183,7 +185,9 @@ export function SubscriptionsView({ subscriptions, evidence, avgMonthlySpent, to
                       <th className="label-caps px-3 py-2.5 border-b border-border text-left">{S.HEAD_SERVICE}</th>
                       <th className="label-caps px-3 py-2.5 border-b border-border text-left">{S.HEAD_CADENCE}</th>
                       <th className="label-caps px-3 py-2.5 border-b border-border text-right">{S.HEAD_AMOUNT}</th>
-                      <th className="label-caps px-3 py-2.5 border-b border-border text-left">{tab === "ignored" ? S.STATUS_LABEL : S.HEAD_NEXT}</th>
+                      <th className="label-caps px-3 py-2.5 border-b border-border text-left">
+                        {tab === "cancelled" ? S.HEAD_CANCELLED_ON : tab === "ignored" ? S.HEAD_LAST_CHARGE : S.HEAD_NEXT}
+                      </th>
                       <th className="label-caps px-3 py-2.5 border-b border-border text-left">{S.HEAD_USAGE}</th>
                       <th className="border-b border-border" />
                     </tr>
@@ -198,7 +202,9 @@ export function SubscriptionsView({ subscriptions, evidence, avgMonthlySpent, to
                         <td className="px-3 py-2.5 text-sm text-text-dim">{S.CADENCES[s.cadence]}</td>
                         <td className="px-3 py-2.5 mono text-sm text-right text-text whitespace-nowrap">{fmtEur(s.amount)}</td>
                         <td className="px-3 py-2.5 mono text-sm whitespace-nowrap">
-                          {tab === "ignored" ? <span className="text-text-mute">{S.STATUS[s.status]}</span> : <NextCharge sub={s} today={today} />}
+                          {tab === "cancelled" ? <span className="text-text-dim">{fmtDay(s.updatedAt.slice(0, 10))}</span>
+                            : tab === "ignored" ? <span className="text-text-mute">{fmtDay(s.lastSeen)}</span>
+                            : <NextCharge sub={s} today={today} />}
                         </td>
                         <td className="px-3 py-2.5"><Usage sub={s} today={today} /></td>
                         <td className="px-3 py-2.5 text-right">

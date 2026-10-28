@@ -229,7 +229,7 @@ Todas en el módulo Money del conmutador; sidebar: Overview, Transactions, Subsc
 
 ### 5.3 `/money/subscriptions` — artboard `03 · Suscripciones` (`Suscripciones.dc.html`)
 - Cabecera: activas, €/mes, €/año (anuales/12, trimestrales/3).
-- Pestañas: Confirmed / Pending / Ignored. Tabla: servicio (tipo de cargo + nº cargos), cadencia, importe, próximo cargo (ámbar si ≤ 3 días), uso (dot verde "Used", rojo "Unused N months", gris "Fixed"), Edit.
+- Pestañas: Confirmed / Pending / Cancelled / Ignored (Cancelled añadida el 28/10/2026 a petición del usuario: muestra la fecha de cancelación; Ignored queda solo para lo que no era una suscripción, con su último cargo). Tabla: servicio (tipo de cargo + nº cargos), cadencia, importe, próximo cargo (ámbar si ≤ 3 días), uso (dot verde "Used", rojo "Unused N months", gris "Fixed"), Edit.
 - Panel **Pending**: cada candidata con su evidencia ("4 charges · every 30 ± 1 days · same amount") y botones Confirm / Not a subscription.
 - Panel **Candidates to cancel**: confirmadas sin usar ≥ 2 meses, con ahorro anual si se cancelan.
 - Una `cancelled` que vuelve a cobrar aparece arriba con aviso.
