@@ -255,13 +255,18 @@ export function TradeExecutionChart({ trade }: { trade: Trade }) {
     // ── Entry / exit markers ──────────────────────────────────────────────────
     const entrySec = Math.floor(new Date(trade.entryTime).getTime() / 1000)
     const exitSec = Math.floor(new Date(trade.exitTime).getTime() / 1000)
-    const eBar = bestBar(bars, entrySec, trade.entryPrice)
-    const xBar = bestBar(bars, exitSec,  trade.exitPrice)
+    if (bars.length > 0) {
+      const eBar = bestBar(bars, entrySec, trade.entryPrice)
+      // La salida se busca desde la barra de entrada: bestBar elige por precio y
+      // podía caer antes, y setMarkers exige tiempos ascendentes ("data must be
+      // asc ordered by time").
+      const xBar = bestBar(bars.filter(b => b.time >= eBar.time), exitSec, trade.exitPrice)
 
-    priceSeries.setMarkers([
-      { time: eBar.time, position: "belowBar", color: "#3b82f6", shape: "arrowUp", text: `▲ ${trade.entryPrice.toFixed(2)}`, size: 1 },
-      { time: xBar.time, position: "aboveBar", color: exitColor, shape: "arrowDown", text: `▼ ${trade.exitPrice.toFixed(2)}`, size: 1 },
-    ])
+      priceSeries.setMarkers([
+        { time: eBar.time, position: "belowBar", color: "#3b82f6", shape: "arrowUp", text: `▲ ${trade.entryPrice.toFixed(2)}`, size: 1 },
+        { time: xBar.time, position: "aboveBar", color: exitColor, shape: "arrowDown", text: `▼ ${trade.exitPrice.toFixed(2)}`, size: 1 },
+      ])
+    }
 
     chart.timeScale().fitContent()
     return () => { chart.remove(); chartRef.current = null }
