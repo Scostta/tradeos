@@ -24,8 +24,17 @@ export type OverviewData = {
   subs:           { active: number; monthly: number; yearly: number; unused: number }
   renewals:       { sub: FinanceSubscription; days: number }[]
   avg6Savings:    number | null
+  history:        FlowMonth[]            // hasta 6 meses con datos, el seleccionado el último
   goals:          { goal: FinanceGoal; eta: MonthKey | null }[]
   lastImportDays: number | null
+}
+
+export type FlowMonth = {
+  month:       MonthKey
+  income:      number
+  fixed:       number
+  variable:    number
+  realSavings: number
 }
 
 const avg = (xs: number[]): number | null => (xs.length ? xs.reduce((a, b) => a + b, 0) / xs.length : null)
@@ -88,6 +97,9 @@ export function buildOverview(args: {
       .sort((a, b) => a.days - b.days)
       .slice(0, 4),
     avg6Savings: avg(previous(6).map(s => s.realSavings)),
+    history: [...previous(5).reverse(), summary].map(s => ({
+      month: s.month, income: s.income, fixed: s.fixed, variable: s.variable, realSavings: s.realSavings,
+    })),
     goals: goals
       .filter(g => g.status === "active")
       .map(goal => ({ goal, eta: goalEta(goal, shiftMonth(month, 1)).month })),

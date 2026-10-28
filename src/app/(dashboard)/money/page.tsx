@@ -18,6 +18,7 @@ import { buildOverview } from "./components/overview/overview-data"
 import type { OverviewData } from "./components/overview/overview-data"
 import { Bar, Card, Chip, Metric } from "./components/overview/overview-parts"
 import { MonthSelect } from "./components/overview/month-select.client"
+import { CashFlowCard } from "./components/overview/cash-flow-card"
 
 const O = MONEY.OVERVIEW
 const pct = (n: number | null) => (n == null ? "—" : `${Math.round(n * 100)}%`)
@@ -78,51 +79,6 @@ function Renewals({ d, limit }: { d: OverviewData; limit?: number }): ReactEleme
           <span className="mono text-sm text-text shrink-0">{fmtEur(sub.amount)}</span>
         </div>
       ))}
-    </div>
-  )
-}
-
-function CashFlow({ d }: { d: OverviewData }): ReactElement {
-  const s = d.summary
-  const saved = Math.max(0, s.realSavings)
-  const parts = [
-    { label: O.FIXED, value: s.fixed, cls: "bg-text-mute text-text" },
-    { label: O.VARIABLE, value: s.variable, cls: "bg-long text-bg" },
-    { label: O.SAVED, value: saved, cls: "bg-accent text-bg" },
-  ].filter(p => p.value > 0)
-  const vsAvg = d.avg6Savings != null ? s.realSavings - d.avg6Savings : null
-  return (
-    <div className="flex flex-col gap-3 px-4 py-4">
-      {parts.length > 0 && (
-        <div className="flex h-7 rounded-sm overflow-hidden gap-0.5">
-          {parts.map(p => (
-            <div key={p.label} className={cn("mono flex items-center px-2.5 text-xs font-semibold whitespace-nowrap overflow-hidden", p.cls)} style={{ flex: p.value }}>
-              {p.label} {fmtEur(p.value, { decimals: 0 })}
-            </div>
-          ))}
-        </div>
-      )}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-        {[
-          { label: O.INCOME, value: fmtEur(s.income, { decimals: 0 }), cls: "font-semibold" },
-          { label: O.FIXED, value: fmtEur(s.fixed, { decimals: 0 }) },
-          { label: O.VARIABLE, value: fmtEur(s.variable, { decimals: 0 }) },
-        ].map(x => (
-          <div key={x.label}>
-            <div className="label-caps">{x.label}</div>
-            <div className={cn("mono text-md text-text mt-1", x.cls)}>{x.value}</div>
-          </div>
-        ))}
-        <div>
-          <div className="label-caps">{O.SAVED}</div>
-          <div className={cn("mono text-md font-semibold mt-1", s.realSavings >= 0 ? "text-profit" : "text-loss")}>
-            {fmtEur(s.realSavings, { decimals: 0 })}
-            {vsAvg != null && (
-              <span className="font-normal text-text-mute text-xs ml-1.5">{O.VS_AVG_SAVINGS.replace("{amount}", fmtEur(vsAvg, { sign: true, decimals: 0 }))}</span>
-            )}
-          </div>
-        </div>
-      </div>
     </div>
   )
 }
@@ -304,7 +260,7 @@ export default async function MoneyPage({
               title={O.CASH_FLOW} className="col-span-2"
               right={d.avg6Savings != null ? <span className="mono text-xs text-text-mute">{O.AVG_SAVINGS.replace("{amount}", fmtEur(d.avg6Savings, { decimals: 0 }))}</span> : undefined}
             >
-              <CashFlow d={d} />
+              <CashFlowCard months={d.history} selected={month} />
             </Card>
             <Card title={O.GOALS}><Goals d={d} /></Card>
           </div>
