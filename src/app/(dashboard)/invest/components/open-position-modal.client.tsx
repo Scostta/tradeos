@@ -19,8 +19,8 @@ import { cn } from "~/utils/cn"
 import { fmtDay, fmtPct } from "./invest-format"
 import { investErrorMessage } from "./invest-errors"
 import { Modal } from "./modal.client"
-import { INPUT_CLS } from "./settings-form.client"
-import { Spinner } from "./spinner"
+import { INPUT_CLS } from "~/lib/ui/form"
+import { Spinner } from "~/lib/ui/spinner"
 
 const O = INVEST.OPEN
 

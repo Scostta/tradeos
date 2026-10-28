@@ -8,12 +8,11 @@ import type { InvestSettings } from "~/types/invest"
 import { Toast } from "~/lib/ui/toast"
 import type { ToastVariant } from "~/lib/ui/toast"
 import { investErrorMessage } from "./invest-errors"
-import { Spinner } from "./spinner"
+import { Spinner } from "~/lib/ui/spinner"
+import { INPUT_CLS } from "~/lib/ui/form"
 import { fmtDay } from "./invest-format"
 
 const S = INVEST.SETTINGS
-export const INPUT_CLS =
-  "bg-surface-2 border border-border rounded-sm px-2.5 py-2 text-base text-text w-full outline-none focus:border-border-hi"
 
 // Valores por defecto de invest_settings (§2.4) para el primer guardado.
 const DEFAULTS = { satellitePct: 0.2, maxPositions: 5, positionPct: 0.04, benchmarkTicker: "IWDA.AS" }

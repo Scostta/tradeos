@@ -11,8 +11,8 @@ import { TriangleAlertIcon } from "~/lib/ui/icons/triangle-alert-icon"
 import { cn } from "~/utils/cn"
 import { investErrorMessage } from "../../components/invest-errors"
 import { Modal } from "../../components/modal.client"
-import { INPUT_CLS } from "../../components/settings-form.client"
-import { Spinner } from "../../components/spinner"
+import { INPUT_CLS } from "~/lib/ui/form"
+import { Spinner } from "~/lib/ui/spinner"
 
 const C = INVEST.CLOSE
 const REASONS: ExitReason[] = ["sma_exit", "falsifier", "manual"]

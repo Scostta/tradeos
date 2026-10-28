@@ -3,7 +3,7 @@
 import type { ReactElement } from "react"
 import Link, { useLinkStatus } from "next/link"
 import { APP_URLS } from "~/constants/app-urls"
-import { Spinner } from "./spinner"
+import { Spinner } from "~/lib/ui/spinner"
 
 function Pending(): ReactElement | null {
   const { pending } = useLinkStatus()

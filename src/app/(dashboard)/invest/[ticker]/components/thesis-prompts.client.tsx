@@ -7,8 +7,8 @@ import { INVEST } from "~/constants/copies/invest"
 import { THESIS_PROMPT_KEYS } from "~/types/invest"
 import type { ThesisAnswers, ThesisPromptKey } from "~/types/invest"
 import { cn } from "~/utils/cn"
-import { INPUT_CLS } from "../../components/settings-form.client"
-import { Spinner } from "../../components/spinner"
+import { INPUT_CLS } from "~/lib/ui/form"
+import { Spinner } from "~/lib/ui/spinner"
 import { useThesisDraft } from "./thesis-draft-context.client"
 
 const D = INVEST.DETAIL

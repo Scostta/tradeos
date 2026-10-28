@@ -5,7 +5,7 @@ import type { FormEvent, ReactElement } from "react"
 import { useRouter } from "next/navigation"
 import { APP_URLS } from "~/constants/app-urls"
 import { INVEST } from "~/constants/copies/invest"
-import { Spinner } from "./spinner"
+import { Spinner } from "~/lib/ui/spinner"
 
 // El resultado se pinta en servidor (?q=TICKER); la transición mantiene el
 // botón en "Checking" hasta que llega la nueva página.
