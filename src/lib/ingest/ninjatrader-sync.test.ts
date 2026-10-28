@@ -25,6 +25,22 @@ const basePayload = {
 }
 
 describe("buildSyncTradeRows", () => {
+  it("drops trades whose exit is before the entry (history replayed in reverse)", () => {
+    const short = basePayload.trades[0]!
+    const payload = ingestPayloadSchema.parse({
+      ...basePayload,
+      trades: [
+        short,
+        // El mismo trade al revés: la compra de salida como entrada de un long.
+        { ...short, direction: "long", entryTime: short.exitTime, exitTime: short.entryTime },
+      ],
+    })
+
+    const rows = buildSyncTradeRows(payload)
+    expect(rows).toHaveLength(1)
+    expect(rows[0]!.entryTime).toBe("2026-10-20T13:32:01.450Z")
+  })
+
   it("cleans the instrument, derives net P&L and keeps the stop", () => {
     const rows = buildSyncTradeRows(ingestPayloadSchema.parse(basePayload))
 

@@ -46,5 +46,10 @@ export function buildSyncTradeRows(payload: IngestPayload): SyncTradeRow[] {
 
   // Todas las filas son de la misma cuenta: el #n cuenta dentro del payload.
   const keyed = withImportKeys(rows.map((r) => ({ ...r, accountName: payload.account })))
-  return rows.map((row, i) => ({ ...row, importKey: keyed[i]!.importKey }))
+  return rows
+    .map((row, i) => ({ ...row, importKey: keyed[i]!.importKey }))
+    // Un trade con la salida antes que la entrada es imposible: lo generaba el
+    // add-on ≤ 2.0 al recibir el historial reenviado en orden inverso tras una
+    // reconexión de Rithmic (un short convertido en long).
+    .filter((row) => row.exitTime >= row.entryTime)
 }
