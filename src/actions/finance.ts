@@ -4,7 +4,17 @@ import { revalidatePath } from "next/cache"
 import { createClient } from "~/utils/supabase/server"
 import { APP_URLS } from "~/constants/app-urls"
 import { CASH_ACCOUNT_NAME, DEFAULT_CATEGORIES } from "~/lib/finance/default-categories"
-import { createFinanceAccountInputSchema, setupMoneyInputSchema } from "~/types/finance"
+import { withFinanceImportKeys } from "~/lib/finance/fingerprint"
+import { applyRules } from "~/lib/finance/match-rule"
+import type { RuleAssignment } from "~/lib/finance/match-rule"
+import { normalizeConcept } from "~/lib/finance/normalize-concept"
+import { detectRecurring } from "~/lib/finance/recurring"
+import {
+  createFinanceAccountInputSchema,
+  importTransactionsInputSchema,
+  setupMoneyInputSchema,
+} from "~/types/finance"
+import type { ImportPreview, ImportPreviewRow, ImportResult, ImportRow } from "~/types/finance"
 import { createDataResult, createErrorResult } from "~/helpers/result"
 import type { ResultType } from "~/helpers/result"
 
@@ -116,4 +126,230 @@ export async function createFinanceAccount(input: unknown): Promise<ResultType<{
 
   revalidatePath(APP_URLS.MONEY, "layout")
   return createDataResult({ id: inserted.id as string })
+}
+
+// ── Import (§3.2) ───────────────────────────────────────────────────────────
+
+const KEY_CHUNK = 100   // claves por consulta .in(): cabe en la URL de PostgREST
+const READ_PAGE = 1000  // max-rows por defecto de PostgREST
+
+type KeyedRow = ImportRow & { importKey: string; counterparty: string }
+
+/** Huella y contraparte calculadas aquí: nunca se fían las del cliente. */
+function keyRows(rows: ImportRow[]): KeyedRow[] {
+  return withFinanceImportKeys(rows).map(r => ({ ...r, counterparty: normalizeConcept(r.conceptRaw) }))
+}
+
+async function ownAccount(supabase: Supabase, userId: string, accountId: string): Promise<boolean> {
+  const { data } = await supabase
+    .from("finance_accounts").select("id").eq("id", accountId).eq("user_id", userId).maybeSingle()
+  return data != null
+}
+
+/** import_key → category_id de los movimientos que ya existen en la cuenta. */
+async function existingKeys(supabase: Supabase, accountId: string, keys: string[]): Promise<Map<string, string | null> | null> {
+  const found = new Map<string, string | null>()
+  for (let i = 0; i < keys.length; i += KEY_CHUNK) {
+    const { data, error } = await supabase
+      .from("finance_transactions")
+      .select("import_key, category_id")
+      .eq("account_id", accountId)
+      .in("import_key", keys.slice(i, i + KEY_CHUNK))
+    if (error) {
+      console.error(error)
+      return null
+    }
+    for (const row of data ?? []) found.set(row.import_key as string, (row.category_id as string | null) ?? null)
+  }
+  return found
+}
+
+async function loadRules(supabase: Supabase, userId: string) {
+  const { data, error } = await supabase
+    .from("finance_category_rules").select("id, pattern, category_id, priority").eq("user_id", userId)
+  if (error) {
+    console.error(error)
+    return null
+  }
+  return (data ?? []).map(r => ({
+    id: r.id as string, pattern: r.pattern as string, categoryId: r.category_id as string, priority: r.priority as number,
+  }))
+}
+
+/** Paso "Review": qué es nuevo, qué está duplicado y qué categoría pondría una regla. No escribe nada. */
+export async function previewFinanceImport(input: unknown): Promise<ResultType<ImportPreview, FinanceActionError>> {
+  const parsed = importTransactionsInputSchema.safeParse(input)
+  if (!parsed.success) return createErrorResult("INVALID_INPUT")
+
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return createErrorResult("UNAUTHENTICATED")
+  if (!(await ownAccount(supabase, user.id, parsed.data.accountId))) return createErrorResult("INVALID_INPUT")
+
+  const rows = keyRows(parsed.data.rows)
+  const [existing, rules] = await Promise.all([
+    existingKeys(supabase, parsed.data.accountId, rows.map(r => r.importKey)),
+    loadRules(supabase, user.id),
+  ])
+  if (!existing || !rules) return createErrorResult("UNKNOWN")
+
+  const fresh = rows.filter(r => !existing.has(r.importKey))
+  const assigned = new Map(
+    applyRules(
+      fresh.map(r => ({ id: r.importKey, counterparty: r.counterparty, categoryId: null, categorySource: null, parentId: null, excluded: false })),
+      rules,
+    ).map(a => [a.transactionId, a.categoryId]),
+  )
+
+  const out: ImportPreviewRow[] = rows.map(r => {
+    const duplicate = existing.has(r.importKey)
+    return {
+      importKey:    r.importKey,
+      bookedAt:     r.bookedAt,
+      conceptRaw:   r.conceptRaw,
+      counterparty: r.counterparty,
+      amount:       r.amount,
+      balanceAfter: r.balanceAfter,
+      status:       duplicate ? "duplicate" : "new",
+      categoryId:   duplicate ? existing.get(r.importKey) ?? null : assigned.get(r.importKey) ?? null,
+      byRule:       !duplicate && assigned.has(r.importKey),
+    }
+  })
+  return createDataResult({
+    rows:       out,
+    newCount:   fresh.length,
+    duplicates: rows.length - fresh.length,
+    noRule:     fresh.length - assigned.size,
+  })
+}
+
+/**
+ * Paso "Confirm" (§3.2.4): upsert por (account_id, import_key) ignorando
+ * duplicados, reglas sobre los nuevos y recálculo de suscripciones.
+ */
+export async function importFinanceTransactions(input: unknown): Promise<ResultType<ImportResult, FinanceActionError>> {
+  const parsed = importTransactionsInputSchema.safeParse(input)
+  if (!parsed.success) return createErrorResult("INVALID_INPUT")
+  const { accountId } = parsed.data
+
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return createErrorResult("UNAUTHENTICATED")
+  if (!(await ownAccount(supabase, user.id, accountId))) return createErrorResult("INVALID_INPUT")
+
+  const rows = keyRows(parsed.data.rows)
+  const inserted: { id: string; counterparty: string | null }[] = []
+  for (let i = 0; i < rows.length; i += READ_PAGE) {
+    const { data, error } = await supabase
+      .from("finance_transactions")
+      .upsert(
+        rows.slice(i, i + READ_PAGE).map(r => ({
+          user_id:       user.id,
+          account_id:    accountId,
+          booked_at:     r.bookedAt,
+          amount:        r.amount,
+          concept_raw:   r.conceptRaw,
+          counterparty:  r.counterparty,
+          balance_after: r.balanceAfter,
+          import_key:    r.importKey,
+          source:        "import",
+        })),
+        { onConflict: "account_id,import_key", ignoreDuplicates: true },
+      )
+      .select("id, counterparty")
+    if (error) {
+      console.error(error)
+      return createErrorResult("UNKNOWN")
+    }
+    for (const row of data ?? []) inserted.push({ id: row.id as string, counterparty: (row.counterparty as string | null) ?? null })
+  }
+
+  const rules = await loadRules(supabase, user.id)
+  if (!rules) return createErrorResult("UNKNOWN")
+  const assignments = applyRules(
+    inserted.map(t => ({ id: t.id, counterparty: t.counterparty, categoryId: null, categorySource: null, parentId: null, excluded: false })),
+    rules,
+  )
+  if (!(await writeRuleAssignments(supabase, user.id, assignments))) return createErrorResult("UNKNOWN")
+  await recomputeSubscriptions(supabase, user.id)
+
+  revalidatePath(APP_URLS.MONEY, "layout")
+  return createDataResult({ imported: inserted.length, duplicates: rows.length - inserted.length, categorized: assignments.length })
+}
+
+/** Escribe lo que categorizan las reglas y suma sus hits (display, §4.2). */
+async function writeRuleAssignments(supabase: Supabase, userId: string, assignments: RuleAssignment[]): Promise<boolean> {
+  const byRule = new Map<string, { categoryId: string; ids: string[] }>()
+  for (const a of assignments) {
+    const group = byRule.get(a.ruleId) ?? { categoryId: a.categoryId, ids: [] }
+    group.ids.push(a.transactionId)
+    byRule.set(a.ruleId, group)
+  }
+  for (const [ruleId, { categoryId, ids }] of byRule) {
+    for (let i = 0; i < ids.length; i += KEY_CHUNK) {
+      const { error } = await supabase
+        .from("finance_transactions")
+        .update({ category_id: categoryId, category_source: "rule" })
+        .eq("user_id", userId)
+        .in("id", ids.slice(i, i + KEY_CHUNK))
+      if (error) {
+        console.error(error)
+        return false
+      }
+    }
+    const { data: rule } = await supabase.from("finance_category_rules").select("hits").eq("id", ruleId).maybeSingle()
+    if (rule) {
+      await supabase.from("finance_category_rules").update({ hits: (rule.hits as number) + ids.length }).eq("id", ruleId)
+    }
+  }
+  return true
+}
+
+/**
+ * §4.3 tras cada import: detecta recurrentes sobre todos los cargos del
+ * usuario y hace upsert solo de los campos calculados. status y usage no se
+ * envían, así que nunca se pisa lo que el usuario confirmó o marcó.
+ */
+async function recomputeSubscriptions(supabase: Supabase, userId: string): Promise<void> {
+  const charges: { bookedAt: string; amount: number; counterparty: string | null; categoryId: string | null; excluded: boolean }[] = []
+  for (let from = 0; ; from += READ_PAGE) {
+    const { data, error } = await supabase
+      .from("finance_transactions")
+      .select("booked_at, amount, counterparty, category_id")
+      .eq("user_id", userId)
+      .eq("excluded", false)
+      .lt("amount", 0)
+      .order("booked_at", { ascending: true })
+      .range(from, from + READ_PAGE - 1)
+    if (error) {
+      console.error(error)
+      return
+    }
+    for (const r of data ?? []) {
+      charges.push({
+        bookedAt: r.booked_at as string, amount: Number(r.amount), counterparty: (r.counterparty as string | null) ?? null,
+        categoryId: (r.category_id as string | null) ?? null, excluded: false,
+      })
+    }
+    if (!data || data.length < READ_PAGE) break
+  }
+
+  const candidates = detectRecurring(charges)
+  if (candidates.length === 0) return
+  const { error } = await supabase.from("finance_subscriptions").upsert(
+    candidates.map(c => ({
+      user_id:       userId,
+      counterparty:  c.counterparty,
+      amount:        c.amount,
+      cadence:       c.cadence,
+      category_id:   c.categoryId,
+      first_seen:    c.firstSeen,
+      last_seen:     c.lastSeen,
+      next_expected: c.nextExpected,
+      occurrences:   c.occurrences,
+      updated_at:    new Date().toISOString(),
+    })),
+    { onConflict: "user_id,counterparty,cadence" },
+  )
+  if (error) console.error(error)
 }

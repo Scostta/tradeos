@@ -62,9 +62,14 @@ export function normalizeConcept(raw: string): string {
   const unmasked = words(lowered).filter(w => !CARD_MASK.test(w) && !MASKED_NAME.test(w)).join(" ")
 
   // Puntuación fuera (se conservan . y &: netflix.com, h&m) y referencias numéricas.
-  let s = words(unmasked.replace(/[^a-z0-9.& ]+/g, " "))
-    .filter(w => !LONG_NUMBER.test(w) && !MIXED_REF.test(w))
-    .join(" ")
+  const cleaned = words(unmasked.replace(/[^a-z0-9.& ]+/g, " "))
+  let s = cleaned.filter(w => !LONG_NUMBER.test(w) && !MIXED_REF.test(w)).join(" ")
+  // Lo que queda tras quitar referencias y prefijos; si no queda nada (un
+  // "BIZUM RECIBIDO" sin nombre, una referencia suelta), se usa el texto
+  // limpio entero para que la contraparte no quede vacía y admita reglas.
+  const fallbackWords = s ? words(s) : [...cleaned]
+  while (fallbackWords.length > 1 && CONNECTORS.has(fallbackWords[fallbackWords.length - 1]!)) fallbackWords.pop()
+  const fallback = trimEdges(fallbackWords.join(" "))
 
   // Prefijos bancarios (pueden encadenarse: "adeudo recibo …") y conectores.
   let changed = true
@@ -83,5 +88,9 @@ export function normalizeConcept(raw: string): string {
     }
   }
 
+  return trimEdges(s) || fallback
+}
+
+function trimEdges(s: string): string {
   return s.replace(/(^[.\s]+|[.\s]+$)/g, "").replace(/\s+/g, " ")
 }

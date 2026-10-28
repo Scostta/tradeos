@@ -145,3 +145,47 @@ export type SetupMoneyInput = z.infer<typeof setupMoneyInputSchema>
 
 export const createFinanceAccountInputSchema = setupMoneyInputSchema
 export type CreateFinanceAccountInput = z.infer<typeof createFinanceAccountInputSchema>
+
+// ── Import (§3) ─────────────────────────────────────────────────────────────
+
+export const MAX_IMPORT_ROWS = 5000
+
+/** Una fila ya leída por el parser (en el cliente). La huella se recalcula en el servidor. */
+export const importRowSchema = z.object({
+  bookedAt:     isoDate,
+  conceptRaw:   z.string().trim().min(1).max(500),
+  amount:       z.number().finite(),
+  balanceAfter: z.number().finite().nullable(),
+})
+export type ImportRow = z.infer<typeof importRowSchema>
+
+export const importTransactionsInputSchema = z.object({
+  accountId: z.string().uuid(),
+  rows:      z.array(importRowSchema).min(1).max(MAX_IMPORT_ROWS),
+})
+export type ImportTransactionsInput = z.infer<typeof importTransactionsInputSchema>
+
+export type ImportPreviewRow = {
+  importKey:    string
+  bookedAt:     string
+  conceptRaw:   string
+  counterparty: string
+  amount:       number
+  balanceAfter: number | null
+  status:       "new" | "duplicate"
+  categoryId:   string | null   // nuevo: la que pondría una regla; duplicado: la que ya tiene
+  byRule:       boolean
+}
+
+export type ImportPreview = {
+  rows:       ImportPreviewRow[]   // en el orden del fichero
+  newCount:   number
+  duplicates: number
+  noRule:     number               // nuevos sin regla que los categorice
+}
+
+export type ImportResult = {
+  imported:    number
+  duplicates:  number
+  categorized: number
+}
