@@ -15,10 +15,14 @@ import { monthToDeadline, parseAmount } from "./goal-style"
 
 const G = MONEY.GOALS
 
-// Formulario "New goal" (artboard 05): nombre, importe y fecha límite opcional.
-// La aportación mensual, si no se escribe, es la que pide la fecha límite o lo
+// "New goal" (artboard 05): nombre, importe y fecha límite opcional. La
+// aportación mensual, si no se escribe, es la que pide la fecha límite o lo
 // que queda libre del ahorro de este mes.
-export function NewGoalCard({ free, openMonth }: { free: number; openMonth: MonthKey }): ReactElement {
+export function NewGoalModal({ free, openMonth, onClose }: {
+  free:      number
+  openMonth: MonthKey
+  onClose:   () => void
+}): ReactElement {
   const [name, setName] = useState("")
   const [target, setTarget] = useState("")
   const [monthly, setMonthly] = useState("")
@@ -48,60 +52,57 @@ export function NewGoalCard({ free, openMonth }: { free: number; openMonth: Mont
     hint = parts.join(" ")
   }
 
-  function reset() {
-    setName(""); setTarget(""); setMonthly(""); setDeadlineMonth(""); setError(null)
-  }
-
   function submit() {
     if (!valid || pending) return
     startTransition(async () => {
       const res = await createGoal({ name: name.trim(), targetAmount, monthlyAlloc: Math.round(monthlyAlloc * 100) / 100, deadline })
-      if (res.success) reset()
+      if (res.success) onClose()
       else setError(moneyErrorMessage(res.error))
     })
   }
 
   return (
-    <form
-      id="new-goal"
-      onSubmit={e => { e.preventDefault(); submit() }}
-      className="rounded-md border border-dashed border-border-hi p-4 flex flex-col gap-3 min-w-0 scroll-mt-4"
-    >
-      <div>
-        <div className="text-md font-semibold text-text">{G.NEW}</div>
-        <p className={cn("text-sm mt-1", targetAmount ? "text-text-dim" : "text-text-mute")}>{hint}</p>
-      </div>
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4" onClick={onClose}>
+      <form
+        onSubmit={e => { e.preventDefault(); submit() }}
+        className="card p-5 flex flex-col gap-4 w-full" style={{ maxWidth: 440 }} onClick={e => e.stopPropagation()}
+      >
+        <div>
+          <div className="text-lg font-semibold text-text">{G.NEW}</div>
+          <p className={cn("text-sm mt-0.5", targetAmount ? "text-text-dim" : "text-text-mute")}>{hint}</p>
+        </div>
 
-      <label className="flex flex-col gap-1">
-        <span className="label-caps">{G.NAME}</span>
-        <input id="new-goal-name" value={name} onChange={e => setName(e.target.value)} maxLength={60} className={INPUT_CLS} />
-      </label>
-      <div className="grid grid-cols-2 gap-2.5">
-        <label className="flex flex-col gap-1 min-w-0">
-          <span className="label-caps">{G.TARGET}</span>
-          <input value={target} onChange={e => setTarget(e.target.value)} inputMode="decimal" placeholder="€" className={cn(INPUT_CLS, "mono")} />
+        <label className="flex flex-col gap-1">
+          <span className="label-caps">{G.NAME}</span>
+          <input value={name} onChange={e => setName(e.target.value)} maxLength={60} className={INPUT_CLS} autoFocus />
         </label>
-        <label className="flex flex-col gap-1 min-w-0">
-          <span className="label-caps">{G.MONTHLY_FIELD}</span>
-          <input
-            value={monthly} onChange={e => setMonthly(e.target.value)} inputMode="decimal"
-            placeholder={monthlyAlloc > 0 ? String(Math.round(monthlyAlloc)) : "€"} className={cn(INPUT_CLS, "mono")}
-          />
+        <div className="grid grid-cols-2 gap-2.5">
+          <label className="flex flex-col gap-1 min-w-0">
+            <span className="label-caps">{G.TARGET}</span>
+            <input value={target} onChange={e => setTarget(e.target.value)} inputMode="decimal" placeholder="€" className={cn(INPUT_CLS, "mono")} />
+          </label>
+          <label className="flex flex-col gap-1 min-w-0">
+            <span className="label-caps">{G.MONTHLY_FIELD}</span>
+            <input
+              value={monthly} onChange={e => setMonthly(e.target.value)} inputMode="decimal"
+              placeholder={monthlyAlloc > 0 ? String(Math.round(monthlyAlloc)) : "€"} className={cn(INPUT_CLS, "mono")}
+            />
+          </label>
+        </div>
+        <label className="flex flex-col gap-1">
+          <span className="label-caps">{G.DEADLINE}</span>
+          <input type="month" value={deadlineMonth} min={openMonth} onChange={e => setDeadlineMonth(e.target.value)} className={cn(INPUT_CLS, "mono")} />
         </label>
-      </div>
-      <label className="flex flex-col gap-1">
-        <span className="label-caps">{G.DEADLINE}</span>
-        <input type="month" value={deadlineMonth} min={openMonth} onChange={e => setDeadlineMonth(e.target.value)} className={cn(INPUT_CLS, "mono")} />
-      </label>
 
-      {error && <div className="text-sm text-loss">{error}</div>}
+        {error && <div className="text-sm text-loss">{error}</div>}
 
-      <div className="flex gap-2">
-        <button type="submit" disabled={!valid || pending} className="btn-accent inline-flex items-center gap-2 disabled:opacity-60 disabled:cursor-not-allowed">
-          {pending && <Spinner />}{G.CREATE}
-        </button>
-        <button type="button" onClick={reset} className="btn-ghost">{G.CANCEL}</button>
-      </div>
-    </form>
+        <div className="flex justify-end gap-2">
+          <button type="button" onClick={onClose} className="btn-ghost">{G.CANCEL}</button>
+          <button type="submit" disabled={!valid || pending} className="btn-accent inline-flex items-center gap-2 disabled:opacity-60 disabled:cursor-not-allowed">
+            {pending && <Spinner />}{G.CREATE}
+          </button>
+        </div>
+      </form>
+    </div>
   )
 }

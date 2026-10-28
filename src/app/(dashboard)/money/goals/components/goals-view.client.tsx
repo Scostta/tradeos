@@ -12,7 +12,6 @@ import { Card, Metric } from "../../components/overview/overview-parts"
 import { GoalCard } from "./goal-card"
 import { GoalEditModal } from "./goal-edit-modal.client"
 import { goalStyle } from "./goal-style"
-import { NewGoalCard } from "./new-goal-card.client"
 
 const G = MONEY.GOALS
 
@@ -122,7 +121,6 @@ export function GoalsView({ goals, thisMonth, avg6, openMonth, closedThrough }: 
               onEdit={() => setEditing(g)}
             />
           ))}
-          <NewGoalCard free={unallocated} openMonth={openMonth} />
         </div>
 
         <div className="card p-4 flex flex-col gap-1.5">

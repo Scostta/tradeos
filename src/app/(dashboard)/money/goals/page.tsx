@@ -1,7 +1,7 @@
 import type { ReactElement } from "react"
 import { ensureMonthsClosed } from "~/actions/finance"
 import { MONEY } from "~/constants/copies/money"
-import { firstOpenMonth } from "~/lib/finance/allocate-savings"
+import { allocateSavings, firstOpenMonth } from "~/lib/finance/allocate-savings"
 import { monthOf, shiftMonth } from "~/lib/finance/dates"
 import { monthlySummary } from "~/lib/finance/summary"
 import {
@@ -12,6 +12,7 @@ import {
 } from "~/services/queries/finance"
 import { MoneyOnboarding } from "../components/money-onboarding.client"
 import { GoalsView } from "./components/goals-view.client"
+import { NewGoalButton } from "./components/new-goal-button.client"
 
 const G = MONEY.GOALS
 
@@ -46,6 +47,10 @@ export default async function MoneyGoalsPage(): Promise<ReactElement> {
     .map(m => monthlySummary(txResult.data, categoriesResult.data, m, { startDay }).realSavings)
   const avg6 = previous.length ? previous.reduce((a, b) => a + b, 0) / previous.length : null
 
+  const goals = goalsResult.data.filter(g => g.status !== "archived")
+  const openMonth = firstOpenMonth(current, settings.closedThrough)
+  const free = allocateSavings(goals, thisMonth).unallocated
+
   return (
     <div className="flex flex-col h-full">
       <header className="flex flex-wrap items-center gap-3 px-4 md:px-7 py-3 border-b border-border bg-bg shrink-0">
@@ -53,13 +58,13 @@ export default async function MoneyGoalsPage(): Promise<ReactElement> {
           <h1 className="text-xl font-semibold tracking-tight text-text">{G.TITLE}</h1>
           <div className="mono text-sm text-text-mute mt-0.5 truncate">{G.SUBTITLE}</div>
         </div>
-        <a href="#new-goal" className="btn-accent ml-auto">{G.NEW}</a>
+        <NewGoalButton free={free} openMonth={openMonth} />
       </header>
       <GoalsView
-        goals={goalsResult.data.filter(g => g.status !== "archived")}
+        goals={goals}
         thisMonth={thisMonth}
         avg6={avg6}
-        openMonth={firstOpenMonth(current, settings.closedThrough)}
+        openMonth={openMonth}
         closedThrough={settings.closedThrough}
       />
     </div>
