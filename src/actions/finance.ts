@@ -580,9 +580,12 @@ export async function setSubscriptionStatus(input: unknown): Promise<ResultType<
   }
   if (!data || data.length === 0) return createErrorResult("NOT_FOUND")
 
-  // Cancelada conserva la regla: lo que cobró sigue siendo de una suscripción.
+  // Confirmada o cancelada: lo que cobró es de una suscripción → regla a
+  // Subscriptions (cancelar no la quita; y la crea si venía de descartada).
   const counterparty = data[0]!.counterparty as string
-  if (status === "confirmed") await addSubscriptionRule(supabase, user.id, parsed.data.subscriptionId, counterparty)
+  if (status === "confirmed" || status === "cancelled") {
+    await addSubscriptionRule(supabase, user.id, parsed.data.subscriptionId, counterparty)
+  }
   if (status === "ignored" || status === "pending") await removeSubscriptionRule(supabase, user.id, counterparty)
 
   revalidatePath(APP_URLS.MONEY, "layout")
