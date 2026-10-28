@@ -328,9 +328,7 @@ Commit por paso. Lint, `npm test` y `pytest` en verde antes de cada commit. Aña
 
 Ideas surgidas durante la implementación que **no** se hacen ahora (nada de esto está construido):
 
-- Shell: las rutas compartidas (`/settings`) se resuelven como módulo Trading, así que al abrir Settings desde Invest o Money el sidebar cambia a Trading. Alternativa: mantener el último módulo en rutas compartidas.
-- Shell: tras hacer login, el middleware manda siempre a `/dashboard`; podría ir a `/` para respetar el último módulo.
-- Shell: el layout `(dashboard)` sigue pidiendo las alertas de prop firm en todas las rutas, aunque fuera de Trading no se muestren.
+Nada pendiente por ahora.
 
 ---
 
@@ -362,3 +360,4 @@ Ideas surgidas durante la implementación que **no** se hacen ahora (nada de est
 | 2026-10-27 | 4.7 | Página de detalle `/invest/[ticker]` con `invest_tickers`, `invest_fundamentals_history` e `invest_thesis_drafts` (migración `20261027170000_invest_ticker_detail.sql`). El job descarga 3 años (antes 2) y guarda 36 meses de cierres de todos los tickers evaluados y del benchmark; la historia de 4 años se calcula una vez por ticker y run reutilizando las funciones de `fundamentals.py` sin tocar `evaluate()`. `months_listed` pasa a contar sobre 3 años (máx. ~36; el umbral de 12 no cambia ningún resultado). Importes en `financial_currency`. Borradores con autoguardado. |
 | 2026-10-28 | 4.3 / 4.7 | Positions: las abiertas pasan de tarjetas a tabla; tesis y falsadores salen de la lista y viven en `/invest/positions/[ticker]` (todas las posiciones del ticker). `/invest/[ticker]` tiene el botón "Open position" de Screen en la cabecera, que precarga la tesis con lo escrito en Thesis prompts aunque no se haya guardado. |
 | 2026-10-28 | 3.2 | Precios con `start` = día 1 del mes `run_date − 35 meses` en vez de `period="3y"`: "3 años desde hoy" dejaba fuera el primer mes (35 cierres en el run de 2026-09-30) y en un rerun de un `run_date` antiguo aún menos. `months_listed` llega a 36; el umbral de 12 no cambia. |
+| 2026-10-28 | Later (shell) | Hechas las tres ideas del shell: el último módulo pasa a la cookie `active_module` y las rutas compartidas (`/settings`) lo mantienen; `/` y el login con sesión van al home de ese módulo desde el middleware (se elimina `root-redirect.client.tsx`); las rutas de Trading pasan al route group `(dashboard)/(trading)/`, cuyo layout es el único que pide las alertas de prop firm. |

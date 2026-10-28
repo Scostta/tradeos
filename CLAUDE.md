@@ -320,11 +320,11 @@ pnlByAccount(trades, accounts)         // { accountName: X, ... }  ⬅️ para v
 
 TradeOS son tres **módulos** que comparten login, diseño (DESIGN.md), layout `(dashboard)` y despliegue: **Trading** (el diario de futuros: `/dashboard`, `/trades`, `/import`, `/reports`, …), **Invest** (núcleo/satélite con screener mensual, ver `INVEST_SPEC.md`: `/invest`, `/invest/positions`, `/invest/performance`) y **Money** (finanzas personales: `/money`).
 
-- El módulo activo se deriva **solo del pathname** con `getActiveModule(pathname)` (`src/helpers/active-module.ts`): `/invest…` → invest, `/money…` → money, todo lo demás (incluidas rutas compartidas como `/settings`) → trading.
+- El módulo de una ruta se deriva del pathname con `getRouteModule(pathname)` (`src/helpers/active-module.ts`): `/invest…` → invest, `/money…` → money, rutas compartidas (`/settings`) → `null`, todo lo demás → trading. En las compartidas el shell muestra el **último módulo visitado** (`useActiveModule`, `src/hooks/use-active-module.ts`).
 - El sidebar muestra el conmutador Trading / Invest / Money bajo la marca (en móvil, dentro del drawer) y la navegación de ese módulo (`NAV_BY_MODULE` en `sidebar.client.tsx`). Cambiar de módulo navega a su home (`MODULE_HOME`). Settings vive en el footer y es compartido.
-- El último módulo visitado se guarda en `localStorage` (`"active_module"`) **solo** para que `/` redirija a su home (`src/app/root-redirect.client.tsx`). Nada más lee esa clave.
+- El último módulo visitado se guarda en la cookie `active_module` (`rememberModule`). La leen el middleware (`/` y el login con sesión van al home de ese módulo; tras login/registro las actions redirigen a `/`) y el layout `(dashboard)` (módulo inicial del sidebar en rutas compartidas).
 - Cada home de módulo tiene su propia cabecera con título y subtítulo; no hay TopBar global.
-- **Trading es el único módulo con selector de cuenta** (`AccountSelector` en las cabeceras de sus páginas, `?account=`) y con el banner de alertas de prop firm (`DashboardShell` lo renderiza solo si `getActiveModule` devuelve `"trading"`).
+- **Trading es el único módulo con selector de cuenta** (`AccountSelector` en las cabeceras de sus páginas, `?account=`) y con el banner de alertas de prop firm: sus rutas viven en el route group `src/app/(dashboard)/(trading)/` (no cambia las URLs), cuyo layout es el único que pide las alertas.
 - **Cada módulo es dueño de sus tablas y no importa de los otros.** Invest usa el prefijo `invest_*` y Money `finance_*`; las tablas sin prefijo (`trades`, `accounts`, `playbooks`, …) son de Trading. El código de un módulo (rutas, componentes, queries, actions, cálculos, copies) no importa nada de otro módulo; lo compartido (shell, `src/components/`, `src/lib/ui/`, helpers genéricos) no pertenece a ninguno.
 - Futuro: una vista **"Net worth"** en Money leerá de los tres módulos (saldos de cuentas de Trading, satélite de Invest, finanzas de Money) **sin escribir en ninguno**. Es la única excepción prevista a la regla de no importar entre módulos, y es de solo lectura.
 
@@ -386,7 +386,7 @@ SUPABASE_SERVICE_ROLE_KEY=   # solo para API routes
 ## Estructura de componentes
 
 - **`src/components/`** — solo componentes verdaderamente compartidos entre **más de una página** (ej. `Sidebar`, `TopBar`, futuros `TradeRow`, `MetricCard`).
-- **`src/app/(dashboard)/[ruta]/components/`** — componentes exclusivos de esa ruta. Si un componente solo se usa en `/import`, vive en `src/app/(dashboard)/import/components/`, no en `src/components/`.
+- **`src/app/(dashboard)/[ruta]/components/`** — componentes exclusivos de esa ruta (las de Trading están en `src/app/(dashboard)/(trading)/[ruta]/`). Si un componente solo se usa en `/import`, vive en `src/app/(dashboard)/(trading)/import/components/`, no en `src/components/`.
 - La regla es: si solo hay un consumidor, el componente va junto a su página. Si hay más de uno, se promueve a `src/components/`.
 
 ---

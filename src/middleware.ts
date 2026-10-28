@@ -1,6 +1,7 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 import { APP_URLS } from "~/constants/app-urls";
+import { ACTIVE_MODULE_COOKIE, MODULE_HOME, parseModule } from "~/helpers/active-module";
 
 export async function middleware(request: NextRequest) {
   let supabaseResponse = NextResponse.next({ request });
@@ -28,8 +29,8 @@ export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
   // Las rutas de los módulos (/dashboard…, /invest, /money) son privadas por
-  // no estar aquí. "/" sin sesión va a /login; con sesión, RootRedirect
-  // (src/app/root-redirect.client.tsx) la manda al home del último módulo.
+  // no estar aquí. "/" sin sesión va a /login; con sesión, al home del último
+  // módulo visitado (cookie active_module), igual que tras el login.
   const isPublic =
     pathname === APP_URLS.LOGIN ||
     pathname === APP_URLS.REGISTER ||
@@ -45,9 +46,9 @@ export async function middleware(request: NextRequest) {
     return NextResponse.redirect(url);
   }
 
-  if (user && (pathname === APP_URLS.LOGIN || pathname === APP_URLS.REGISTER)) {
+  if (user && (pathname === APP_URLS.HOME || pathname === APP_URLS.LOGIN || pathname === APP_URLS.REGISTER)) {
     const url = request.nextUrl.clone();
-    url.pathname = APP_URLS.DASHBOARD;
+    url.pathname = MODULE_HOME[parseModule(request.cookies.get(ACTIVE_MODULE_COOKIE)?.value) ?? "trading"];
     return NextResponse.redirect(url);
   }
 

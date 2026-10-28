@@ -1,32 +1,30 @@
 "use client"
 
 import { useState } from "react"
-import { usePathname } from "next/navigation"
 import type { ReactNode } from "react"
 import { Sidebar } from "./sidebar.client"
-import { PropFirmAlertBanner } from "./prop-firm-alert-banner.client"
 import { TimezoneContext } from "~/hooks/use-timezone"
+import { useActiveModule } from "~/hooks/use-active-module"
 import { COMMON } from "~/constants/copies/common"
-import type { PropFirmAlertItem } from "~/types/prop-firm"
-import { getActiveModule } from "~/helpers/active-module"
+import type { AppModule } from "~/helpers/active-module"
 
 export function DashboardShell({
   userEmail,
   userName,
   timezone = "UTC",
-  propFirmAlerts = [],
+  initialModule,
   children,
 }: {
   userEmail?: string
   userName?: string
   timezone?: string
-  propFirmAlerts?: PropFirmAlertItem[]
+  initialModule: AppModule   // cookie active_module, para las rutas compartidas
   children: ReactNode
 }) {
   const [sidebarOpen, setSidebarOpen] = useState(false)
-  // Las alertas de prop firm son de Trading. El selector de cuenta no vive
-  // aquí: está en las cabeceras de las páginas de Trading (?account=).
-  const isTrading = getActiveModule(usePathname()) === "trading"
+  // Las alertas de prop firm y el selector de cuenta son de Trading: viven en
+  // el layout de (trading) y en las cabeceras de sus páginas.
+  const activeModule = useActiveModule(initialModule)
 
   return (
     <TimezoneContext.Provider value={timezone}>
@@ -42,6 +40,7 @@ export function DashboardShell({
       <Sidebar
         userEmail={userEmail}
         userName={userName}
+        activeModule={activeModule}
         isOpen={sidebarOpen}
         onClose={() => setSidebarOpen(false)}
       />
@@ -61,10 +60,10 @@ export function DashboardShell({
           </button>
           <span className="ml-3 font-semibold text-text tracking-tight">TradeOS</span>
         </div>
-        {isTrading && <PropFirmAlertBanner alerts={propFirmAlerts} />}
         {/* Wrapper so each page's `h-full` measures the space LEFT below the
-            mobile topbar + alert banner — without it the page is as tall as
-            <main> and its bottom is clipped by overflow-hidden on mobile. */}
+            mobile topbar — without it the page is as tall as <main> and its
+            bottom is clipped by overflow-hidden on mobile. The (trading)
+            layout adds the prop firm banner inside it. */}
         <div className="flex-1 min-h-0 flex flex-col">
           {children}
         </div>

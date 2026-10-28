@@ -1,5 +1,5 @@
 import { IMPORT } from "~/constants/copies/import";
-import { ImportFlow } from "~/app/(dashboard)/import/components/import-flow.client";
+import { ImportFlow } from "~/app/(dashboard)/(trading)/import/components/import-flow.client";
 
 export default function ImportPage() {
   return (

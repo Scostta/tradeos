@@ -23,7 +23,6 @@ import { SparklesIcon } from "~/lib/ui/icons/sparkles-icon";
 import { SettingsIcon } from "~/lib/ui/icons/settings-icon";
 import { XIcon } from "~/lib/ui/icons/x-icon";
 import { BrandMark } from "~/lib/ui/icons/brand-mark";
-import { getActiveModule } from "~/helpers/active-module";
 import type { AppModule } from "~/helpers/active-module";
 import { ModuleSwitcher } from "./module-switcher.client";
 
@@ -68,18 +67,19 @@ function getInitials(email?: string): string {
 export function Sidebar({
   userEmail,
   userName,
+  activeModule,
   isOpen,
   onClose,
 }: {
   userEmail?: string
   userName?: string
+  activeModule: AppModule
   isOpen?: boolean
   onClose?: () => void
 }) {
   const pathname = usePathname();
   const [pending, startSignOut] = useTransition();
   const initials = getInitials(userName ?? userEmail);
-  const activeModule = getActiveModule(pathname);
 
   function isActive(item: NavItem): boolean {
     if (item.exact) return pathname === item.path;

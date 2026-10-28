@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest"
-import { MODULE_HOME, getActiveModule, parseModule } from "./active-module"
+import { MODULE_HOME, getActiveModule, getRouteModule, parseModule } from "./active-module"
 
 describe("getActiveModule", () => {
   it.each([
@@ -11,10 +11,20 @@ describe("getActiveModule", () => {
     ["/dashboard", "trading"],
     ["/trades/abc", "trading"],
     ["/journal", "trading"],
-    ["/settings", "trading"],
     ["/", "trading"],
   ] as const)("%s → %s", (pathname, module) => {
     expect(getActiveModule(pathname)).toBe(module)
+    expect(getRouteModule(pathname)).toBe(module)
+  })
+
+  it("las rutas compartidas muestran el último módulo visitado", () => {
+    expect(getRouteModule("/settings")).toBeNull()
+    expect(getRouteModule("/settings/anything")).toBeNull()
+    expect(getActiveModule("/settings", "invest")).toBe("invest")
+    expect(getActiveModule("/settings")).toBe("trading")
+    // Una ruta de módulo manda sobre el último visitado.
+    expect(getActiveModule("/invest", "money")).toBe("invest")
+    expect(getActiveModule("/dashboard", "invest")).toBe("trading")
   })
 
   it("un prefijo parecido no es el módulo", () => {
@@ -30,6 +40,7 @@ describe("parseModule", () => {
     expect(parseModule("trading")).toBe("trading")
     expect(parseModule("other")).toBeNull()
     expect(parseModule(null)).toBeNull()
+    expect(parseModule(undefined)).toBeNull()
   })
 })
 
