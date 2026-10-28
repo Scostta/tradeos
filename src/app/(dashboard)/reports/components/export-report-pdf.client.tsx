@@ -5,6 +5,7 @@ import type { ReactElement } from "react"
 import { REPORTS } from "~/constants/copies/reports"
 import { formatCurrency, formatPct, formatCompactCurrency, formatDurationMs } from "~/helpers/format"
 import { Toast } from "~/lib/ui/toast"
+import { BRAND_CURVE, BRAND_CURVE_WIDTH, BRAND_DOT } from "~/lib/ui/icons/brand"
 import type { ReportsData, ReportRow } from "~/types/reports"
 
 type Props = {
@@ -18,6 +19,10 @@ const DARK   = [14, 17, 23] as const
 const ACCENT = [163, 230, 53] as const
 const WHITE  = [255, 255, 255] as const
 const MUTE   = [148, 163, 184] as const
+// Mark "Equity curve" (brand.ts): tile #15151c con borde lima al 25 % ya mezclado.
+const BRAND_TILE_RGB   = [21, 21, 28] as const
+const BRAND_BORDER_RGB = [57, 73, 34] as const
+const BRAND_POINTS = [...BRAND_CURVE.matchAll(/(-?[\d.]+)\s+(-?[\d.]+)/g)].map(m => [Number(m[1]), Number(m[2])] as const)
 const INK    = [17, 24, 39] as const
 const SUBT   = [107, 114, 128] as const
 const CARD   = [246, 247, 249] as const
@@ -78,10 +83,21 @@ export function ExportReportPdf({ accountName, rangeLabel, data }: Props): React
 
         // ── Header band ───────────────────────────────────────────────────────
         doc.setFillColor(...DARK); doc.rect(0, 0, W, 34, "F")
-        doc.setFillColor(...ACCENT); doc.roundedRect(M, 11, 8, 8, 1.5, 1.5, "F")
-        doc.setTextColor(...DARK); doc.setFont("helvetica", "bold"); doc.setFontSize(12)
-        doc.text("T", M + 4, 16.8, { align: "center" })
-        doc.setTextColor(...WHITE); doc.setFontSize(14); doc.text("TradeOS", M + 11, 16.3)
+        {
+          // Mark de 8 mm sobre la rejilla de 64 de brand.ts
+          const s = 8 / 64
+          const at = (x: number, y: number) => [M + x * s, 11 + y * s] as const
+          doc.setFillColor(...BRAND_TILE_RGB); doc.setDrawColor(...BRAND_BORDER_RGB); doc.setLineWidth(0.15)
+          doc.roundedRect(M, 11, 8, 8, 14 * s, 14 * s, "FD")
+          doc.setDrawColor(...ACCENT); doc.setLineWidth(BRAND_CURVE_WIDTH * s)
+          doc.setLineCap("round"); doc.setLineJoin("round")
+          for (let i = 1; i < BRAND_POINTS.length; i++) {
+            doc.line(...at(...BRAND_POINTS[i - 1]), ...at(...BRAND_POINTS[i]))
+          }
+          doc.setFillColor(...ACCENT); doc.circle(...at(BRAND_DOT.cx, BRAND_DOT.cy), BRAND_DOT.r * s, "F")
+          doc.setLineCap("butt"); doc.setLineJoin("miter")
+        }
+        doc.setTextColor(...WHITE); doc.setFont("helvetica", "bold"); doc.setFontSize(14); doc.text("TradeOS", M + 11, 16.3)
         doc.setFont("helvetica", "normal"); doc.setFontSize(8.5); doc.setTextColor(...MUTE)
         doc.text(REPORTS.PDF.TITLE.toUpperCase(), M + 11, 21.5)
         doc.setFont("helvetica", "bold"); doc.setFontSize(10); doc.setTextColor(...WHITE)
