@@ -14,7 +14,7 @@ export const MODULE_HOME: Record<AppModule, string> = {
 }
 
 // Último módulo visitado, en cookie para que también lo lea el servidor: el
-// middleware manda "/" y el login a su home, y el layout lo usa en las rutas
+// proxy manda "/" y el login a su home, y el layout lo usa en las rutas
 // compartidas.
 export const ACTIVE_MODULE_COOKIE = "active_module"
 const COOKIE_MAX_AGE = 60 * 60 * 24 * 365

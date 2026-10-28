@@ -22,7 +22,7 @@ export async function signInWithEmail(
   const { error } = await supabase.auth.signInWithPassword({ email, password });
 
   if (error) return { type: "error", code: error.code ?? error.name, message: error.message };
-  redirect(APP_URLS.HOME);  // el middleware la manda al último módulo
+  redirect(APP_URLS.HOME);  // el proxy la manda al último módulo
 }
 
 export async function signUpWithEmail(
@@ -41,7 +41,7 @@ export async function signUpWithEmail(
     return { type: "success", code: "CHECK_EMAIL", message: "Check your inbox to confirm your account, then sign in." };
   }
 
-  redirect(APP_URLS.HOME);  // el middleware la manda al último módulo
+  redirect(APP_URLS.HOME);  // el proxy la manda al último módulo
 }
 
 export async function requestPasswordReset(
@@ -79,7 +79,7 @@ export async function updatePassword(
   const { error } = await supabase.auth.updateUser({ password });
   if (error) return { type: "error", code: error.code ?? error.name, message: error.message };
 
-  redirect(APP_URLS.HOME);  // el middleware la manda al último módulo
+  redirect(APP_URLS.HOME);  // el proxy la manda al último módulo
 }
 
 export async function resendConfirmation(

@@ -6,7 +6,7 @@ import { APP_URLS } from "~/constants/app-urls";
 export async function GET(request: NextRequest) {
   const { searchParams, origin } = new URL(request.url);
   const code = searchParams.get("code");
-  const next = searchParams.get("next") ?? APP_URLS.HOME;  // "/" → último módulo (middleware)
+  const next = searchParams.get("next") ?? APP_URLS.HOME;  // "/" → último módulo (proxy)
 
   if (code) {
     const cookieStore = await cookies();

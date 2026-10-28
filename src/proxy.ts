@@ -3,7 +3,9 @@ import { NextResponse, type NextRequest } from "next/server";
 import { APP_URLS } from "~/constants/app-urls";
 import { ACTIVE_MODULE_COOKIE, MODULE_HOME, parseModule } from "~/helpers/active-module";
 
-export async function middleware(request: NextRequest) {
+// Proxy de Next 16 (antes middleware): sesión de Supabase, rutas públicas y
+// redirección de "/" al último módulo. Corre siempre en Node.js.
+export async function proxy(request: NextRequest) {
   let supabaseResponse = NextResponse.next({ request });
 
   const supabase = createServerClient(
@@ -60,7 +62,7 @@ export const config = {
     // Exclude framework assets and the public PWA resources (manifest, service
     // worker, generated icons, offline page). These must be reachable without a
     // session — the browser fetches the manifest/icons without credentials, so
-    // letting middleware redirect them to /login breaks installability.
+    // letting the proxy redirect them to /login breaks installability.
     "/((?!_next/static|_next/image|favicon\\.ico|manifest\\.webmanifest|sw\\.js|offline\\.html|apple-icon|icons/|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)",
   ],
 };

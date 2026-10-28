@@ -312,7 +312,7 @@ pnlByAccount(trades, accounts)         // { accountName: X, ... }  ⬅️ para v
 ## Sincronización NinjaTrader (add-on)
 
 - `public/downloads/TradeOSSync.cs` — AddOn de NT8 (C# 5, sin dependencias). Por cada posición cerrada (flat → flat) manda los trades emparejados FIFO por ejecución, el stop inicial, MAE/MFE y una captura PNG del chart. Cola en disco + reintentos.
-- `POST /api/ingest/ninjatrader` — auth `Bearer tos_...` (tabla `api_tokens`, solo se guarda el sha256). Sin sesión: usa el service-role client filtrando siempre por el `user_id` del token. Es pública en el middleware (`APP_URLS.INGEST_PREFIX`).
+- `POST /api/ingest/ninjatrader` — auth `Bearer tos_...` (tabla `api_tokens`, solo se guarda el sha256). Sin sesión: usa el service-role client filtrando siempre por el `user_id` del token. Es pública en el proxy (`src/proxy.ts`, `APP_URLS.INGEST_PREFIX`).
 - Dedupe con la misma huella que el CSV (`withImportKeys()`), respeta `import_exclusions`. Los trades entran con `source = 'sync'`. La captura se recodifica a WebP (`lib/images/compress-screenshot.ts`) y solo se adjunta a trades recién insertados.
 - Tokens y descarga de `tradeos.json` en `/settings` → NinjaTrader sync.
 
@@ -322,7 +322,7 @@ TradeOS son tres **módulos** que comparten login, diseño (DESIGN.md), layout `
 
 - El módulo de una ruta se deriva del pathname con `getRouteModule(pathname)` (`src/helpers/active-module.ts`): `/invest…` → invest, `/money…` → money, rutas compartidas (`/settings`) → `null`, todo lo demás → trading. En las compartidas el shell muestra el **último módulo visitado** (`useActiveModule`, `src/hooks/use-active-module.ts`).
 - El sidebar muestra el conmutador Trading / Invest / Money bajo la marca (en móvil, dentro del drawer) y la navegación de ese módulo (`NAV_BY_MODULE` en `sidebar.client.tsx`). Cambiar de módulo navega a su home (`MODULE_HOME`). Settings vive en el footer y es compartido.
-- El último módulo visitado se guarda en la cookie `active_module` (`rememberModule`). La leen el middleware (`/` y el login con sesión van al home de ese módulo; tras login/registro las actions redirigen a `/`) y el layout `(dashboard)` (módulo inicial del sidebar en rutas compartidas).
+- El último módulo visitado se guarda en la cookie `active_module` (`rememberModule`). La leen el proxy (`src/proxy.ts`; `/` y el login con sesión van al home de ese módulo; tras login/registro las actions redirigen a `/`) y el layout `(dashboard)` (módulo inicial del sidebar en rutas compartidas).
 - Cada home de módulo tiene su propia cabecera con título y subtítulo; no hay TopBar global.
 - **Trading es el único módulo con selector de cuenta** (`AccountSelector` en las cabeceras de sus páginas, `?account=`) y con el banner de alertas de prop firm: sus rutas viven en el route group `src/app/(dashboard)/(trading)/` (no cambia las URLs), cuyo layout es el único que pide las alertas.
 - **Cada módulo es dueño de sus tablas y no importa de los otros.** Invest usa el prefijo `invest_*` y Money `finance_*`; las tablas sin prefijo (`trades`, `accounts`, `playbooks`, …) son de Trading. El código de un módulo (rutas, componentes, queries, actions, cálculos, copies) no importa nada de otro módulo; lo compartido (shell, `src/components/`, `src/lib/ui/`, helpers genéricos) no pertenece a ninguno.

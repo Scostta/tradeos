@@ -1,6 +1,6 @@
 import { test, expect } from "@playwright/test"
 
-// Logged-out behavior of the auth gate (middleware) and the login/register pages.
+// Logged-out behavior of the auth gate (proxy) and the login/register pages.
 test.describe("Auth gate", () => {
   test("protected route redirects to login when logged out", async ({ page }) => {
     await page.goto("/dashboard")
