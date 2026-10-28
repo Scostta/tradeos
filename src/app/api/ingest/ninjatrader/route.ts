@@ -16,7 +16,7 @@ import { NextResponse } from "next/server"
 import type { NextRequest } from "next/server"
 import { createServerClient } from "~/utils/supabase/service"
 import { hashApiToken, parseBearerToken } from "~/helpers/api-token"
-import { buildSyncTradeRows } from "~/lib/ingest/ninjatrader-sync"
+import { buildSyncTradeRows, dropCoveredRows } from "~/lib/ingest/ninjatrader-sync"
 import { compressScreenshot } from "~/lib/images/compress-screenshot"
 import { ingestPayloadSchema } from "~/types/ingest"
 import type { IngestResponse } from "~/types/ingest"
@@ -133,12 +133,41 @@ export async function POST(req: NextRequest): Promise<NextResponse<IngestRespons
   const excludedKeys = new Set((exclusions ?? []).map((e) => e.import_key as string))
   const wanted = rows.filter((r) => !excludedKeys.has(r.importKey))
 
-  let insertedIds: string[] = []
+  // Reenvíos con otro reparto de contratos (dropCoveredRows): se buscan los
+  // trades de la cuenta en la ventana de entradas del payload.
+  let fresh = wanted
   if (wanted.length > 0) {
+    const entries = wanted.map((r) => r.entryTime).sort()
+    const { data: existing, error: existingError } = await service
+      .from("trades")
+      .select("instrument, direction, contracts, entry_price, exit_price, entry_time, exit_time")
+      .eq("user_id", userId)
+      .eq("account_id", accountId)
+      .gte("entry_time", new Date(Date.parse(entries[0]!) - 1000).toISOString())
+      .lte("entry_time", new Date(Date.parse(entries[entries.length - 1]!) + 1000).toISOString())
+
+    if (existingError) {
+      console.error(existingError)
+      return fail("INTERNAL_ERROR", 500)
+    }
+
+    fresh = dropCoveredRows(wanted, (existing ?? []).map((t) => ({
+      instrument: t.instrument as string,
+      direction:  t.direction as "long" | "short",
+      contracts:  Number(t.contracts),
+      entryPrice: Number(t.entry_price),
+      exitPrice:  Number(t.exit_price),
+      entryTime:  t.entry_time as string,
+      exitTime:   t.exit_time as string,
+    })))
+  }
+
+  let insertedIds: string[] = []
+  if (fresh.length > 0) {
     const { data: inserted, error: insertError } = await service
       .from("trades")
       .upsert(
-        wanted.map((r) => ({
+        fresh.map((r) => ({
           user_id:     userId,
           account_id:  accountId,
           import_key:  r.importKey,

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest"
-import { buildSyncTradeRows } from "~/lib/ingest/ninjatrader-sync"
+import { buildSyncTradeRows, dropCoveredRows } from "~/lib/ingest/ninjatrader-sync"
 import { withImportKeys } from "~/helpers/trade-fingerprint"
 import { ingestPayloadSchema } from "~/types/ingest"
 
@@ -23,6 +23,34 @@ const basePayload = {
     },
   ],
 }
+
+describe("dropCoveredRows", () => {
+  const lot = {
+    instrument: "MNQ",
+    direction:  "long" as const,
+    entryPrice: 29499.75,
+    exitPrice:  29468.25,
+    entryTime:  "2026-10-22T14:13:16.120Z",
+    exitTime:   "2026-10-22T14:14:39.800Z",
+  }
+
+  it("drops a resend split differently (live long 4, replay long 1 + long 3)", () => {
+    const existing = [{ ...lot, contracts: 4, entryTime: "2026-10-22T14:13:16.000+00:00", exitTime: "2026-10-22T14:14:39.000+00:00" }]
+    const resend = [{ ...lot, contracts: 1 }, { ...lot, contracts: 3 }]
+    expect(dropCoveredRows(resend, existing)).toEqual([])
+  })
+
+  it("keeps new trades and trades with other times or prices", () => {
+    const existing = [{ ...lot, contracts: 1 }]
+    const rows = [
+      { ...lot, contracts: 2 },                          // más contratos de los que hay
+      { ...lot, contracts: 1, exitPrice: 29470 },        // otro precio de salida
+      { ...lot, contracts: 1, direction: "short" as const },
+    ]
+    expect(dropCoveredRows(rows, existing)).toHaveLength(3)
+    expect(dropCoveredRows([{ ...lot, contracts: 1 }], [])).toHaveLength(1)
+  })
+})
 
 describe("buildSyncTradeRows", () => {
   it("drops trades whose exit is before the entry (history replayed in reverse)", () => {
