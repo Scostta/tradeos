@@ -3,6 +3,7 @@ import { createClient } from "~/utils/supabase/server"
 import {
   mapFinanceAccountFromDb,
   mapFinanceCategoryFromDb,
+  mapFinanceGoalFromDb,
   mapFinanceRuleFromDb,
   mapFinanceSettingsFromDb,
   mapFinanceSubscriptionFromDb,
@@ -11,6 +12,7 @@ import {
 import type {
   FinanceAccount,
   FinanceCategory,
+  FinanceGoal,
   FinanceRule,
   FinanceSettings,
   FinanceSubscription,
@@ -186,4 +188,22 @@ export const getSubscriptions = cache(async (): Promise<ResultType<FinanceSubscr
     return createErrorResult(error.message)
   }
   return createDataResult((data ?? []).map(mapFinanceSubscriptionFromDb))
+})
+
+export const getGoals = cache(async (): Promise<ResultType<FinanceGoal[], string>> => {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return createErrorResult("UNAUTHENTICATED")
+
+  const { data, error } = await supabase
+    .from("finance_goals")
+    .select("*")
+    .eq("user_id", user.id)
+    .order("priority", { ascending: true })
+    .order("created_at", { ascending: true })
+  if (error) {
+    console.error(error)
+    return createErrorResult(error.message)
+  }
+  return createDataResult((data ?? []).map(mapFinanceGoalFromDb))
 })

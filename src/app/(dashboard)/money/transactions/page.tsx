@@ -12,11 +12,12 @@ import { MoneyOnboarding } from "../components/money-onboarding.client"
 import { TransactionsView } from "./components/transactions-view.client"
 
 // §5.2 movimientos. ?month=YYYY-MM | all (por defecto, el último mes con
-// datos) y ?queue=1 para la cola de sin categorizar (de todos los meses).
+// datos), ?queue=1 para la cola de sin categorizar (de todos los meses) y
+// ?category=<id> para abrir filtrado (enlaces del Overview).
 export default async function MoneyTransactionsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ month?: string; queue?: string }>
+  searchParams: Promise<{ month?: string; queue?: string; category?: string }>
 }): Promise<ReactElement> {
   const params = await searchParams
   const settingsResult = await getFinanceSettings()
@@ -46,7 +47,7 @@ export default async function MoneyTransactionsPage({
 
   return (
     <TransactionsView
-      key={`${month}|${queue}`}
+      key={`${month}|${queue}|${params.category ?? ""}`}
       transactions={txResult.data}
       categories={categoriesResult.data}
       rules={rulesResult.data}
@@ -55,6 +56,7 @@ export default async function MoneyTransactionsPage({
       month={month}
       queue={queue}
       uncategorized={indexResult.data.uncategorized}
+      initialCategory={categoriesResult.data.some(c => c.id === params.category) ? params.category! : ""}
     />
   )
 }

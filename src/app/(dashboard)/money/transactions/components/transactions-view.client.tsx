@@ -29,6 +29,7 @@ type Props = {
   month:         string               // YYYY-MM o "all"
   queue:         boolean              // modo cola: solo sin categorizar
   uncategorized: number
+  initialCategory: string             // ?category=<id>
 }
 
 function monthLabel(month: string): string {
@@ -48,11 +49,11 @@ function isTyping(target: EventTarget | null): boolean {
 // ↑↓ mueven la selección, Enter abre la categoría, Enter guarda y pasa al
 // siguiente, Esc vuelve a la lista.
 export function TransactionsView(props: Props): ReactElement {
-  const { transactions, categories, rules, accounts, months, month, queue, uncategorized } = props
+  const { transactions, categories, rules, accounts, months, month, queue, uncategorized, initialCategory } = props
   const router = useRouter()
   const selectRef = useRef<HTMLSelectElement>(null)
   const [search, setSearch] = useState("")
-  const [categoryFilter, setCategoryFilter] = useState("")
+  const [categoryFilter, setCategoryFilter] = useState(initialCategory)
   const [page, setPage] = useState(0)
   const [selectedId, setSelectedId] = useState<string | null>(queue ? transactions[0]?.id ?? null : null)
   const [splitFor, setSplitFor] = useState<FinanceTransaction | null>(null)
