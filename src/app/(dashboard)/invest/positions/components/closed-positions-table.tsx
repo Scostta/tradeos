@@ -69,8 +69,8 @@ export function ClosedPositionsTable({ rows }: { rows: ClosedRow[] }): ReactElem
                     <td className="px-3 py-2.5 mono text-sm text-text-dim whitespace-nowrap">{fmtDay(p.openedAt)}</td>
                     <td className="px-3 py-2.5 mono text-sm text-text-dim whitespace-nowrap">{p.closedAt ? fmtDay(p.closedAt) : "—"}</td>
                     <td className={`${CELL} text-text-dim`}>{fmtShares(p.shares)}</td>
-                    <td className={`${CELL} text-text-dim`}>{fmtPrice(p.entryPrice, null)}</td>
-                    <td className={`${CELL} text-text-dim`}>{fmtPrice(p.exitPrice, null)}</td>
+                    <td className={`${CELL} text-text-dim`}>{fmtPrice(p.entryPrice, p.currency)}</td>
+                    <td className={`${CELL} text-text-dim`}>{fmtPrice(p.exitPrice, p.currency)}</td>
                     <td className={`${CELL} ${signColor(r?.grossPnlEur ?? null)}`}>{fmtEur(r?.grossPnlEur ?? null, { sign: true })}</td>
                     <td className={`${CELL} text-text-dim`}>{fmtEur(r?.feesEur ?? null, { decimals: 2 })}</td>
                     <td className={`${CELL} text-text-dim`}>{fmtEur(tax, { decimals: 2 })}</td>

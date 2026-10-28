@@ -318,6 +318,11 @@ export const INVEST = {
     SUGGESTED:      "Suggested: {amount} → {shares} shares",
     SUGGESTED_NO_FX: "Suggested: {amount} (no {currency} rate for this run to compute shares)",
     COST:           "Cost",
+    SIZE_WARNING: {
+      one_share_above: "One share already costs more than the target size: this position is {pct} of your portfolio (target {target}).",
+      over:            "This position is {pct} of your portfolio, above the {target} target.",
+      under:           "This position is {pct} of your portfolio, below the {target} target: one more share still fits.",
+    },
     THESIS:         "Thesis",
     THESIS_HINT:    "Why this company, and why now. At least {min} characters.",
     FALSIFIERS:     "Falsifiers",

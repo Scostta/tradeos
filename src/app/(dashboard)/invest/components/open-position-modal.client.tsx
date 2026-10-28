@@ -4,7 +4,7 @@ import { useState, useTransition } from "react"
 import type { ReactElement, ReactNode } from "react"
 import { openInvestPosition } from "~/actions/invest"
 import { INVEST } from "~/constants/copies/invest"
-import { suggestedPositionSize } from "~/lib/calculations/invest-sizing"
+import { positionSizeWarning, suggestedPositionSize } from "~/lib/calculations/invest-sizing"
 import { thesisFromDraft } from "~/lib/calculations/invest-detail"
 import {
   FALSIFIER_MIN_LENGTH,
@@ -16,7 +16,7 @@ import type { ThesisAnswers } from "~/types/invest"
 import { Toast } from "~/lib/ui/toast"
 import type { ToastVariant } from "~/lib/ui/toast"
 import { cn } from "~/utils/cn"
-import { fmtDay } from "./invest-format"
+import { fmtDay, fmtPct } from "./invest-format"
 import { investErrorMessage } from "./invest-errors"
 import { Modal } from "./modal.client"
 import { INPUT_CLS } from "./settings-form.client"
@@ -88,6 +88,13 @@ export function OpenPositionModal({ candidate: c, onClose, onOpened }: Props): R
   const sharesNum = Number(shares)
   const suggestion = size(priceNum > 0 ? priceNum : 0)
   const costEur = c.eurPerUnit != null && priceNum > 0 && sharesNum > 0 ? priceNum * sharesNum * c.eurPerUnit : null
+  // Solo avisa: los límites que bloquean son los de §1.4 (openBlockers).
+  const sizeWarning = positionSizeWarning({
+    amount:              suggestion.amount,
+    totalPortfolioValue: c.totalPortfolioValue,
+    priceEur:            c.eurPerUnit != null && priceNum > 0 ? priceNum * c.eurPerUnit : null,
+    costEur,
+  })
 
   const input = {
     ticker:     c.ticker,
@@ -172,7 +179,16 @@ export function OpenPositionModal({ candidate: c, onClose, onOpened }: Props): R
             : O.SUGGESTED_NO_FX.replace("{amount}", eur(suggestion.amount)).replace("{currency}", currency)}
         </span>
         {costEur != null && (
-          <span className="mono text-text">{O.COST} {eur(costEur)}</span>
+          <span className={cn("mono", sizeWarning && sizeWarning.kind !== "under" ? "text-short" : "text-text")}>
+            {O.COST} {eur(costEur)}
+          </span>
+        )}
+        {sizeWarning && (
+          <span className="basis-full text-short">
+            {O.SIZE_WARNING[sizeWarning.kind]
+              .replace("{pct}", fmtPct(sizeWarning.pct))
+              .replace("{target}", fmtPct(c.positionPct, { decimals: 0 }))}
+          </span>
         )}
       </div>
 

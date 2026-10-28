@@ -173,7 +173,7 @@ export function ClosePositionModal({ position: p, onClose, onClosed }: Props): R
         <button type="button" onClick={onClose} className="btn-ghost">{C.CANCEL}</button>
         <button
           type="button" onClick={submit} disabled={!valid || pending}
-          className="btn-accent inline-flex items-center gap-2 disabled:opacity-60 disabled:cursor-not-allowed"
+          className="inline-flex items-center gap-2 px-4.5 py-2 rounded-sm bg-loss text-bg text-xs font-semibold hover:bg-loss/90 transition-colors cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
         >
           {pending ? <><Spinner />{C.SUBMITTING}</> : C.SUBMIT}
         </button>

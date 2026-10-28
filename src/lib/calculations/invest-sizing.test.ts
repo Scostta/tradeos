@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest"
-import { suggestedPositionSize } from "./invest-sizing"
+import { positionSizeWarning, suggestedPositionSize } from "./invest-sizing"
 import { buildPriceIndex, eurPerUnit, monthRange, shiftMonth } from "./invest-fx"
 
 const SETTINGS = { totalPortfolioValue: 100_000, positionPct: 0.04 }
@@ -18,6 +18,32 @@ describe("suggestedPositionSize", () => {
 
   it("precio no positivo → 0 acciones", () => {
     expect(suggestedPositionSize(SETTINGS, 0).shares).toBe(0)
+  })
+})
+
+describe("positionSizeWarning", () => {
+  const base = { amount: 600, totalPortfolioValue: 15_000 }
+
+  it("una acción más cara que el objetivo avisa aunque aún no haya coste", () => {
+    expect(positionSizeWarning({ ...base, priceEur: 1_020, costEur: null })).toEqual({ kind: "one_share_above", pct: 0.068 })
+    expect(positionSizeWarning({ ...base, priceEur: 1_020, costEur: 2_040 })?.pct).toBeCloseTo(0.136)
+  })
+
+  it("coste por encima del objetivo → over", () => {
+    expect(positionSizeWarning({ ...base, priceEur: 100, costEur: 700 })).toEqual({ kind: "over", pct: 700 / 15_000 })
+  })
+
+  it("cabe otra acción → under", () => {
+    expect(positionSizeWarning({ ...base, priceEur: 100, costEur: 400 })).toEqual({ kind: "under", pct: 400 / 15_000 })
+  })
+
+  it("las acciones sugeridas (floor) no avisan, tampoco por un céntimo de redondeo", () => {
+    expect(positionSizeWarning({ ...base, priceEur: 107, costEur: 535 })).toBeNull()
+    expect(positionSizeWarning({ ...base, priceEur: 100, costEur: 600.004 })).toBeNull()
+  })
+
+  it("sin precio en EUR no hay aviso", () => {
+    expect(positionSizeWarning({ ...base, priceEur: null, costEur: null })).toBeNull()
   })
 })
 
