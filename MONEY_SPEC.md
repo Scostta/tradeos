@@ -253,6 +253,7 @@ Pestañas: Accounts (CRUD `finance_accounts`), Categories (CRUD + is_fixed + col
 No es una app aparte: es el responsive de `/money` más una pantalla nueva.
 - **M1:** `/money` a 390 px: "Left this month" grande, dos tarjetas (ahorro real, suscripciones), categorías, próximas renovaciones, barra inferior con Overview / Transactions / **+** / Subscriptions / Goals. La barra inferior solo aparece en Money y a ancho de móvil.
 - **M2:** `/money/cash` — alta rápida de gasto en efectivo: importe con teclado numérico propio (no el del sistema), categoría (chips de las 5 más usadas + "más"), concepto opcional, Save con fecha de hoy. Crea una transacción `source = 'manual'` en la cuenta `cash` con `import_key = manual|<uuid>`. "Solo para lo que el banco no ve."
+**Decisión (28/10/2026):** el importe usa el teclado decimal del sistema (`inputmode="decimal"`), como el artboard M2, no un teclado propio. La hoja tiene también fecha (hoy por defecto, editable) y concepto opcional; los chips son las 5 categorías de gasto más usadas en 90 días (`quickCategories`) y "More…" abre el select con todas. El "+" de la barra inferior abre la hoja sobre la página actual; `/money/cash` es la misma hoja como página. Si falta la cuenta Cash, `addCashExpense` la crea.
 
 ---
 

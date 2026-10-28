@@ -207,3 +207,33 @@ export const getGoals = cache(async (): Promise<ResultType<FinanceGoal[], string
   }
   return createDataResult((data ?? []).map(mapFinanceGoalFromDb))
 })
+
+/**
+ * Categorías de gasto ordenadas por uso en los últimos 90 días (las más
+ * usadas primero): chips del alta de efectivo (§5.7 M2).
+ */
+export const getExpenseCategoryUsage = cache(async (today: string): Promise<ResultType<string[], string>> => {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return createErrorResult("UNAUTHENTICATED")
+
+  const since = new Date(Date.parse(`${today}T00:00:00Z`) - 90 * 86_400_000).toISOString().slice(0, 10)
+  const { data, error } = await supabase
+    .from("finance_transactions")
+    .select("category_id")
+    .eq("user_id", user.id)
+    .lt("amount", 0)
+    .not("category_id", "is", null)
+    .gte("booked_at", since)
+    .range(0, 4999)
+  if (error) {
+    console.error(error)
+    return createErrorResult(error.message)
+  }
+  const counts = new Map<string, number>()
+  for (const row of data ?? []) {
+    const id = row.category_id as string
+    counts.set(id, (counts.get(id) ?? 0) + 1)
+  }
+  return createDataResult([...counts.entries()].sort((a, b) => b[1] - a[1]).map(([id]) => id))
+})

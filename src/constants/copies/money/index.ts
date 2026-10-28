@@ -319,6 +319,22 @@ export const MONEY = {
     REAL_BODY:      "Income minus everything that left the account (fixed + variable), from imported transactions. If a month closes below the allocated total, goals adjust by priority. When that money is moved to a savings account or a broker, categorize the transfer as Savings/Investing or Transfer: it doesn't count as spending.",
   },
 
+  CASH: {
+    TITLE:     "Add cash expense",
+    SUBTITLE:  "Only what the bank doesn't see. Card charges arrive with the import.",
+    AMOUNT:    "Amount",
+    CATEGORY:  "Category",
+    MORE:      "More…",
+    CONCEPT:   "Concept",
+    CONCEPT_PLACEHOLDER: "What was it",
+    DATE:      "Date",
+    SAVE:      "Save",
+    CANCEL:    "Cancel",
+    CLOSE:     "Close",
+    SAVED:     "Saved {amount} in {category}",
+    ADD:       "Add cash expense",
+  },
+
   ACCOUNT_KINDS: {
     checking: "Checking",
     savings:  "Savings",

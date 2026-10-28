@@ -15,6 +15,7 @@ import { detectRecurring } from "~/lib/finance/recurring"
 import { monthlySummary } from "~/lib/finance/summary"
 import { mapFinanceCategoryFromDb, mapFinanceGoalFromDb, mapFinanceTransactionFromDb } from "~/services/mappers/finance"
 import {
+  addCashExpenseInputSchema,
   archiveGoalInputSchema,
   categorizeTransactionInputSchema,
   createFinanceAccountInputSchema,
@@ -904,4 +905,64 @@ export async function ensureMonthsClosed(): Promise<void> {
   const today = new Date().toISOString().slice(0, 10)
   const current = monthOf(today, (settings.month_start_day as number | null) ?? 1)
   await runMonthClose(supabase, user.id, shiftMonth(current, -1))
+}
+
+// ── Efectivo (§5.7 M2) ──────────────────────────────────────────────────────
+
+/**
+ * Gasto en efectivo: movimiento manual (negativo) en la cuenta Cash, ya
+ * categorizado. Si el usuario no tiene la cuenta Cash del alta, se crea.
+ */
+export async function addCashExpense(input: unknown): Promise<ResultType<{ id: string }, FinanceActionError>> {
+  const parsed = addCashExpenseInputSchema.safeParse(input)
+  if (!parsed.success) return createErrorResult("INVALID_INPUT")
+
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return createErrorResult("UNAUTHENTICATED")
+
+  const { amount, categoryId, concept, date } = parsed.data
+  const { data: category, error: categoryError } = await supabase
+    .from("finance_categories").select("id, name").eq("id", categoryId).eq("user_id", user.id).maybeSingle()
+  if (categoryError) {
+    console.error(categoryError)
+    return createErrorResult("UNKNOWN")
+  }
+  if (!category) return createErrorResult("INVALID_INPUT")
+
+  const { error: upsertError } = await supabase.from("finance_accounts").upsert(
+    { user_id: user.id, name: CASH_ACCOUNT_NAME, kind: "cash" },
+    { onConflict: "user_id,name", ignoreDuplicates: true },
+  )
+  const { data: cash, error: cashError } = await supabase
+    .from("finance_accounts").select("id").eq("user_id", user.id).eq("kind", "cash")
+    .order("created_at", { ascending: true }).limit(1).maybeSingle()
+  if (upsertError || cashError || !cash) {
+    console.error(upsertError ?? cashError)
+    return createErrorResult("UNKNOWN")
+  }
+
+  const { data, error } = await supabase
+    .from("finance_transactions")
+    .insert({
+      user_id:         user.id,
+      account_id:      cash.id as string,
+      booked_at:       date,
+      amount:          -amount,
+      concept_raw:     concept ?? (category.name as string),
+      counterparty:    concept ? normalizeConcept(concept) : null,
+      category_id:     categoryId,
+      category_source: "manual",
+      source:          "manual",
+      import_key:      manualImportKey(crypto.randomUUID()),
+    })
+    .select("id")
+    .single()
+  if (error) {
+    console.error(error)
+    return createErrorResult("UNKNOWN")
+  }
+
+  revalidatePath(APP_URLS.MONEY, "layout")
+  return createDataResult({ id: data.id as string })
 }

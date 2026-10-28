@@ -251,3 +251,13 @@ export const updateGoalInputSchema = z.object({
 export type UpdateGoalInput = z.infer<typeof updateGoalInputSchema>
 
 export const archiveGoalInputSchema = z.object({ goalId: z.string().uuid() })
+
+// ── Efectivo (§5.7 M2) ──────────────────────────────────────────────────────
+
+export const addCashExpenseInputSchema = z.object({
+  amount:     z.number().finite().positive().max(1_000_000),   // lo que salió, en positivo
+  categoryId: z.string().uuid(),
+  concept:    z.string().trim().min(1).max(100).nullable(),
+  date:       isoDate,
+})
+export type AddCashExpenseInput = z.infer<typeof addCashExpenseInputSchema>
