@@ -29,8 +29,8 @@ export function ClosePositionButton({ position }: { position: ClosablePosition }
         type="button"
         onClick={() => setOpen(true)}
         className={cn(
-          "btn-ghost px-3 py-1 text-xs",
-          position.sellSignal ? "border-loss/50 text-loss hover:border-loss" : "text-text hover:border-border-hi",
+          "text-xs text-loss border rounded-sm px-3 py-1 hover:bg-loss/10 transition-colors cursor-pointer whitespace-nowrap",
+          position.sellSignal ? "border-loss bg-loss/10" : "border-loss/40",
         )}
       >
         {INVEST.POSITIONS.CLOSE_CTA}
