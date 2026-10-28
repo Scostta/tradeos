@@ -129,6 +129,8 @@ create table if not exists finance_subscriptions (
 ```
 Se recalcula tras cada import (§4.3). `status`: `pending` (detectada, por confirmar), `confirmed`, `cancelled` (dada de baja; si vuelve a cobrar, la app avisa), `ignored` (no es una suscripción). `usage` lo marca el usuario; `fixed` = gasto fijo que no se cuestiona (seguro). "Candidatas a cancelar" = `confirmed` con `usage = 'unused'` desde hace ≥ 2 meses.
 
+**Categoría automática (28/10/2026, a petición del usuario):** al **confirmar** una suscripción se crea la regla `contraparte → Subscriptions` (prioridad 10, gana a las reglas genéricas) y se reaplica: sus cargos pendientes y los de futuros imports quedan en Subscriptions; nunca pisa lo manual ni los splits. Al descartarla (`ignored`) o devolverla a `pending` se borra esa regla y lo que categorizó vuelve a la cola (o a otra regla). `cancelled` la conserva. Al ser una regla por comercio, cualquier otro pago a ese mismo comercio también entra en Subscriptions.
+
 **Decisión de implementación (28/10/2026):** `updated_at` marca el último cambio **del usuario** (status o usage); el recálculo tras cada import no lo toca. Así, una `cancelled` cuyo `last_seen` es posterior a `updated_at` es una suscripción que ha vuelto a cobrar tras cancelarla (aviso arriba en §5.3), sin columna extra. El texto de "Detection rule" del diseño (≥ 3 cargos, ±5 %) se sustituye por el de esta spec (≥ 2 cargos, ±10 %), y el botón "Add manually" del diseño no se implementa (no está en §5.3).
 
 ### 2.6 `finance_goals` — objetivos de ahorro

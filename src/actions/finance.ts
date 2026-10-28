@@ -567,20 +567,88 @@ export async function setSubscriptionStatus(input: unknown): Promise<ResultType<
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return createErrorResult("UNAUTHENTICATED")
 
+  const { status } = parsed.data
   const { data, error } = await supabase
     .from("finance_subscriptions")
-    .update({ status: parsed.data.status, updated_at: new Date().toISOString() })
+    .update({ status, updated_at: new Date().toISOString() })
     .eq("id", parsed.data.subscriptionId)
     .eq("user_id", user.id)
-    .select("id")
+    .select("id, counterparty")
   if (error) {
     console.error(error)
     return createErrorResult("UNKNOWN")
   }
   if (!data || data.length === 0) return createErrorResult("NOT_FOUND")
 
+  // Cancelada conserva la regla: lo que cobró sigue siendo de una suscripción.
+  const counterparty = data[0]!.counterparty as string
+  if (status === "confirmed") await addSubscriptionRule(supabase, user.id, parsed.data.subscriptionId, counterparty)
+  if (status === "ignored" || status === "pending") await removeSubscriptionRule(supabase, user.id, counterparty)
+
   revalidatePath(APP_URLS.MONEY, "layout")
   return createDataResult({ ok: true })
+}
+
+// Prioridad de la regla de una suscripción confirmada: gana a las reglas
+// genéricas del usuario (prioridad 0) sobre el mismo comercio.
+const SUBSCRIPTION_RULE_PRIORITY = 10
+
+/** Categoría "Subscriptions" del seed (§2.2); null si el usuario la quitó. */
+async function subscriptionsCategoryId(supabase: Supabase, userId: string): Promise<string | null> {
+  const { data } = await supabase
+    .from("finance_categories").select("id").eq("user_id", userId).eq("name", "Subscriptions").eq("kind", "expense").maybeSingle()
+  return (data?.id as string | undefined) ?? null
+}
+
+/**
+ * Suscripción confirmada → regla "contraparte → Subscriptions": categoriza sus
+ * cargos pendientes (sin categoría o por regla; nunca lo manual) y los de los
+ * próximos imports. MONEY_SPEC.md §2.5.
+ */
+async function addSubscriptionRule(supabase: Supabase, userId: string, subscriptionId: string, counterparty: string): Promise<void> {
+  const categoryId = await subscriptionsCategoryId(supabase, userId)
+  if (!categoryId) return
+  const { error } = await supabase.from("finance_category_rules").upsert(
+    { user_id: userId, pattern: counterparty, category_id: categoryId, priority: SUBSCRIPTION_RULE_PRIORITY },
+    { onConflict: "user_id,pattern" },
+  )
+  if (error) {
+    console.error(error)
+    return
+  }
+  await supabase.from("finance_subscriptions").update({ category_id: categoryId }).eq("id", subscriptionId).eq("user_id", userId)
+  await reapplyRules(supabase, userId)
+}
+
+/**
+ * Descartada o devuelta a pendiente → se quita esa regla y lo que categorizó
+ * vuelve a la cola (o a otra regla que le encaje). Solo si la regla del
+ * comercio es la de la suscripción (apunta a Subscriptions).
+ */
+async function removeSubscriptionRule(supabase: Supabase, userId: string, counterparty: string): Promise<void> {
+  const categoryId = await subscriptionsCategoryId(supabase, userId)
+  if (!categoryId) return
+  const { data: removed, error } = await supabase
+    .from("finance_category_rules").delete()
+    .eq("user_id", userId).eq("pattern", counterparty).eq("category_id", categoryId)
+    .select("id")
+  if (error) {
+    console.error(error)
+    return
+  }
+  if (!removed || removed.length === 0) return
+  const { error: resetError } = await supabase
+    .from("finance_transactions")
+    .update({ category_id: null, category_source: null })
+    .eq("user_id", userId)
+    .eq("category_source", "rule")
+    .eq("category_id", categoryId)
+    .like("counterparty", `%${counterparty.replace(/[%_]/g, "\\$&")}%`)
+  if (resetError) {
+    console.error(resetError)
+    return
+  }
+  await reapplyRules(supabase, userId)
 }
 
 /** Uso marcado por el usuario; "unused" guarda desde cuándo (candidatas a cancelar). */
