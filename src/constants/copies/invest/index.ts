@@ -62,6 +62,15 @@ export const INVEST = {
   },
 
   POSITION: {
+    AI_TITLE:      "AI review of falsifiers",
+    AI_GENERATE:   "Review",
+    AI_REFRESH:    "Refresh",
+    AI_THINKING:   "Thinking…",
+    AI_GENERATED:  "Generated {date}",
+    AI_STALE:      "New run or data · refresh",
+    AI_EMPTY:      "Checks each falsifier against the latest run: likely, not yet or unclear, with the figures. You still mark them.",
+    AI_VERDICT:    { likely: "Likely met", not_yet: "Not yet", unclear: "Unclear" },
+    AI_DISCLAIMER: "AI · only the figures in TradeOS (no news or quarterly reports) · the exit rule doesn't change",
     BACK:          "Positions",
     TICKER_DETAIL: "Ticker detail",
     LOAD_ERROR:    "Could not load this position.",

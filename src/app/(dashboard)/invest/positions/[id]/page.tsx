@@ -2,7 +2,10 @@ import type { ReactElement, ReactNode } from "react"
 import Link from "next/link"
 import { APP_URLS } from "~/constants/app-urls"
 import { INVEST } from "~/constants/copies/invest"
-import { getPositionChecks, getPricesFor } from "~/services/queries/invest"
+import { aiConfigured, inputHash } from "~/lib/ai/claude-json"
+import { reviewContentSchema } from "~/lib/invest/ai/review"
+import { reviewInput } from "~/lib/invest/ai/review-input"
+import { getFundamentalsHistory, getInvestAiNote, getLatestRun, getPositionChecks, getPricesFor, getScreenResult } from "~/services/queries/invest"
 import { monthKey, shiftMonth } from "~/lib/calculations/invest-fx"
 import { nextMonthlyClose } from "~/lib/calculations/invest-calendar"
 import { exitLevel, smaSteps } from "~/lib/calculations/invest-position-chart"
@@ -16,6 +19,7 @@ import { PositionChart } from "./components/position-chart.client"
 import type { PnlTone } from "./components/position-chart.client"
 import { ThesisFalsifiers } from "./components/thesis-falsifiers.client"
 import { ChecksTable } from "./components/checks-table"
+import { AiReviewCard } from "./components/ai-review-card.client"
 
 const D = INVEST.POSITION
 // 18 meses de velas + los 9 cierres previos que necesita la primera SMA 10.
@@ -64,6 +68,23 @@ export default async function InvestPositionPage({
         getPricesFor([p.ticker], `${shiftMonth(monthKey(today), -PRICE_MONTHS)}-01`),
       ])
     : [null, null]
+
+  // §4.8: revisión de la IA (solo abiertas); "stale" si hay run nuevo o cambiaron los datos.
+  let aiCard: ReactElement | null = null
+  if (openRow && p && aiConfigured() && checksResult?.success) {
+    const runRes = await getLatestRun()
+    const run = runRes.success ? runRes.data : null
+    if (run) {
+      const [note, result, fundamentals] = await Promise.all([
+        getInvestAiNote("review", run.id, p.id), getScreenResult(run.id, p.ticker), getFundamentalsHistory(p.ticker),
+      ])
+      const content = note.success && note.data ? reviewContentSchema.safeParse(note.data.content) : null
+      const initial = content?.success && note.success && note.data ? { content: content.data, createdAt: note.data.createdAt } : null
+      const stale = initial != null && result.success && fundamentals.success && note.success && note.data?.inputHash
+        !== await inputHash(reviewInput({ run, position: p, result: result.data, checks: checksResult.data, fundamentals: fundamentals.data }))
+      aiCard = <AiReviewCard runId={run.id} positionId={p.id} falsifiers={p.falsifiers} initial={initial} stale={stale} />
+    }
+  }
 
   const header = (
     <header className="flex items-center gap-4 px-4 md:px-7 py-3 border-b border-border bg-bg shrink-0">
@@ -158,6 +179,8 @@ export default async function InvestPositionPage({
             editable={openRow != null}
           />
         </Card>
+
+        {aiCard}
 
         <Card title={D.CHECKS_TITLE} right={openRow && <SignalBadge check={openRow.check} />}>
           <ChecksTable checks={checks} currency={p.currency} />

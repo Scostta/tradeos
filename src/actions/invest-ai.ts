@@ -10,12 +10,16 @@ import type { AiError } from "~/lib/ai/claude-json"
 import { commentRun, picksContentSchema } from "~/lib/invest/ai/picks"
 import type { PicksContent } from "~/lib/invest/ai/picks"
 import { picksInput } from "~/lib/invest/ai/picks-input"
+import { reviewContentSchema, reviewPosition } from "~/lib/invest/ai/review"
+import type { ReviewContent } from "~/lib/invest/ai/review"
+import { reviewInput } from "~/lib/invest/ai/review-input"
 import {
   getFundamentalsHistory,
   getInvestAiNote,
   getInvestSettings,
   getInvestTicker,
   getLatestRun,
+  getPositionChecks,
   getPositions,
   getScreenResult,
   getScreenResults,
@@ -121,5 +125,48 @@ export async function generateRunPicks(
     user_id: user.id, kind: "picks", run_id: run.id, position_id: null, input_hash: hash, content: ai.data.data, model: ai.data.model,
   })
   revalidatePath(APP_URLS.INVEST)
+  return createDataResult({ content: ai.data.data, createdAt })
+}
+
+/**
+ * Revisión de los falsadores de una posición abierta con los datos del run
+ * vigente (§4.8). Misma caché por hash que el comentario del run.
+ */
+export async function generatePositionReview(
+  input: unknown,
+): Promise<ResultType<{ content: ReviewContent; createdAt: string }, InvestAiError>> {
+  const parsed = aiNoteInputSchema.safeParse(input)
+  if (!parsed.success || !parsed.data.positionId) return createErrorResult("INVALID_INPUT")
+  const positionId = parsed.data.positionId
+
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return createErrorResult("UNAUTHENTICATED")
+
+  const [runRes, positionsRes, checksRes] = await Promise.all([getLatestRun(), getPositions(), getPositionChecks(positionId)])
+  if (!runRes.success || !positionsRes.success || !checksRes.success) return createErrorResult("UNKNOWN")
+  const run = runRes.data
+  if (!run || run.id !== parsed.data.runId) return createErrorResult("NOT_IN_RUN")
+  const position = positionsRes.data.find(p => p.id === positionId)
+  if (!position) return createErrorResult("POSITION_NOT_FOUND")
+  if (position.closedAt != null) return createErrorResult("NOT_OPEN")
+
+  const [resultRes, fundamentalsRes] = await Promise.all([getScreenResult(run.id, position.ticker), getFundamentalsHistory(position.ticker)])
+  if (!resultRes.success || !fundamentalsRes.success) return createErrorResult("UNKNOWN")
+
+  const aiInput = reviewInput({ run, position, result: resultRes.data, checks: checksRes.data, fundamentals: fundamentalsRes.data })
+  const hash = await inputHash(aiInput)
+  const stored = await getInvestAiNote("review", run.id, positionId)
+  if (!parsed.data.refresh && stored.success && stored.data && stored.data.inputHash === hash) {
+    const content = reviewContentSchema.safeParse(stored.data.content)
+    if (content.success) return createDataResult({ content: content.data, createdAt: stored.data.createdAt })
+  }
+
+  const ai = await reviewPosition(aiInput)
+  if (!ai.success) return createErrorResult(ai.error)
+  const createdAt = await saveNote(supabase, {
+    user_id: user.id, kind: "review", run_id: run.id, position_id: positionId, input_hash: hash, content: ai.data.data, model: ai.data.model,
+  })
+  revalidatePath(APP_URLS.INVEST, "layout")
   return createDataResult({ content: ai.data.data, createdAt })
 }
