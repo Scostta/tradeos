@@ -314,3 +314,23 @@ export async function getInvestAiNote(
   }
   return createDataResult(data ? { content: data.content, inputHash: data.input_hash as string, createdAt: data.created_at as string } : null)
 }
+
+export type InvestSellAlert = { positionId: string; ticker: string; paper: boolean; runDate: string }
+
+/**
+ * Posiciones abiertas cuyo último check es "sell" (INVEST_SPEC §4.9). La usa
+ * el layout compartido para el aviso de venta en toda la app: solo lectura.
+ * Sin Invest o ante un error devuelve [] (el aviso no debe romper el shell).
+ */
+export async function getInvestSellAlerts(): Promise<InvestSellAlert[]> {
+  const positions = await getPositions()
+  if (!positions.success) return []
+  const open = positions.data.filter(p => p.closedAt == null)
+  if (open.length === 0) return []
+  const checks = await getLatestChecks(open.map(p => p.id))
+  if (!checks.success) return []
+  return open.flatMap(p => {
+    const c = checks.data[p.id]
+    return c?.signal === "sell" ? [{ positionId: p.id, ticker: p.ticker, paper: p.paper, runDate: c.runDate }] : []
+  })
+}

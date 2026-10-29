@@ -326,6 +326,7 @@ TradeOS son tres **módulos** que comparten login, diseño (DESIGN.md), layout `
 - Cada home de módulo tiene su propia cabecera con título y subtítulo; no hay TopBar global.
 - **Trading es el único módulo con selector de cuenta** (`AccountSelector` en las cabeceras de sus páginas, `?account=`) y con el banner de alertas de prop firm: sus rutas viven en el route group `src/app/(dashboard)/(trading)/` (no cambia las URLs), cuyo layout es el único que pide las alertas.
 - **Cada módulo es dueño de sus tablas y no importa de los otros.** Invest usa el prefijo `invest_*` y Money `finance_*`; las tablas sin prefijo (`trades`, `accounts`, `playbooks`, …) son de Trading. El código de un módulo (rutas, componentes, queries, actions, cálculos, copies) no importa nada de otro módulo; lo compartido (shell, `src/components/`, `src/lib/ui/`, helpers genéricos) no pertenece a ninguno.
+- **Aviso de venta de Invest en todo el shell**: el layout `(dashboard)` lee `getInvestSellAlerts()` y pinta `InvestSellBanner` (`src/components/layout/`) en cualquier módulo. Es de solo lectura y la única lectura de un módulo desde el shell hoy.
 - Futuro: una vista **"Net worth"** en Money leerá de los tres módulos (saldos de cuentas de Trading, satélite de Invest, finanzas de Money) **sin escribir en ninguno**. Es la única excepción prevista a la regla de no importar entre módulos, y es de solo lectura.
 
 ## Invest

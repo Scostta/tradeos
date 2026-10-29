@@ -178,6 +178,13 @@ export const INVEST = {
     REVIEWED_OF:    "{reviewed} of {total}",
   },
 
+  SELL_BANNER: {
+    TITLE:   "Sell signal",
+    BODY:    "Closed below its 10-month SMA: the rule says exit.",
+    CHIP:    "below SMA10 · {date}",
+    PAPER:   "paper",
+    DISMISS: "Hide until the next run",
+  },
   SCREEN: {
     AI_TITLE:      "AI read of this run",
     AI_GENERATE:   "Generate",
