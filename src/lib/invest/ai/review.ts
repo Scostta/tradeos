@@ -26,10 +26,10 @@ const SYSTEM = `You review an open stock position against the investor's own fal
 
 For EACH falsifier (by index) return:
 - verdict: "likely" if the data in the JSON shows the condition is met or clearly being met; "not_yet" if the data shows it is not met; "unclear" if the JSON does not contain the data needed to judge it (e.g. quarterly figures, news, guidance). Prefer "unclear" over guessing.
-- evidence: the exact figures from the JSON you used (ratios are decimals: write them as percentages), or what data is missing.
-- note: one short sentence on what to check next.
+- evidence: at most 15 words: the exact figures from the JSON you used (ratios are decimals: write them as percentages), or what data is missing.
+- note: at most 12 words: what to check next.
 
-"summary": 1–2 sentences on the position overall, mentioning the mechanical exit if the latest check signal is "sell" or the price is below the 10-month SMA (the system exits on that, not you).
+"summary": ONE sentence, at most 25 words, on the position overall, mentioning the mechanical exit if the latest check signal is "sell" or the price is below the 10-month SMA (the system exits on that, not you).
 
 Rules: use only the JSON; never invent quarterly results, news or prices; no buy/sell recommendation — the investor decides and marks each falsifier. Write in the same language as the falsifiers.`
 

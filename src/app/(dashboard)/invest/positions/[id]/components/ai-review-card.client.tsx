@@ -17,13 +17,25 @@ const VERDICT_CLS: Record<ReviewContent["falsifiers"][number]["verdict"], string
   not_yet: "bg-profit/10 text-profit",
   unclear: "bg-surface-2 text-text-dim",
 }
+const VERDICT_DOT: Record<ReviewContent["falsifiers"][number]["verdict"], string> = {
+  likely:  "bg-loss",
+  not_yet: "bg-profit",
+  unclear: "bg-text-mute",
+}
+
+/** Primera frase del falsador (el texto completo va en el title). */
+function headline(text: string): string {
+  const first = text.split(/(?<=[.;])s/)[0] ?? text
+  return first.length > 160 ? `${first.slice(0, 157)}…` : first
+}
 
 // §4.8: revisión de los falsadores con los datos del run vigente. Solo opina:
 // el estado de cada falsador lo marca el usuario en la tarjeta de la tesis.
-export function AiReviewCard({ runId, positionId, falsifiers, initial, stale }: {
+export function AiReviewCard({ runId, positionId, falsifiers, status, initial, stale }: {
   runId:      string
   positionId: string
   falsifiers: string[]
+  status:     ("ok" | "review")[]   // estado manual de cada falsador (falsifier_status)
   initial:    { content: ReviewContent; createdAt: string } | null
   stale:      boolean
 }): ReactElement {
@@ -64,14 +76,21 @@ export function AiReviewCard({ runId, positionId, falsifiers, initial, stale }: 
           <>
             <p className="text-sm text-text-dim">{review.content.summary}</p>
             {review.content.falsifiers.map(f => (
-              <div key={f.index} className="flex flex-col gap-1">
-                <div className="flex items-start gap-2">
-                  <span className="mono text-xs text-text-mute mt-0.5">{f.index + 1}</span>
-                  <span className="text-sm text-text flex-1 min-w-0">{falsifiers[f.index] ?? ""}</span>
-                  <span className={cn("text-xs font-medium px-2 py-0.5 rounded-sm whitespace-nowrap", VERDICT_CLS[f.verdict])}>{D.AI_VERDICT[f.verdict]}</span>
+              <div key={f.index} className="grid gap-3 py-2.5 border-t border-border first:border-t-0" style={{ gridTemplateColumns: "28px minmax(0, 1fr) auto" }}>
+                <span className="size-7 rounded-md bg-surface-2 mono text-sm font-semibold text-text flex items-center justify-center">{f.index + 1}</span>
+                <div className="flex flex-col gap-1.5 min-w-0">
+                  <span className="text-sm font-medium text-text" title={falsifiers[f.index] ?? ""}>{headline(falsifiers[f.index] ?? "")}</span>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className={cn("inline-flex items-center gap-1.5 text-xs font-medium px-2 py-0.5 rounded-sm whitespace-nowrap", VERDICT_CLS[f.verdict])}>
+                      <span className={cn("size-2 rounded-full", VERDICT_DOT[f.verdict])} />{D.AI_VERDICT[f.verdict]}
+                    </span>
+                    <span className="mono text-xs text-text-mute">{f.evidence}</span>
+                  </div>
+                  {f.note && <span className="text-xs text-text-dim">{D.AI_NEXT.replace("{note}", f.note)}</span>}
                 </div>
-                <span className="mono text-xs text-text-mute pl-5">{f.evidence}</span>
-                {f.note && <span className="text-xs text-text-dim pl-5">{f.note}</span>}
+                <span className={cn("self-start text-xs px-2 py-0.5 rounded-sm whitespace-nowrap", (status[f.index] ?? "ok") === "review" ? "bg-short/10 text-short" : "bg-surface-2 text-text-dim")}>
+                  {D.AI_YOU.replace("{status}", (status[f.index] ?? "ok") === "review" ? D.AI_YOU_REVIEW : D.AI_YOU_OK)}
+                </span>
               </div>
             ))}
             <span className="text-xs text-text-mute">{D.AI_DISCLAIMER}</span>

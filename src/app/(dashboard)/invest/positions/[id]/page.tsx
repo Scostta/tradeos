@@ -20,6 +20,8 @@ import type { PnlTone } from "./components/position-chart.client"
 import { ThesisFalsifiers } from "./components/thesis-falsifiers.client"
 import { ChecksTable } from "./components/checks-table"
 import { AiReviewCard } from "./components/ai-review-card.client"
+import { ExitDistance } from "./components/exit-distance"
+import { ChecksStrip } from "./components/checks-strip"
 
 const D = INVEST.POSITION
 // 18 meses de velas + los 9 cierres previos que necesita la primera SMA 10.
@@ -82,7 +84,7 @@ export default async function InvestPositionPage({
       const initial = content?.success && note.success && note.data ? { content: content.data, createdAt: note.data.createdAt } : null
       const stale = initial != null && result.success && fundamentals.success && note.success && note.data?.inputHash
         !== await inputHash(reviewInput({ run, position: p, result: result.data, checks: checksResult.data, fundamentals: fundamentals.data }))
-      aiCard = <AiReviewCard runId={run.id} positionId={p.id} falsifiers={p.falsifiers} initial={initial} stale={stale} />
+      aiCard = <AiReviewCard runId={run.id} positionId={p.id} falsifiers={p.falsifiers} status={p.falsifierStatus} initial={initial} stale={stale} />
     }
   }
 
@@ -142,6 +144,11 @@ export default async function InvestPositionPage({
     return (
       <>
         <PositionSummary row={openRow ? { kind: "open", data: openRow } : { kind: "closed", data: closedRow! }} />
+
+        {openRow && level != null && openRow.valuation.lastPrice != null && (
+          <ExitDistance exitLevel={level} entry={p.entryPrice} last={openRow.valuation.lastPrice} currency={p.currency} />
+        )}
+        {openRow && <ChecksStrip openedAt={p.openedAt} checks={checks} nextClose={evaluation} />}
 
         <Card
           title={D.CHART_TITLE}
