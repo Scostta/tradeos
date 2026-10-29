@@ -147,6 +147,21 @@ export type SetupMoneyInput = z.infer<typeof setupMoneyInputSchema>
 export const createFinanceAccountInputSchema = setupMoneyInputSchema
 export type CreateFinanceAccountInput = z.infer<typeof createFinanceAccountInputSchema>
 
+export const updateFinanceAccountInputSchema = z.object({
+  accountId:   z.string().uuid(),
+  accountName: z.string().trim().min(1).max(60),
+  accountKind: financeAccountKindSchema,
+  ibanLast4,
+  active:      z.boolean(),
+})
+export type UpdateFinanceAccountInput = z.infer<typeof updateFinanceAccountInputSchema>
+
+export const accountIdInputSchema = z.object({ accountId: z.string().uuid() })
+
+// ── Mes (§5.6) ──────────────────────────────────────────────────────────────
+
+export const monthStartDayInputSchema = z.object({ monthStartDay: z.number().int().min(1).max(28) })
+
 // ── Import (§3) ─────────────────────────────────────────────────────────────
 
 export const MAX_IMPORT_ROWS = 5000

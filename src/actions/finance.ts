@@ -20,15 +20,18 @@ import {
   categorizeTransactionInputSchema,
   createFinanceAccountInputSchema,
   createGoalInputSchema,
+  accountIdInputSchema,
   createCategoryInputSchema,
   deleteRuleInputSchema,
   importTransactionsInputSchema,
+  monthStartDayInputSchema,
   setupMoneyInputSchema,
   splitTransactionInputSchema,
   subscriptionStatusInputSchema,
   subscriptionUsageInputSchema,
   unsplitTransactionInputSchema,
   updateCategoryInputSchema,
+  updateFinanceAccountInputSchema,
   updateGoalInputSchema,
   updateRuleInputSchema,
 } from "~/types/finance"
@@ -46,6 +49,9 @@ export type FinanceActionError =
   | "NO_SETTINGS"
   | "ACCOUNT_EXISTS"
   | "CATEGORY_EXISTS"
+  | "ACCOUNT_HAS_TRANSACTIONS"
+  | "CASH_ACCOUNT"
+  | "MONTH_CLOSED"
   | "NOT_FOUND"
   | "SPLIT_SUM"
   | "UNKNOWN"
@@ -147,6 +153,94 @@ export async function createFinanceAccount(input: unknown): Promise<ResultType<{
 
   revalidatePath(APP_URLS.MONEY, "layout")
   return createDataResult({ id: inserted.id as string })
+}
+
+/**
+ * Ajustes → Accounts: nombre, tipo, últimos 4 del IBAN y archivar. La cuenta
+ * Cash (§2.1) conserva su tipo: el alta de efectivo la busca por él.
+ */
+export async function updateFinanceAccount(input: unknown): Promise<ResultType<{ ok: true }, FinanceActionError>> {
+  const parsed = updateFinanceAccountInputSchema.safeParse(input)
+  if (!parsed.success) return createErrorResult("INVALID_INPUT")
+  const data = parsed.data
+
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return createErrorResult("UNAUTHENTICATED")
+
+  const { data: current, error: readError } = await supabase
+    .from("finance_accounts").select("kind").eq("id", data.accountId).eq("user_id", user.id).maybeSingle()
+  if (readError) {
+    console.error(readError)
+    return createErrorResult("UNKNOWN")
+  }
+  if (!current) return createErrorResult("NOT_FOUND")
+  if ((current.kind === "cash") !== (data.accountKind === "cash")) return createErrorResult("CASH_ACCOUNT")
+
+  const { error } = await supabase
+    .from("finance_accounts")
+    .update({ name: data.accountName, kind: data.accountKind, iban_last4: data.ibanLast4, active: data.active })
+    .eq("id", data.accountId)
+    .eq("user_id", user.id)
+  if (error) {
+    if (error.code === "23505") return createErrorResult("ACCOUNT_EXISTS")
+    console.error(error)
+    return createErrorResult("UNKNOWN")
+  }
+
+  revalidatePath(APP_URLS.MONEY, "layout")
+  return createDataResult({ ok: true })
+}
+
+/** Cuenta por defecto del import (finance_settings.default_account). */
+export async function setDefaultFinanceAccount(input: unknown): Promise<ResultType<{ ok: true }, FinanceActionError>> {
+  const parsed = accountIdInputSchema.safeParse(input)
+  if (!parsed.success) return createErrorResult("INVALID_INPUT")
+
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return createErrorResult("UNAUTHENTICATED")
+  if (!(await ownAccount(supabase, user.id, parsed.data.accountId))) return createErrorResult("NOT_FOUND")
+
+  const { error } = await supabase
+    .from("finance_settings").update({ default_account: parsed.data.accountId }).eq("user_id", user.id)
+  if (error) {
+    console.error(error)
+    return createErrorResult("UNKNOWN")
+  }
+
+  revalidatePath(APP_URLS.MONEY, "layout")
+  return createDataResult({ ok: true })
+}
+
+/** Borrar solo una cuenta vacía; con movimientos se archiva (no se pierde histórico). */
+export async function deleteFinanceAccount(input: unknown): Promise<ResultType<{ ok: true }, FinanceActionError>> {
+  const parsed = accountIdInputSchema.safeParse(input)
+  if (!parsed.success) return createErrorResult("INVALID_INPUT")
+
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return createErrorResult("UNAUTHENTICATED")
+
+  const { count, error: countError } = await supabase
+    .from("finance_transactions").select("id", { count: "exact", head: true })
+    .eq("user_id", user.id).eq("account_id", parsed.data.accountId)
+  if (countError) {
+    console.error(countError)
+    return createErrorResult("UNKNOWN")
+  }
+  if ((count ?? 0) > 0) return createErrorResult("ACCOUNT_HAS_TRANSACTIONS")
+
+  const { data, error } = await supabase
+    .from("finance_accounts").delete().eq("id", parsed.data.accountId).eq("user_id", user.id).neq("kind", "cash").select("id")
+  if (error) {
+    console.error(error)
+    return createErrorResult("UNKNOWN")
+  }
+  if (!data || data.length === 0) return createErrorResult("NOT_FOUND")
+
+  revalidatePath(APP_URLS.MONEY, "layout")
+  return createDataResult({ ok: true })
 }
 
 // ── Import (§3.2) ───────────────────────────────────────────────────────────
@@ -1065,6 +1159,51 @@ export async function ensureMonthsClosed(): Promise<void> {
   const today = new Date().toISOString().slice(0, 10)
   const current = monthOf(today, (settings.month_start_day as number | null) ?? 1)
   await runMonthClose(supabase, user.id, shiftMonth(current, -1))
+}
+
+/** Ajustes → Month: día en que empieza el mes (1–28; nómina a final de mes, p. ej. 25). */
+export async function setMonthStartDay(input: unknown): Promise<ResultType<{ ok: true }, FinanceActionError>> {
+  const parsed = monthStartDayInputSchema.safeParse(input)
+  if (!parsed.success) return createErrorResult("INVALID_INPUT")
+
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return createErrorResult("UNAUTHENTICATED")
+
+  const { error } = await supabase
+    .from("finance_settings").update({ month_start_day: parsed.data.monthStartDay }).eq("user_id", user.id)
+  if (error) {
+    console.error(error)
+    return createErrorResult("UNKNOWN")
+  }
+
+  revalidatePath(APP_URLS.MONEY, "layout")
+  return createDataResult({ ok: true })
+}
+
+/**
+ * "Close month" manual (§4.5): reparte ya el mes en curso a los objetivos, sin
+ * esperar a que termine. Lo que entre después en ese mes no se reparte.
+ */
+export async function closeCurrentMonth(): Promise<ResultType<{ ok: true }, FinanceActionError>> {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return createErrorResult("UNAUTHENTICATED")
+
+  const { data: settings, error } = await supabase
+    .from("finance_settings").select("month_start_day, closed_through").eq("user_id", user.id).maybeSingle()
+  if (error) {
+    console.error(error)
+    return createErrorResult("UNKNOWN")
+  }
+  if (!settings) return createErrorResult("NO_SETTINGS")
+  const current = monthOf(new Date().toISOString().slice(0, 10), (settings.month_start_day as number | null) ?? 1)
+  const closedThrough = settings.closed_through as MonthKey | null
+  if (closedThrough != null && closedThrough >= current) return createErrorResult("MONTH_CLOSED")
+
+  await runMonthClose(supabase, user.id, current)
+  revalidatePath(APP_URLS.MONEY, "layout")
+  return createDataResult({ ok: true })
 }
 
 // ── Efectivo (§5.7 M2) ──────────────────────────────────────────────────────

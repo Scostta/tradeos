@@ -2,8 +2,10 @@ import type { ReactElement } from "react"
 import Link from "next/link"
 import { APP_URLS } from "~/constants/app-urls"
 import { MONEY } from "~/constants/copies/money"
+import { monthOf } from "~/lib/finance/dates"
 import { transactionsByRule } from "~/lib/finance/match-rule"
 import {
+  getFinanceAccounts,
   getFinanceCategories,
   getFinanceRules,
   getFinanceSettings,
@@ -11,16 +13,19 @@ import {
 } from "~/services/queries/finance"
 import { cn } from "~/utils/cn"
 import { MoneyOnboarding } from "../components/money-onboarding.client"
+import { AccountsView } from "./components/accounts-view.client"
 import { CategoriesView } from "./components/categories-view.client"
+import { MonthView } from "./components/month-view.client"
 import { RulesView } from "./components/rules-view.client"
 
 const S = MONEY.SETTINGS
 
-const TABS = ["categories", "rules"] as const
+const TABS = ["accounts", "categories", "rules", "month"] as const
 type Tab = (typeof TABS)[number]
 
-// §5.6 /money/settings, una pestaña por ?tab=. En Rules, el recuento de cada
-// regla es lo que categoriza hoy (calculado), no el contador histórico `hits`.
+// §5.6 /money/settings, una pestaña por ?tab= (Accounts, Categories, Rules,
+// Month). En Rules, el recuento de cada regla es lo que categoriza hoy
+// (calculado), no el contador histórico `hits`.
 export default async function MoneySettingsPage({
   searchParams,
 }: {
@@ -34,21 +39,26 @@ export default async function MoneySettingsPage({
     return <div className="flex flex-col h-full"><MoneyOnboarding /></div>
   }
 
-  const [rulesResult, categoriesResult, txResult] = await Promise.all([
+  const [accountsResult, rulesResult, categoriesResult, txResult] = await Promise.all([
+    getFinanceAccounts(),
     getFinanceRules(),
     getFinanceCategories(),
     getTransactions({}),
   ])
-  if (!settingsResult.success || !rulesResult.success || !categoriesResult.success || !txResult.success) {
+  const settings = settingsResult.success ? settingsResult.data : null
+  if (!settings || !accountsResult.success || !rulesResult.success || !categoriesResult.success || !txResult.success) {
     return <div className="page-pad"><div className="card p-4 text-sm text-loss">{MONEY.ERRORS.UNKNOWN}</div></div>
   }
 
   const owned = transactionsByRule(txResult.data, rulesResult.data)
   const ruleCounts = Object.fromEntries(rulesResult.data.map(r => [r.id, owned.get(r.id)?.length ?? 0]))
   const categoryCounts: Record<string, number> = {}
+  const accountCounts: Record<string, number> = {}
   for (const t of txResult.data) {
     if (t.categoryId) categoryCounts[t.categoryId] = (categoryCounts[t.categoryId] ?? 0) + 1
+    if (!t.parentId) accountCounts[t.accountId] = (accountCounts[t.accountId] ?? 0) + 1
   }
+  const current = monthOf(new Date().toISOString().slice(0, 10), settings.monthStartDay)
 
   return (
     <div className="flex flex-col h-full">
@@ -77,8 +87,10 @@ export default async function MoneySettingsPage({
       </div>
 
       <div className="flex-1 min-h-0 overflow-auto page-pad">
+        {tab === "accounts" && <AccountsView accounts={accountsResult.data} counts={accountCounts} defaultAccount={settings.defaultAccount} />}
         {tab === "categories" && <CategoriesView categories={categoriesResult.data} counts={categoryCounts} />}
         {tab === "rules" && <RulesView rules={rulesResult.data} categories={categoriesResult.data} counts={ruleCounts} />}
+        {tab === "month" && <MonthView monthStartDay={settings.monthStartDay} closedThrough={settings.closedThrough} current={current} />}
       </div>
     </div>
   )
