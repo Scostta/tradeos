@@ -73,6 +73,12 @@ function Usage({ sub, today }: { sub: FinanceSubscription; today: string }): Rea
   )
 }
 
+function DateCell({ sub, tab, today }: { sub: FinanceSubscription; tab: Tab; today: string }): ReactElement {
+  if (tab === "cancelled") return <span className="text-text-dim">{fmtDay(sub.updatedAt.slice(0, 10))}</span>
+  if (tab === "ignored") return <span className="text-text-mute">{fmtDay(sub.lastSeen)}</span>
+  return <NextCharge sub={sub} today={today} />
+}
+
 function evidenceText(sub: FinanceSubscription, ev: Evidence | undefined): string {
   const days = ev
     ? ev.intervalSpread > 0 ? S.EVIDENCE_DAYS.replace("{median}", String(ev.intervalMedian)).replace("{spread}", String(ev.intervalSpread)) : String(ev.intervalMedian)
@@ -132,7 +138,7 @@ export function SubscriptionsView({ subscriptions, evidence, avgMonthlySpent, to
       {error && <div className="fixed top-4 right-4 z-50"><Toast variant="error" message={error} /></div>}
 
       <div className="flex flex-wrap items-center gap-2 px-4 md:px-7 py-2.5 border-b border-border bg-bg shrink-0">
-        <div className="inline-flex items-center rounded-md border border-border overflow-hidden">
+        <div className="inline-flex items-center rounded-md border border-border overflow-x-auto max-w-full">
           {tabs.map((t, i) => (
             <button
               key={t.id} type="button" onClick={() => setTab(t.id)}
@@ -179,7 +185,8 @@ export function SubscriptionsView({ subscriptions, evidence, avgMonthlySpent, to
                   {{ confirmed: S.EMPTY_CONFIRMED, pending: S.EMPTY_PENDING, cancelled: S.EMPTY_CANCELLED, ignored: S.EMPTY_IGNORED }[tab]}
                 </div>
               ) : (
-                <table className="w-full border-collapse" style={{ minWidth: 640 }}>
+                <>
+                <table className="hidden md:table w-full border-collapse" style={{ minWidth: 640 }}>
                   <thead>
                     <tr>
                       <th className="label-caps px-3 py-2.5 border-b border-border text-left">{S.HEAD_SERVICE}</th>
@@ -202,9 +209,7 @@ export function SubscriptionsView({ subscriptions, evidence, avgMonthlySpent, to
                         <td className="px-3 py-2.5 text-sm text-text-dim">{S.CADENCES[s.cadence]}</td>
                         <td className="px-3 py-2.5 mono text-sm text-right text-text whitespace-nowrap">{fmtEur(s.amount)}</td>
                         <td className="px-3 py-2.5 mono text-sm whitespace-nowrap">
-                          {tab === "cancelled" ? <span className="text-text-dim">{fmtDay(s.updatedAt.slice(0, 10))}</span>
-                            : tab === "ignored" ? <span className="text-text-mute">{fmtDay(s.lastSeen)}</span>
-                            : <NextCharge sub={s} today={today} />}
+                          <DateCell sub={s} tab={tab} today={today} />
                         </td>
                         <td className="px-3 py-2.5"><Usage sub={s} today={today} /></td>
                         <td className="px-3 py-2.5 text-right">
@@ -214,10 +219,32 @@ export function SubscriptionsView({ subscriptions, evidence, avgMonthlySpent, to
                     ))}
                   </tbody>
                 </table>
+
+                {/* Móvil: filas compactas; tocar abre el mismo modal que Edit. */}
+                <div className="md:hidden">
+                  {rows.map(s => (
+                    <button
+                      key={s.id} type="button" onClick={() => setEditing(s)}
+                      className="w-full text-left flex flex-col gap-1 px-3 py-2.5 border-b border-border last:border-0 cursor-pointer"
+                    >
+                      <div className="flex items-baseline gap-3">
+                        <span className="flex-1 min-w-0 text-sm font-medium text-text truncate">{displayName(s.counterparty)}</span>
+                        <span className="mono text-sm text-text whitespace-nowrap">{fmtEur(s.amount)}</span>
+                      </div>
+                      <div className="flex items-center gap-2 text-xs">
+                        <span className="text-text-dim">{S.CADENCES[s.cadence]}</span>
+                        <span className="mono text-text-mute">·</span>
+                        <span className="mono whitespace-nowrap"><DateCell sub={s} tab={tab} today={today} /></span>
+                        <span className="ml-auto"><Usage sub={s} today={today} /></span>
+                      </div>
+                    </button>
+                  ))}
+                </div>
+                </>
               )}
             </div>
 
-            <div className="flex flex-col gap-3 min-w-0" style={{ flex: "1 1 280px", maxWidth: 360 }}>
+            <div className="flex flex-col gap-3 min-w-0 md:max-w-90" style={{ flex: "1 1 280px" }}>
               {pending.length > 0 && (
                 <Panel
                   title={S.PENDING_TITLE}

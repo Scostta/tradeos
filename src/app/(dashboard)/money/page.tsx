@@ -13,6 +13,7 @@ import {
   getTransactions,
 } from "~/services/queries/finance"
 import { cn } from "~/utils/cn"
+import { AddCashButton } from "./components/add-cash-button.client"
 import { MoneyOnboarding } from "./components/money-onboarding.client"
 import { displayName, fmtDay, fmtEur } from "./components/money-format"
 import { buildOverview } from "./components/overview/overview-data"
@@ -222,6 +223,7 @@ export default async function MoneyPage({
           )}>
             {importAgo}
           </span>
+          <AddCashButton />
           <Link href={APP_URLS.MONEY_IMPORT} className="btn-accent hidden md:inline-flex">{O.IMPORT}</Link>
         </div>
       ))}

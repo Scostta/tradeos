@@ -7,10 +7,12 @@ import { useRouter } from "next/navigation"
 import { APP_URLS } from "~/constants/app-urls"
 import { MONEY } from "~/constants/copies/money"
 import { INPUT_CLS } from "~/lib/ui/form"
+import { XIcon } from "~/lib/ui/icons/x-icon"
 import { Toast } from "~/lib/ui/toast"
 import type { ToastVariant } from "~/lib/ui/toast"
 import type { CategorizeResult, FinanceAccount, FinanceCategory, FinanceRule, FinanceTransaction } from "~/types/finance"
 import { cn } from "~/utils/cn"
+import { AddCashButton } from "../../components/add-cash-button.client"
 import { CategoryPill } from "../../components/category-pill"
 import { displayName, fmtDay, fmtEur } from "../../components/money-format"
 import { SplitModal } from "./split-modal.client"
@@ -41,13 +43,28 @@ function dayLabel(iso: string): string {
   return `${weekday} · ${fmtDay(iso)}`
 }
 
+function amountCls(t: FinanceTransaction, isParent: boolean, dim: boolean): string {
+  return dim || isParent ? "text-text-mute line-through decoration-text-mute/50" : t.amount > 0 ? "text-profit" : "text-text"
+}
+
+function Name({ t, isPart, isParent, dim }: { t: FinanceTransaction; isPart: boolean; isParent: boolean; dim: boolean }): ReactElement {
+  return (
+    <div className={cn("text-sm font-medium truncate", dim || isParent ? "text-text-mute" : "text-text")}>
+      {isPart && "↳ "}{displayName(t.counterparty)}
+      {isParent && <span className="mono text-xs text-text-mute ml-2 uppercase">{T.TAG_SPLIT}</span>}
+      {dim && <span className="mono text-xs text-text-mute ml-2 uppercase">{T.TAG_EXCLUDED}</span>}
+    </div>
+  )
+}
+
 function isTyping(target: EventTarget | null): boolean {
   return target instanceof HTMLElement && ["INPUT", "TEXTAREA", "SELECT"].includes(target.tagName)
 }
 
 // §5.2 (artboard 02): tabla por días, filtros y panel lateral. En modo cola,
 // ↑↓ mueven la selección, Enter abre la categoría, Enter guarda y pasa al
-// siguiente, Esc vuelve a la lista.
+// siguiente, Esc vuelve a la lista. En móvil la tabla pasa a filas compactas y
+// el panel se abre como hoja al tocar una fila (en la cola, abierta de inicio).
 export function TransactionsView(props: Props): ReactElement {
   const { transactions, categories, rules, accounts, months, month, queue, uncategorized, initialCategory } = props
   const router = useRouter()
@@ -57,6 +74,7 @@ export function TransactionsView(props: Props): ReactElement {
   const [page, setPage] = useState(0)
   const [selectedId, setSelectedId] = useState<string | null>(queue ? transactions[0]?.id ?? null : null)
   const [splitFor, setSplitFor] = useState<FinanceTransaction | null>(null)
+  const [sheetOpen, setSheetOpen] = useState(queue)          // panel como hoja (solo móvil)
   const [toast, setToast] = useState<{ message: string; variant: ToastVariant } | null>(null)
 
   const categoriesById = useMemo(() => new Map(categories.map(c => [c.id, c])), [categories])
@@ -85,6 +103,10 @@ export function TransactionsView(props: Props): ReactElement {
   const currentPage = Math.min(page, pageCount - 1)
   const pageRows = filtered.slice(currentPage * PAGE_SIZE, (currentPage + 1) * PAGE_SIZE)
   const flat = pageRows.flatMap(t => [t, ...(partsOf.get(t.id) ?? [])])
+  const rows = flat.map((t, i) => {
+    const isParent = (partsOf.get(t.id)?.length ?? 0) > 0
+    return { t, newDay: i === 0 || flat[i - 1]!.bookedAt !== t.bookedAt, isPart: t.parentId != null, isParent, dim: t.excluded && !isParent }
+  })
 
   // Si lo seleccionado desaparece (categorizado en la cola), el que ocupa su sitio.
   const [fallbackIndex, setFallbackIndex] = useState(0)
@@ -106,7 +128,9 @@ export function TransactionsView(props: Props): ReactElement {
   }, [flat, selected, splitFor])
 
   useEffect(() => {
-    if (selected) document.getElementById(`tx-${selected.id}`)?.scrollIntoView({ block: "nearest" })
+    if (!selected) return
+    const rows = document.querySelectorAll<HTMLElement>(`[data-tx="${selected.id}"]`)
+    ;[...rows].find(r => r.offsetParent)?.scrollIntoView({ block: "nearest" })
   }, [selected])
 
   function showToast(message: string, variant: ToastVariant = "success") {
@@ -156,39 +180,43 @@ export function TransactionsView(props: Props): ReactElement {
             {queue ? T.QUEUE_HINT : <>{T.SUBTITLE.replace("{n}", String(top.length)).replace("{sum}", fmtEur(net, { sign: true }))}{accountLabel && ` · ${accountLabel}`}</>}
           </div>
         </div>
-        <Link href={APP_URLS.MONEY_IMPORT} className="btn-accent ml-auto shrink-0">{T.IMPORT}</Link>
+        <div className="ml-auto flex items-center gap-2.5 shrink-0">
+          <AddCashButton />
+          <Link href={APP_URLS.MONEY_IMPORT} className="btn-accent">{T.IMPORT}</Link>
+        </div>
       </header>
 
+      {/* Móvil: búsqueda + cola arriba, categoría y mes a medias debajo. Escritorio: una fila. */}
       <div className="flex flex-wrap items-center gap-2 px-4 md:px-7 py-2.5 border-b border-border bg-bg shrink-0">
         {!queue && (
-          <>
-            <input
-              type="search" value={search} onChange={e => { setSearch(e.target.value); setPage(0) }}
-              placeholder={T.SEARCH} aria-label={T.SEARCH} className={INPUT_CLS} style={{ width: 220 }}
-            />
-            <select
-              value={categoryFilter} onChange={e => { setCategoryFilter(e.target.value); setPage(0) }}
-              aria-label={T.CATEGORY} className={INPUT_CLS} style={{ width: 170 }}
-            >
-              <option value="">{T.ALL_CATEGORIES}</option>
-              {categories.filter(c => !c.archived).map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-            </select>
-          </>
+          <input
+            type="search" value={search} onChange={e => { setSearch(e.target.value); setPage(0) }}
+            placeholder={T.SEARCH} aria-label={T.SEARCH} className={cn(INPUT_CLS, "flex-1 min-w-0 md:flex-none md:w-55")}
+          />
         )}
         <button
           type="button" onClick={() => navigate({ queue: !queue })}
-          className={cn("btn-ghost", uncategorized > 0 && "text-short border-short/40", queue && "bg-short/10")}
+          className={cn("btn-ghost shrink-0 whitespace-nowrap md:order-2", uncategorized > 0 && "text-short border-short/40", queue && "bg-short/10")}
         >
           {T.UNCATEGORIZED_N.replace("{n}", String(uncategorized))}
         </button>
         {!queue && (
-          <select
-            value={month} onChange={e => navigate({ month: e.target.value })}
-            aria-label={T.DATE} className={`${INPUT_CLS} ml-auto`} style={{ width: 190 }}
-          >
-            {months.map(m => <option key={m.month} value={m.month}>{monthLabel(m.month)} · {m.count}</option>)}
-            <option value={ALL}>{T.ALL_MONTHS}</option>
-          </select>
+          <div className="flex gap-2 w-full md:contents">
+            <select
+              value={categoryFilter} onChange={e => { setCategoryFilter(e.target.value); setPage(0) }}
+              aria-label={T.CATEGORY} className={cn(INPUT_CLS, "flex-1 min-w-0 md:flex-none md:w-42.5 md:order-1")}
+            >
+              <option value="">{T.ALL_CATEGORIES}</option>
+              {categories.filter(c => !c.archived).map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+            </select>
+            <select
+              value={month} onChange={e => navigate({ month: e.target.value })}
+              aria-label={T.DATE} className={cn(INPUT_CLS, "flex-1 min-w-0 md:flex-none md:w-47.5 md:order-3 md:ml-auto")}
+            >
+              {months.map(m => <option key={m.month} value={m.month}>{monthLabel(m.month)} · {m.count}</option>)}
+              <option value={ALL}>{T.ALL_MONTHS}</option>
+            </select>
+          </div>
         )}
       </div>
 
@@ -200,7 +228,8 @@ export function TransactionsView(props: Props): ReactElement {
                 {queue ? T.QUEUE_EMPTY : transactions.length ? T.EMPTY_FILTERED : T.EMPTY}
               </div>
             ) : (
-              <table className="w-full border-collapse" style={{ minWidth: 620 }}>
+<>
+              <table className="hidden md:table w-full border-collapse" style={{ minWidth: 620 }}>
                 <thead>
                   <tr>
                     <th className="label-caps px-3 py-2.5 border-b border-border text-left" style={{ width: 80 }}>{T.HEAD_DATE}</th>
@@ -211,18 +240,14 @@ export function TransactionsView(props: Props): ReactElement {
                   </tr>
                 </thead>
                 <tbody>
-                  {flat.map((t, i) => {
-                    const newDay = i === 0 || flat[i - 1]!.bookedAt !== t.bookedAt
-                    const isPart = t.parentId != null
-                    const isParent = (partsOf.get(t.id)?.length ?? 0) > 0
-                    const dim = t.excluded && !isParent
+                  {rows.map(({ t, newDay, isPart, isParent, dim }) => {
                     return (
                       <Fragment key={t.id}>
                         {newDay && (
                           <tr><td colSpan={5} className="label-caps px-3 pt-3 pb-1">{dayLabel(t.bookedAt)}</td></tr>
                         )}
                         <tr
-                          id={`tx-${t.id}`}
+                          data-tx={t.id}
                           onClick={() => setSelectedId(t.id)}
                           className={cn(
                             "border-b border-border cursor-pointer transition-colors",
@@ -231,20 +256,13 @@ export function TransactionsView(props: Props): ReactElement {
                         >
                           <td className="px-3 py-2 mono text-sm text-text-dim whitespace-nowrap">{isPart ? "" : fmtDay(t.bookedAt)}</td>
                           <td className={cn("px-3 py-2 min-w-0", isPart && "pl-8")}>
-                            <div className={cn("text-sm font-medium truncate", dim || isParent ? "text-text-mute" : "text-text")}>
-                              {isPart && "↳ "}{displayName(t.counterparty)}
-                              {isParent && <span className="mono text-xs text-text-mute ml-2 uppercase">{T.TAG_SPLIT}</span>}
-                              {dim && <span className="mono text-xs text-text-mute ml-2 uppercase">{T.TAG_EXCLUDED}</span>}
-                            </div>
+                            <Name t={t} isPart={isPart} isParent={isParent} dim={dim} />
                             {!isPart && <div className="mono text-xs text-text-mute truncate">{t.conceptRaw}{t.notes ? ` · ${t.notes}` : ""}</div>}
                           </td>
                           <td className="px-3 py-2">
                             {!isParent && <CategoryPill category={t.categoryId ? categoriesById.get(t.categoryId) ?? null : null} muted={dim} />}
                           </td>
-                          <td className={cn(
-                            "px-3 py-2 mono text-sm text-right whitespace-nowrap",
-                            dim || isParent ? "text-text-mute line-through decoration-text-mute/50" : t.amount > 0 ? "text-profit" : "text-text",
-                          )}>
+                          <td className={cn("px-3 py-2 mono text-sm text-right whitespace-nowrap", amountCls(t, isParent, dim))}>
                             {fmtEur(t.amount, { sign: true })}
                           </td>
                           <td className="px-3 py-2 mono text-sm text-right whitespace-nowrap text-text-mute">
@@ -256,6 +274,35 @@ export function TransactionsView(props: Props): ReactElement {
                   })}
                 </tbody>
               </table>
+
+              <div className="md:hidden">
+                {rows.map(({ t, newDay, isPart, isParent, dim }) => (
+                  <Fragment key={t.id}>
+                    {newDay && <div className="label-caps px-3 pt-3 pb-1">{dayLabel(t.bookedAt)}</div>}
+                    <button
+                      type="button" data-tx={t.id}
+                      onClick={() => { setSelectedId(t.id); setSheetOpen(true) }}
+                      className={cn(
+                        "w-full text-left flex flex-col gap-1 px-3 py-2.5 border-b border-border cursor-pointer",
+                        isPart && "pl-8", selected?.id === t.id && "bg-surface-2",
+                      )}
+                    >
+                      <div className="flex items-baseline gap-3">
+                        <div className="flex-1 min-w-0"><Name t={t} isPart={isPart} isParent={isParent} dim={dim} /></div>
+                        <span className={cn("mono text-sm whitespace-nowrap", amountCls(t, isParent, dim))}>{fmtEur(t.amount, { sign: true })}</span>
+                      </div>
+                      {!isParent && (
+                        <div className="flex items-center gap-2 min-w-0">
+                          <CategoryPill category={t.categoryId ? categoriesById.get(t.categoryId) ?? null : null} muted={dim} />
+                          {!isPart && <span className="mono text-xs text-text-mute truncate min-w-0">{t.conceptRaw}{t.notes ? ` · ${t.notes}` : ""}</span>}
+                        </div>
+                      )}
+                      {isParent && <span className="mono text-xs text-text-mute truncate">{t.conceptRaw}</span>}
+                    </button>
+                  </Fragment>
+                ))}
+              </div>
+              </>
             )}
             {filtered.length > PAGE_SIZE && (
               <div className="flex items-center justify-between px-4 py-2.5 text-xs text-text-mute">
@@ -272,12 +319,21 @@ export function TransactionsView(props: Props): ReactElement {
             )}
           </div>
 
+          {/* En escritorio el envoltorio no existe (md:contents); en móvil es el fondo de la hoja. */}
+          <div
+            className={cn("md:contents", sheetOpen && selected ? "max-md:fixed max-md:inset-0 max-md:z-50 max-md:flex max-md:items-end max-md:bg-black/60 max-md:p-4" : "max-md:hidden")}
+            onClick={() => setSheetOpen(false)}
+          >
           <aside
-            className="card p-0 sticky top-0 overflow-y-auto"
-            style={{ flex: "1 1 280px", maxWidth: 360, maxHeight: "calc(100dvh - 10rem)" }}
+            className="card p-0 md:sticky top-0 overflow-y-auto w-full md:max-w-90 max-md:mb-4"
+            style={{ flex: "1 1 280px", maxHeight: "calc(100dvh - 10rem)" }}
+            onClick={e => e.stopPropagation()}
           >
             <div className="flex items-center justify-between px-4 py-3 border-b border-border">
               <span className="label-caps">{T.PANEL_TITLE}</span>
+              <button type="button" onClick={() => setSheetOpen(false)} aria-label={T.PANEL_CLOSE} className="md:hidden text-text-mute cursor-pointer">
+                <XIcon className="size-4" />
+              </button>
             </div>
             {selected ? (
               <TransactionPanel
@@ -297,6 +353,7 @@ export function TransactionsView(props: Props): ReactElement {
               <div className="px-4 py-10 text-center text-sm text-text-mute">{T.PANEL_EMPTY}</div>
             )}
           </aside>
+          </div>
         </div>
       </div>
     </div>

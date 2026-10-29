@@ -163,6 +163,7 @@ export const MONEY = {
     NEXT:             "Next",
     PANEL_TITLE:      "Transaction",
     PANEL_EMPTY:      "Select a transaction to categorize it.",
+    PANEL_CLOSE:      "Close",
     AMOUNT:           "Amount",
     DATE:             "Date",
     ACCOUNT:          "Account",
@@ -333,6 +334,7 @@ export const MONEY = {
     CLOSE:     "Close",
     SAVED:     "Saved {amount} in {category}",
     ADD:       "Add cash expense",
+    BUTTON:    "Cash expense",
   },
 
   ACCOUNT_KINDS: {
