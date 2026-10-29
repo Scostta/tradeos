@@ -225,3 +225,7 @@ export const saveThesisDraftInputSchema = z.object({
   answers: thesisAnswersSchema,
 })
 export type SaveThesisDraftInput = z.infer<typeof saveThesisDraftInputSchema>
+
+// ── IA (§4.8) ───────────────────────────────────────────────────────────────
+
+export const draftThesisInputSchema = z.object({ ticker: z.string().trim().min(1).max(20).transform(t => t.toUpperCase()) })

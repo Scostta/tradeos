@@ -509,6 +509,26 @@ alter table invest_thesis_drafts enable row level security;
 create policy "Users manage own thesis drafts" on invest_thesis_drafts
   for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
 
+-- Notas de IA por usuario (INVEST_SPEC §2.8, §4.8) — migración 20261104150000
+create table if not exists invest_ai_notes (
+  id           uuid primary key default gen_random_uuid(),
+  user_id      uuid references auth.users on delete cascade not null,
+  kind         text not null check (kind in ('picks', 'review')),
+  run_id       uuid references invest_screen_runs(id) on delete cascade not null,
+  position_id  uuid references invest_positions(id) on delete cascade,
+  input_hash   text not null,
+  content      jsonb not null,
+  model        text not null,
+  created_at   timestamptz not null default now(),
+  check ((kind = 'review') = (position_id is not null)),
+  constraint invest_ai_notes_scope_key unique nulls not distinct (user_id, kind, run_id, position_id)
+);
+
+alter table invest_ai_notes enable row level security;
+
+create policy "Users manage own invest ai notes" on invest_ai_notes
+  for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
+
 -- ============================================================
 -- Money (MONEY_SPEC.md §2) — migración 20261103120000_finance.sql
 -- ============================================================

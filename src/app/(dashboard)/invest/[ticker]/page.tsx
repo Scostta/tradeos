@@ -1,6 +1,7 @@
 import type { ReactElement, ReactNode } from "react"
 import Link from "next/link"
 import { APP_URLS } from "~/constants/app-urls"
+import { aiConfigured } from "~/lib/ai/claude-json"
 import { INVEST } from "~/constants/copies/invest"
 import {
   getFundamentalsHistory,
@@ -165,7 +166,7 @@ export default async function InvestTickerPage({
 
         <Card title={D.PROMPTS_TITLE}>
           <div className="px-4 py-4">
-            <ThesisPrompts ticker={ticker} initial={draft} />
+            <ThesisPrompts ticker={ticker} initial={draft} aiEnabled={aiConfigured()} />
           </div>
         </Card>
       </>
