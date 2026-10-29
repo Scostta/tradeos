@@ -356,6 +356,7 @@ Módulo núcleo/satélite (hipótesis 13): el núcleo es un fondo indexado fuera
 | `invest_tickers` | job | ficha del ticker (sector, industria, resumen del negocio, divisas) para `/invest/[ticker]` |
 | `invest_fundamentals_history` | job | 4 últimos años fiscales de ingresos, margen bruto, FCF, ROIC y deuda neta/EBITDA |
 | `invest_thesis_drafts` | usuario (RLS) | respuestas de "Thesis prompts" por ticker (autoguardado) |
+| `invest_ai_notes` | usuario (RLS) | notas de IA: comentario del run (`picks`) y revisión de falsadores por posición (`review`), con hash de la entrada |
 
 Las cuatro primeras son compartidas: `select` para `authenticated`, sin políticas de escritura.
 
@@ -371,6 +372,7 @@ Las cuatro primeras son compartidas: `select` para `authenticated`, sin polític
 - `src/types/invest.ts` (Zod), `src/services/mappers/invest.ts`, `src/services/queries/invest.ts`, `src/actions/invest.ts` (`saveInvestSettings`, `openInvestPosition`, `closeInvestPosition`, `markRunReviewed`, `startRealTest`), cálculos puros con vitest en `src/lib/calculations/invest-*.ts`, copies en `src/constants/copies/invest/`.
 - **Divisa base EUR**: precios en la divisa de cotización (`GBp` en peniques), pasados a EUR con los pares de `invest_prices`; comisiones en EUR.
 - **Performance** (§5.1): TWR con caja + posiciones (abrir/cerrar son movimientos internos), **total return implícito** `acciones × close(apertura) × adj(m) / adj(apertura)`; dividendos cobrados no se registran. **Positions** muestra el P&L latente con el último `close` real ("si vendiera hoy"), por eso puede diferir.
+- **IA** (§4.8, `src/actions/invest-ai.ts`, `src/lib/invest/ai/`): borrador de tesis en `/invest/[ticker]`, comentario de los que pasan el run en Screen y revisión de falsadores en `/invest/positions/[id]`. Solo ayuda a escribir y a mirar: **nunca menciona tickers que no pasan** (el esquema JSON lo fuerza), no abre ni cierra nada y no toca `evaluate()` ni `sma_exit`.
 - **Impuesto estimado** (§5.2): IRPF del ahorro 19–28 % por año, pérdidas del año compensan, sin arrastre; cada cierre se lleva lo que añade al impuesto de su año. Siempre etiquetado como estimación.
 
 ## Money
@@ -391,6 +393,7 @@ Finanzas personales a partir del export de movimientos del banco (imagin / Caixa
 | `finance_subscriptions` | recurrentes detectadas; `status` y `usage` son del usuario y el recálculo no los toca |
 | `finance_goals` | objetivos de ahorro: no mueven dinero, reparten el ahorro real del mes cerrado |
 | `finance_settings` | `month_start_day` (1–28), `default_account`, `closed_through` (último mes repartido a objetivos) |
+| `finance_ai_summaries` | resumen del mes con IA por usuario y mes, con el hash de las cifras enviadas |
 
 Todas con RLS `auth.uid() = user_id`. Sin `finance_settings`, cada página de Money muestra el alta (cuenta + seed).
 
@@ -417,7 +420,12 @@ Todas con RLS `auth.uid() = user_id`. Sin `finance_settings`, cada página de Mo
 
 - Rutas: `/money` (Overview), `/money/transactions`, `/money/subscriptions`, `/money/goals`, `/money/import`, `/money/cash` y `/money/settings?tab=accounts|categories|rules|month`.
 - `src/types/finance.ts` (Zod), `src/services/mappers/finance.ts`, `src/services/queries/finance.ts`, `src/actions/finance.ts`, lógica pura con vitest en `src/lib/finance/`, copies en `src/constants/copies/money/`. Regla ESLint `no-restricted-imports`: Money no importa de Trading ni de Invest.
+- **IA** (§5.8, `src/lib/finance/ai/`): "Suggest with AI" en la cola (propone categoría, confianza y regla; solo escribe lo que el usuario acepta) y "AI summary" en el Overview (3–5 observaciones con la cifra que las respalda).
 - **Móvil** (§5.7): barra inferior solo en Money (Overview / Transactions / **+** / Subscriptions / Goals); tablas con filas compactas por debajo de `md`. El alta de efectivo es un único `CashSheetProvider` en `money/layout.tsx`: hoja desde el "+" en móvil y modal desde el botón "Cash expense" de las cabeceras en escritorio.
+
+## IA (compartido)
+
+`src/lib/ai/claude-json.ts`: llamada a Claude con salida JSON validada (Claude Opus 5.5, thinking adaptativo, `output_config.format` + Zod, fallback de servidor a Opus 4.8 si rechaza) y `inputHash()` para no repetir llamadas si los datos no cambian. Lo usan Money e Invest; Insights (Trading) tiene su cliente propio en `src/lib/ai/insights-client.ts`. Reglas comunes: la IA solo usa cifras que le pasa la app, todo va etiquetado como no-consejo, solo se llama al pulsar un botón y nunca escribe sin aceptación del usuario. Sin `ANTHROPIC_API_KEY` los botones no aparecen (`aiConfigured()`).
 
 ## Variables de entorno requeridas
 
