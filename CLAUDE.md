@@ -373,6 +373,52 @@ Las cuatro primeras son compartidas: `select` para `authenticated`, sin polític
 - **Performance** (§5.1): TWR con caja + posiciones (abrir/cerrar son movimientos internos), **total return implícito** `acciones × close(apertura) × adj(m) / adj(apertura)`; dividendos cobrados no se registran. **Positions** muestra el P&L latente con el último `close` real ("si vendiera hoy"), por eso puede diferir.
 - **Impuesto estimado** (§5.2): IRPF del ahorro 19–28 % por año, pérdidas del año compensan, sin arrastre; cada cierre se lleva lo que añade al impuesto de su año. Siempre etiquetado como estimación.
 
+## Money
+
+Finanzas personales a partir del export de movimientos del banco (imagin / CaixaBankNow): cuánto entra, cuánto sale, en qué, y la tasa de ahorro real. La fuente de verdad es **`MONEY_SPEC.md`**: schema (§2), import (§3), lógica pura (§4), pantallas (§5), fuera de alcance (§9). Las decisiones de criterio se anotan como **"Decisión (fecha)"** junto a la sección que cambian. Copies en inglés.
+
+- **Entrada manual de un fichero**, como el CSV de NinjaTrader: sin API bancaria ni agregadores (no se meten credenciales bancarias en la app).
+- **Nada se declara dos veces**: suscripciones, ahorro real y objetivos salen de `finance_transactions`; el usuario solo categoriza y confirma.
+
+### Tablas (prefijo `finance_*`, migraciones `supabase/migrations/20261103*_finance*.sql` con rollback en `supabase/rollbacks/`)
+
+| Tabla | Contenido |
+|---|---|
+| `finance_accounts` | cuentas (`checking`, `savings`, `broker`, `cash`); del IBAN solo `iban_last4`. El alta crea la cuenta principal y **Cash** (gastos en efectivo) |
+| `finance_categories` | `kind` `expense` / `income` / `transfer` / `savings` + `is_fixed`; seed de 18 al dar de alta. Archivar, nunca borrar |
+| `finance_transactions` | importe firmado (negativo = sale), `concept_raw`, `counterparty` (`normalizeConcept`), `category_source` `rule`/`manual`/`split`, `excluded`, `parent_id` (partes de un split), `source` `import`/`manual`, `import_key` único por cuenta |
+| `finance_category_rules` | `pattern` (contiene, sobre la contraparte normalizada) → categoría, `priority`, `hits` |
+| `finance_subscriptions` | recurrentes detectadas; `status` y `usage` son del usuario y el recálculo no los toca |
+| `finance_goals` | objetivos de ahorro: no mueven dinero, reparten el ahorro real del mes cerrado |
+| `finance_settings` | `month_start_day` (1–28), `default_account`, `closed_through` (último mes repartido a objetivos) |
+
+Todas con RLS `auth.uid() = user_id`. Sin `finance_settings`, cada página de Money muestra el alta (cuenta + seed).
+
+### Import (`/money/import`, §3)
+
+- Parsers en `src/lib/finance/parsers/` con autodetección por cabecera (`registry.ts`): `imagin.ts` (CSV `;` con bloque IBAN/Saldo/Periodo y `Concepto;Fecha;Importe;Saldo disponible`) y `generic.ts` con mapeo de columnas. Cabeceras no reconocidas → aviso, no se adivina.
+- Huella (`fingerprint.ts`): `booked_at|importe|normalizeConcept(concepto)|saldo#n`. Re-importar o solapar meses no duplica.
+- Tras insertar: reglas sobre los nuevos y **recálculo de suscripciones sobre todos los cargos** del usuario (`recomputeSubscriptions`).
+
+### Categorización (§4.2)
+
+- Gana la `priority` más alta y, a igualdad, el patrón más largo. Solo categorizan lo sin categoría o con origen `rule`; **nunca pisan `manual` ni `split`**.
+- Categorizar a mano en el panel de `/money/transactions` propone crear la regla (`pattern = counterparty`) y la reaplica a todo lo pendiente. Modo cola (`?queue=1`): ↑↓, Enter, Esc.
+- No hay columna `rule_id`: qué regla categoriza cada movimiento se calcula con `transactionsByRule()`. **Borrar una regla** deja sin categoría lo suyo y reaplica las demás; **cambiar su categoría** mueve lo suyo. Lo manual no se toca.
+- Lo **sin categorizar** cuenta como gasto variable (salidas) y no como ingreso (entradas): el ahorro real nunca sale inflado mientras quede cola.
+
+### Suscripciones, ahorro y objetivos
+
+- `detectRecurring` (§4.3): misma contraparte, ≥ 2 cargos, importe ±10 % de la mediana de los 3 últimos, cadencia semanal/mensual/trimestral/anual. **Confirmar** una suscripción crea la regla contraparte → Subscriptions (prioridad 10); descartarla o devolverla a pendiente borra esa regla con el mismo borrado que Settings.
+- `monthlySummary` (§4.4): ahorro real = ingresos − fijos − variables; `transfer` y `excluded` fuera; `savings` cuenta como ahorro, no como gasto; un split cuenta por sus partes. Los meses van de `month_start_day` a `month_start_day` (`monthOf` en `dates.ts`: con 25, "October" = 25 oct – 24 nov).
+- Cierre de mes (§4.5): la primera visita a `/money` o `/money/goals` en un mes reparte los terminados (`ensureMonthsClosed` → `runMonthClose`), reclamando `closed_through` con un update condicional para no repartir dos veces. "Close month" manual en Settings cierra el mes en curso.
+
+### App
+
+- Rutas: `/money` (Overview), `/money/transactions`, `/money/subscriptions`, `/money/goals`, `/money/import`, `/money/cash` y `/money/settings?tab=accounts|categories|rules|month`.
+- `src/types/finance.ts` (Zod), `src/services/mappers/finance.ts`, `src/services/queries/finance.ts`, `src/actions/finance.ts`, lógica pura con vitest en `src/lib/finance/`, copies en `src/constants/copies/money/`. Regla ESLint `no-restricted-imports`: Money no importa de Trading ni de Invest.
+- **Móvil** (§5.7): barra inferior solo en Money (Overview / Transactions / **+** / Subscriptions / Goals); tablas con filas compactas por debajo de `md`. El alta de efectivo es un único `CashSheetProvider` en `money/layout.tsx`: hoja desde el "+" en móvil y modal desde el botón "Cash expense" de las cabeceras en escritorio.
+
 ## Variables de entorno requeridas
 
 ```env
