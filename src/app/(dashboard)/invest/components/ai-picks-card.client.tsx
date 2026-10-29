@@ -74,29 +74,26 @@ export function AiPicksCard({ runId, initial, stale, results, sectorOrder }: {
 
       {error && <p className="px-4 pt-3 text-sm text-loss">{error}</p>}
       {note ? (
-        // Una columna por destacado, todas en la misma fila; si no caben, scroll horizontal.
-        <div className="overflow-x-auto">
-        <div className="grid gap-3 p-4" style={{ gridTemplateColumns: `repeat(${note.content.highlights.length}, minmax(220px, 1fr))` }}>
+        // Una fila por destacado: ticker, cifras del run en barras, porqué y riesgo.
+        <div className="flex flex-col gap-2 p-4">
           {note.content.highlights.map(h => {
             const r = byTicker.get(h.ticker)
             const vsSma = r ? distanceToSma(r.price, r.sma10m) : null
             const gmDelta = r?.grossMargin != null && r.grossMarginPrev != null ? (r.grossMargin - r.grossMarginPrev) * 100 : null
             const stretched = (vsSma ?? 0) > 0.3
             return (
-              <article key={h.ticker} className="rounded-md border border-border bg-bg p-3.5 flex flex-col gap-3 min-w-0">
-                <div className="flex items-start gap-2">
-                  <div className="min-w-0">
-                    <Link href={APP_URLS.INVEST_TICKER(h.ticker)} className="mono text-xl font-semibold text-text hover:text-accent leading-none">{h.ticker}</Link>
-                    {r?.name && <div className="text-xs text-text-mute truncate mt-1">{r.name}</div>}
-                  </div>
+              <article key={h.ticker} className="rounded-md border border-border bg-bg px-4 py-3 flex flex-wrap items-center gap-x-6 gap-y-3 min-w-0">
+                <div className="w-44 shrink-0 min-w-0 flex flex-col gap-1">
+                  <Link href={APP_URLS.INVEST_TICKER(h.ticker)} className="mono text-xl font-semibold text-text hover:text-accent leading-none w-fit">{h.ticker}</Link>
+                  {r?.name && <span className="text-xs text-text-mute truncate">{r.name}</span>}
                   {r?.sector && (
-                    <span className="ml-auto text-xs px-2 py-0.5 rounded-sm bg-surface-2 whitespace-nowrap" style={{ color: sectorColor(r.sector, sectorOrder) }}>
+                    <span className="text-xs px-2 py-0.5 rounded-sm bg-surface-2 w-fit whitespace-nowrap" style={{ color: sectorColor(r.sector, sectorOrder) }}>
                       {r.sector}
                     </span>
                   )}
                 </div>
                 {r && (
-                  <div className="flex flex-col gap-1.5">
+                  <div className="flex flex-col gap-1.5 flex-1 min-w-64 max-w-md">
                     <Meter label={S.M_GROWTH} value={fmtPct(r.revenueGrowthYoy)} ratio={r.revenueGrowthYoy == null ? null : r.revenueGrowthYoy / 0.6} color="var(--color-accent)" />
                     <Meter label={S.M_GM} value={gmDelta == null ? "—" : `${gmDelta >= 0 ? "+" : ""}${gmDelta.toFixed(1)} pts`} ratio={gmDelta == null ? null : gmDelta / 20} color="var(--color-accent)" />
                     <Meter label={S.M_ROIC} value={fmtPct(r.roic)} ratio={r.roic == null ? null : r.roic / 0.5} color="var(--color-accent)" />
@@ -107,15 +104,14 @@ export function AiPicksCard({ runId, initial, stale, results, sectorOrder }: {
                     />
                   </div>
                 )}
-                <p className="text-sm text-text">{h.why}</p>
-                <div className="flex items-center gap-2 mt-auto">
-                  <span className="text-xs text-short bg-short/10 rounded-sm px-2 py-0.5 min-w-0">{S.AI_RISK.replace("{risk}", h.risk)}</span>
-                  <Link href={APP_URLS.INVEST_TICKER(h.ticker)} className="ml-auto text-xs text-text-mute hover:text-text whitespace-nowrap">{S.AI_DETAIL}</Link>
+                <div className="flex flex-col gap-2 flex-1 min-w-60">
+                  <p className="text-sm text-text">{h.why}</p>
+                  <span className="text-xs text-short bg-short/10 rounded-sm px-2 py-0.5 w-fit">{S.AI_RISK.replace("{risk}", h.risk)}</span>
                 </div>
+                <Link href={APP_URLS.INVEST_TICKER(h.ticker)} className="text-xs text-text-mute hover:text-text whitespace-nowrap">{S.AI_DETAIL}</Link>
               </article>
             )
           })}
-        </div>
         </div>
       ) : (
         !error && <p className="px-4 py-3 text-sm text-text-mute">{S.AI_EMPTY}</p>
