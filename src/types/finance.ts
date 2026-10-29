@@ -243,7 +243,7 @@ export const suggestCategoriesInputSchema = z.object({
 })
 
 export const aiSummaryInputSchema = z.object({
-  month:   z.string().regex(/^d{4}-(0[1-9]|1[0-2])$/),
+  month:   z.string().regex(/^\d{4}-(0[1-9]|1[0-2])$/),
   refresh: z.boolean().default(false),
 })
 

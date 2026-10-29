@@ -621,6 +621,17 @@ create table if not exists finance_goals (
   created_at      timestamptz not null default now()
 );
 
+-- 2.8 · resumen del mes con IA (MONEY_SPEC §5.8, migración 20261104140000)
+create table if not exists finance_ai_summaries (
+  user_id     uuid references auth.users on delete cascade not null,
+  month       text not null check (month ~ '^\d{4}-(0[1-9]|1[0-2])$'),
+  input_hash  text not null,
+  content     jsonb not null,
+  model       text not null,
+  created_at  timestamptz not null default now(),
+  primary key (user_id, month)
+);
+
 -- 2.7 ─────────────────────────────────────────────────────────
 create table if not exists finance_settings (
   user_id          uuid primary key references auth.users on delete cascade,
@@ -637,6 +648,11 @@ alter table finance_category_rules enable row level security;
 alter table finance_subscriptions  enable row level security;
 alter table finance_goals          enable row level security;
 alter table finance_settings       enable row level security;
+alter table finance_ai_summaries   enable row level security;
+
+drop policy if exists "Users manage own finance ai summaries" on finance_ai_summaries;
+create policy "Users manage own finance ai summaries" on finance_ai_summaries
+  for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
 
 drop policy if exists "Users manage own finance accounts" on finance_accounts;
 create policy "Users manage own finance accounts" on finance_accounts

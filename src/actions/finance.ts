@@ -12,6 +12,18 @@ import { applyRules, transactionsByRule } from "~/lib/finance/match-rule"
 import type { RuleAssignment } from "~/lib/finance/match-rule"
 import { suggestCategories } from "~/lib/finance/ai/categorize"
 import type { CategorySuggestion } from "~/lib/finance/ai/categorize"
+import { summarizeMonth } from "~/lib/finance/ai/summary"
+import type { SummaryContent } from "~/lib/finance/ai/summary"
+import { inputHash } from "~/lib/ai/claude-json"
+import { buildOverview } from "~/app/(dashboard)/money/components/overview/overview-data"
+import { summaryInput } from "~/app/(dashboard)/money/components/overview/ai-summary-input"
+import {
+  getFinanceCategories,
+  getFinanceSettings,
+  getGoals,
+  getSubscriptions,
+  getTransactions,
+} from "~/services/queries/finance"
 import { normalizeConcept } from "~/lib/finance/normalize-concept"
 import type { AiError } from "~/lib/ai/claude-json"
 import { detectRecurring } from "~/lib/finance/recurring"
@@ -34,6 +46,7 @@ import {
   subscriptionStatusInputSchema,
   subscriptionNotesInputSchema,
   suggestCategoriesInputSchema,
+  aiSummaryInputSchema,
   subscriptionUsageInputSchema,
   unsplitTransactionInputSchema,
   updateCategoryInputSchema,
@@ -525,6 +538,56 @@ export async function suggestTransactionCategories(
   })
   if (!result.success) return createErrorResult(result.error)
   return createDataResult({ suggestions: result.data.suggestions })
+}
+
+/**
+ * Resumen del mes con IA (§5.8). Rehace las cifras del Overview en el servidor
+ * (nunca se fía de las del cliente); si su hash coincide con el guardado y no
+ * se pide refresh, devuelve el guardado sin llamar a la API.
+ */
+export async function generateMoneySummary(
+  input: unknown,
+): Promise<ResultType<{ content: SummaryContent; createdAt: string; cached: boolean }, FinanceActionError | AiError>> {
+  const parsed = aiSummaryInputSchema.safeParse(input)
+  if (!parsed.success) return createErrorResult("INVALID_INPUT")
+  const { month, refresh } = parsed.data
+
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return createErrorResult("UNAUTHENTICATED")
+
+  const [settingsRes, txRes, catRes, subsRes, goalsRes] = await Promise.all([
+    getFinanceSettings(), getTransactions({}), getFinanceCategories(), getSubscriptions(), getGoals(),
+  ])
+  if (!settingsRes.success || !txRes.success || !catRes.success || !subsRes.success || !goalsRes.success) return createErrorResult("UNKNOWN")
+  const settings = settingsRes.data
+  if (!settings) return createErrorResult("NO_SETTINGS")
+
+  const overview = buildOverview({
+    transactions: txRes.data, categories: catRes.data, subscriptions: subsRes.data, goals: goalsRes.data,
+    month, today: new Date().toISOString().slice(0, 10), startDay: settings.monthStartDay, closedThrough: settings.closedThrough,
+  })
+  const aiInput = summaryInput(overview, catRes.data)
+  const hash = await inputHash(aiInput)
+
+  const { data: stored } = await supabase
+    .from("finance_ai_summaries").select("content, input_hash, created_at").eq("user_id", user.id).eq("month", month).maybeSingle()
+  if (!refresh && stored && stored.input_hash === hash) {
+    return createDataResult({ content: stored.content as SummaryContent, createdAt: stored.created_at as string, cached: true })
+  }
+
+  const result = await summarizeMonth(aiInput)
+  if (!result.success) return createErrorResult(result.error)
+
+  const createdAt = new Date().toISOString()
+  const { error } = await supabase.from("finance_ai_summaries").upsert(
+    { user_id: user.id, month, input_hash: hash, content: result.data.data, model: result.data.model, created_at: createdAt },
+    { onConflict: "user_id,month" },
+  )
+  if (error) console.error(error)
+
+  revalidatePath(APP_URLS.MONEY)
+  return createDataResult({ content: result.data.data, createdAt, cached: false })
 }
 
 // ── Movimientos (§5.2) ──────────────────────────────────────────────────────

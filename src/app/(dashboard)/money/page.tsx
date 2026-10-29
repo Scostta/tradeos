@@ -9,11 +9,15 @@ import {
   getFinanceCategories,
   getFinanceSettings,
   getGoals,
+  getMoneySummary,
   getSubscriptions,
   getTransactions,
 } from "~/services/queries/finance"
 import { cn } from "~/utils/cn"
+import { aiConfigured, inputHash } from "~/lib/ai/claude-json"
 import { AddCashButton } from "./components/add-cash-button.client"
+import { AiSummaryCard } from "./components/overview/ai-summary-card.client"
+import { summaryInput } from "./components/overview/ai-summary-input"
 import { MoneyOnboarding } from "./components/money-onboarding.client"
 import { displayName, fmtDay, fmtEur } from "./components/money-format"
 import { buildOverview } from "./components/overview/overview-data"
@@ -173,6 +177,18 @@ export default async function MoneyPage({
   })
   const s = d.summary
   const rate = savingsRate(s)
+
+  // §5.8: resumen con IA guardado; "stale" si las cifras cambiaron desde que se generó.
+  const aiEnabled = aiConfigured()
+  const stored = aiEnabled ? await getMoneySummary(month) : null
+  const storedSummary = stored?.success ? stored.data : null
+  const aiStale = storedSummary != null && storedSummary.inputHash !== await inputHash(summaryInput(d, categoriesResult.data))
+  const aiCard = aiEnabled && (
+    <AiSummaryCard
+      key={month} month={month} stale={aiStale}
+      initial={storedSummary ? { content: storedSummary.content, createdAt: storedSummary.createdAt } : null}
+    />
+  )
   const proj = s.projection
 
   const subtitle = d.isCurrent && proj
@@ -250,6 +266,8 @@ export default async function MoneyPage({
             </Metric>
           </div>
 
+          {aiCard}
+
           <div className="grid grid-cols-3 gap-3">
             <Card title={O.BY_CATEGORY} right={<span className="text-xs text-text-mute">{O.VS_AVG}</span>} className="col-span-2">
               <CategoryBars d={d} />
@@ -292,6 +310,7 @@ export default async function MoneyPage({
               <span>{O.SUBS_MOBILE_SUB.replace("{unused}", String(d.subs.unused))}</span>
             </Metric>
           </div>
+          {aiCard}
           <Card title={O.BY_CATEGORY_MOBILE} link={{ href: `${APP_URLS.MONEY_TRANSACTIONS}?month=${month}`, label: O.VIEW_ALL }}>
             <CategoryBars d={d} limit={4} />
           </Card>

@@ -17,6 +17,14 @@ export const MONEY = {
   },
 
   OVERVIEW: {
+    AI_TITLE:      "AI summary",
+    AI_GENERATE:   "Generate",
+    AI_REFRESH:    "Refresh",
+    AI_THINKING:   "Thinking…",
+    AI_GENERATED:  "Generated {date}",
+    AI_STALE:      "Figures changed since · refresh",
+    AI_EMPTY:      "3–5 observations about this month, from the figures above. Uses the Anthropic API.",
+    AI_DISCLAIMER: "AI · based only on the figures above · not financial advice",
     SUBTITLE:         "Overview · {month} · {left} days left · {day} of {days}",
     SUBTITLE_PAST:    "Overview · {month}",
     IMPORT:           "Import transactions",

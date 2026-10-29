@@ -18,6 +18,8 @@ import type {
   FinanceSubscription,
   FinanceTransaction,
 } from "~/types/finance"
+import { summaryContentSchema } from "~/lib/finance/ai/summary"
+import type { SummaryContent } from "~/lib/finance/ai/summary"
 import { monthOf, monthPeriod } from "~/lib/finance/dates"
 import type { MonthKey } from "~/lib/finance/dates"
 import { createDataResult, createErrorResult } from "~/helpers/result"
@@ -193,6 +195,26 @@ export const getImportedThrough = cache(async (): Promise<ResultType<string | nu
   }
   return createDataResult((data?.booked_at as string | undefined) ?? null)
 })
+
+/** Resumen del mes con IA guardado (§5.8); null si aún no se ha generado. */
+export const getMoneySummary = cache(async (month: MonthKey): Promise<ResultType<StoredMoneySummary | null, string>> => {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return createErrorResult("UNAUTHENTICATED")
+
+  const { data, error } = await supabase
+    .from("finance_ai_summaries").select("content, input_hash, created_at").eq("user_id", user.id).eq("month", month).maybeSingle()
+  if (error) {
+    console.error(error)
+    return createErrorResult(error.message)
+  }
+  if (!data) return createDataResult(null)
+  const content = summaryContentSchema.safeParse(data.content)
+  if (!content.success) return createDataResult(null)
+  return createDataResult({ content: content.data, inputHash: data.input_hash as string, createdAt: data.created_at as string })
+})
+
+export type StoredMoneySummary = { content: SummaryContent; inputHash: string; createdAt: string }
 
 export const getSubscriptions = cache(async (): Promise<ResultType<FinanceSubscription[], string>> => {
   const supabase = await createClient()
