@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useTransition } from "react"
+import { useEffect, useRef, useState, useTransition } from "react"
 import type { ReactElement } from "react"
 import type { CompareData, ComparePeriod } from "~/types/reports"
 import { COMPARE_PERIOD_OPTIONS } from "~/helpers/compare-period"
@@ -8,6 +8,7 @@ import type { ComparePeriodKey } from "~/helpers/compare-period"
 import { REPORTS } from "~/constants/copies/reports"
 import { formatCurrency, formatPct, formatCompactCurrency, formatDurationMs } from "~/helpers/format"
 import { compareReportsPeriods } from "~/actions/reports"
+import { ChevronDownIcon } from "~/lib/ui/icons/chevron-down-icon"
 
 type Props = {
   initial:   CompareData
@@ -122,33 +123,93 @@ function CardStat({ label, value, color }: { label: string; value: string; color
   )
 }
 
+// Mismo desplegable que los filtros de Trades (FilterPill), con el color del
+// periodo; cambia por callback en vez de por la URL.
 function PeriodSelect({ value, accent, onChange, disabled }: {
   value: ComparePeriodKey; accent: string; onChange: (k: ComparePeriodKey) => void; disabled: boolean
 }): ReactElement {
+  const [open, setOpen] = useState(false)
+  const ref = useRef<HTMLDivElement>(null)
+  const selected = COMPARE_PERIOD_OPTIONS.find(o => o.id === value)
+
+  useEffect(() => {
+    if (!open) return
+    function onOutside(e: MouseEvent) {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false)
+    }
+    function onKey(e: KeyboardEvent) {
+      if (e.key === "Escape") setOpen(false)
+    }
+    document.addEventListener("mousedown", onOutside)
+    document.addEventListener("keydown", onKey)
+    return () => {
+      document.removeEventListener("mousedown", onOutside)
+      document.removeEventListener("keydown", onKey)
+    }
+  }, [open])
+
+  function pick(k: ComparePeriodKey): void {
+    setOpen(false)
+    if (k !== value) onChange(k)
+  }
+
   return (
-    <label
-      style={{
-        display: "inline-flex", alignItems: "center", gap: 8, padding: "5px 9px",
-        background: "var(--color-surface)", border: "1px solid var(--color-border)", borderRadius: 6,
-      }}
-    >
-      <span style={{ width: 10, height: 10, borderRadius: 3, background: accent }} />
-      <select
-        value={value}
+    <div ref={ref} style={{ position: "relative", width: "fit-content" }}>
+      <button
+        type="button"
+        onClick={() => setOpen(o => !o)}
         disabled={disabled}
-        onChange={e => onChange(e.target.value as ComparePeriodKey)}
+        aria-haspopup="listbox"
+        aria-expanded={open}
         style={{
-          background: "transparent", border: "none", color: "var(--color-text)",
-          fontFamily: "inherit", fontSize: 12, cursor: disabled ? "default" : "pointer", outline: "none",
+          display: "inline-flex", alignItems: "center", gap: 8, height: 30, padding: "0 10px",
+          background: "var(--color-surface)",
+          border: `1px solid ${open ? "var(--color-border-hi)" : "var(--color-border)"}`,
+          borderRadius: 6, color: "var(--color-text)", fontFamily: "inherit", fontSize: 12,
+          cursor: disabled ? "default" : "pointer", whiteSpace: "nowrap", transition: "border-color 0.15s",
         }}
       >
-        {COMPARE_PERIOD_OPTIONS.map(o => (
-          <option key={o.id} value={o.id} style={{ background: "var(--color-surface)" }}>
-            {o.label}
-          </option>
-        ))}
-      </select>
-    </label>
+        <span style={{ width: 10, height: 10, borderRadius: 3, background: accent }} />
+        {selected?.label}
+        <span
+          style={{
+            color: "var(--color-text-mute)", display: "flex",
+            transform: open ? "rotate(180deg)" : "rotate(0deg)", transition: "transform 0.15s",
+          }}
+        >
+          <ChevronDownIcon />
+        </span>
+      </button>
+
+      {open && (
+        <div
+          role="listbox"
+          style={{
+            position: "absolute", top: "calc(100% + 4px)", left: 0, minWidth: "100%",
+            background: "var(--color-surface)", border: "1px solid var(--color-border-hi)", borderRadius: 6,
+            padding: "3px 0", zIndex: 50, boxShadow: "0 8px 24px rgba(0,0,0,.45)",
+          }}
+        >
+          {COMPARE_PERIOD_OPTIONS.map(o => (
+            <button
+              key={o.id}
+              type="button"
+              role="option"
+              aria-selected={o.id === value}
+              onClick={() => pick(o.id)}
+              style={{
+                display: "flex", alignItems: "center", width: "100%", padding: "6px 12px",
+                background: o.id === value ? "var(--color-surface-2)" : "transparent", border: "none",
+                color: o.id === value ? "var(--color-text)" : "var(--color-text-dim)",
+                fontFamily: "inherit", fontSize: 13, cursor: "pointer", textAlign: "left", whiteSpace: "nowrap",
+              }}
+            >
+              {o.label}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
   )
 }
 
