@@ -1,4 +1,4 @@
-import { addDays, daysBetween, monthPeriod, shiftMonth } from "./dates"
+import { addDays, daysBetween, monthOf, monthPeriod, shiftMonth } from "./dates"
 import type { MonthKey } from "./dates"
 import { monthlySummary } from "./summary"
 import type { SummaryCategory, SummaryTransaction } from "./summary"
@@ -27,7 +27,7 @@ export function paceVsPreviousMonth(
     const to = addDays(from, days)
     const window = transactions.filter(t => t.bookedAt >= from && t.bookedAt < to)
     // monthlySummary del mes de `from` restringido a la ventana: mismo criterio de gasto.
-    return monthlySummary(window, categories, from.slice(0, 7), { startDay }).spent
+    return monthlySummary(window, categories, monthOf(from, startDay), { startDay }).spent
   }
   const prevDays = Math.min(elapsed, daysBetween(previous.from, previous.to))
   return Math.round((spentUntil(current.from, elapsed) - spentUntil(previous.from, prevDays)) * 100) / 100

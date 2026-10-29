@@ -16,9 +16,16 @@ describe("dates", () => {
 
   it("monthPeriod y monthOf con el día de inicio del usuario", () => {
     expect(monthPeriod("2026-10")).toEqual({ from: "2026-10-01", to: "2026-11-01" })
-    expect(monthPeriod("2026-12", 25)).toEqual({ from: "2026-12-25", to: "2027-01-25" })
-    expect(monthOf("2026-10-24", 25)).toBe("2026-09")
-    expect(monthOf("2026-10-25", 25)).toBe("2026-10")
+    // Día > 15: el periodo se llama como el mes en que termina (la mayoría de sus días).
+    expect(monthPeriod("2026-11", 25)).toEqual({ from: "2026-10-25", to: "2026-11-25" })
+    expect(monthPeriod("2027-01", 25)).toEqual({ from: "2026-12-25", to: "2027-01-25" })
+    expect(monthOf("2026-10-24", 25)).toBe("2026-10")
+    expect(monthOf("2026-10-25", 25)).toBe("2026-11")
+    expect(monthOf("2026-12-31", 25)).toBe("2027-01")
+    // Día ≤ 15: se llama como el mes en que empieza.
+    expect(monthPeriod("2026-10", 10)).toEqual({ from: "2026-10-10", to: "2026-11-10" })
+    expect(monthOf("2026-10-09", 10)).toBe("2026-09")
+    expect(monthOf("2026-10-10", 10)).toBe("2026-10")
     expect(monthOf("2026-10-01")).toBe("2026-10")
   })
 })

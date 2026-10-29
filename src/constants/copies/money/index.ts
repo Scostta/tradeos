@@ -358,7 +358,7 @@ export const MONEY = {
     ACCOUNT_DELETED: "Account deleted",
     INACTIVE:      "Archived",
     MONTH_START:   "Month starts on day",
-    MONTH_START_HINT: "If your salary arrives at the end of the month, start the month that day (e.g. 25): \"October\" then runs from Oct 25 to Nov 24. It changes how every month is grouped, also the ones already closed.",
+    MONTH_START_HINT: "If your salary arrives at the end of the month, start the month that day (e.g. 25): \"November\" then runs from Oct 25 to Nov 24: the month you live on the late-October salary. Each month is named after the month most of its days fall in. It changes how every month is grouped, also the ones already closed.",
     MONTH_SAVED:   "Saved",
     SAVE:          "Save",
     CLOSE_TITLE:   "Close month",

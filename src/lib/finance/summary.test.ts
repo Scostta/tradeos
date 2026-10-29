@@ -70,7 +70,7 @@ describe("monthlySummary", () => {
   })
 
   it("día de inicio de mes del usuario", () => {
-    const shifted = monthlySummary([tx("2026-10-24", -10, "eating"), tx("2026-10-25", -20, "eating")], categories, "2026-10", { startDay: 25 })
+    const shifted = monthlySummary([tx("2026-10-24", -10, "eating"), tx("2026-10-25", -20, "eating")], categories, "2026-11", { startDay: 25 })
     expect(shifted).toMatchObject({ from: "2026-10-25", to: "2026-11-25", variable: 20 })
   })
 })

@@ -29,17 +29,23 @@ export function shiftMonth(month: MonthKey, months: number): MonthKey {
 }
 
 /**
- * Periodo [from, to) del "mes" `month` con el día de inicio del usuario
- * (finance_settings.month_start_day): con día 25, el mes 2026-10 va del
- * 25/10 al 24/11. Con día 1 es el mes natural.
+ * El periodo se llama como el mes en que cae la mayor parte de sus días: con
+ * día de inicio > 15 empieza en el mes anterior. Con día 25 (nómina a final de
+ * mes), "noviembre" va del 25/10 al 24/11: el mes que se vive con la nómina de
+ * finales de octubre. Con día 1 es el mes natural. Decisión en MONEY_SPEC §5.6.
  */
+const startsMonthBefore = (startDay: number): boolean => startDay > 15
+
+/** Periodo [from, to) del "mes" `month` con el día de inicio del usuario (finance_settings.month_start_day). */
 export function monthPeriod(month: MonthKey, startDay = 1): { from: string; to: string } {
   const day = String(startDay).padStart(2, "0")
-  return { from: `${month}-${day}`, to: `${shiftMonth(month, 1)}-${day}` }
+  const start = startsMonthBefore(startDay) ? shiftMonth(month, -1) : month
+  return { from: `${start}-${day}`, to: `${shiftMonth(start, 1)}-${day}` }
 }
 
 /** Mes (periodo) al que pertenece `date` con ese día de inicio. */
 export function monthOf(date: string, startDay = 1): MonthKey {
   const month = date.slice(0, 7)
-  return +date.slice(8, 10) >= startDay ? month : shiftMonth(month, -1)
+  const start = +date.slice(8, 10) >= startDay ? month : shiftMonth(month, -1)
+  return startsMonthBefore(startDay) ? shiftMonth(start, 1) : start
 }

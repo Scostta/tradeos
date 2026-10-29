@@ -410,7 +410,7 @@ Todas con RLS `auth.uid() = user_id`. Sin `finance_settings`, cada página de Mo
 ### Suscripciones, ahorro y objetivos
 
 - `detectRecurring` (§4.3): misma contraparte, ≥ 2 cargos, importe ±10 % de la mediana de los 3 últimos, cadencia semanal/mensual/trimestral/anual. **Confirmar** una suscripción crea la regla contraparte → Subscriptions (prioridad 10); descartarla o devolverla a pendiente borra esa regla con el mismo borrado que Settings.
-- `monthlySummary` (§4.4): ahorro real = ingresos − fijos − variables; `transfer` y `excluded` fuera; `savings` cuenta como ahorro, no como gasto; un split cuenta por sus partes. Los meses van de `month_start_day` a `month_start_day` (`monthOf` en `dates.ts`: con 25, "October" = 25 oct – 24 nov).
+- `monthlySummary` (§4.4): ahorro real = ingresos − fijos − variables; `transfer` y `excluded` fuera; `savings` cuenta como ahorro, no como gasto; un split cuenta por sus partes. Los meses van de `month_start_day` a `month_start_day` (`monthOf` en `dates.ts`): el periodo se llama como el mes en que cae la mayoría de sus días; con 25, "November" = 25 oct – 24 nov.
 - Cierre de mes (§4.5): la primera visita a `/money` o `/money/goals` en un mes reparte los terminados (`ensureMonthsClosed` → `runMonthClose`), reclamando `closed_through` con un update condicional para no repartir dos veces. "Close month" manual en Settings cierra el mes en curso.
 
 ### App
