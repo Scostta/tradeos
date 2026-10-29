@@ -73,6 +73,8 @@ create table if not exists trades (
   commission   numeric(8,2) default 0,
   commission_estimated boolean not null default false,   -- calculada con commission_rates (migración 20261105120000)
   net_pnl      numeric(10,2) not null,
+  be_override  boolean,                          -- BE a mano: true/false; null = automático (migración 20261105130000)
+  break_even   boolean not null default false,   -- lo calcula el trigger trades_break_even
   mae          numeric(10,2),
   mfe          numeric(10,2),
   stop_price   numeric(12,4),
@@ -274,6 +276,7 @@ create table if not exists profiles (
   display_name     text,
   timezone         text not null default 'UTC',
   default_currency text not null default 'USD',
+  be_threshold_points numeric(6,2) not null default 1.5 check (be_threshold_points >= 0),  -- Trading: umbral BE en puntos
   created_at       timestamptz default now(),
   updated_at       timestamptz default now()
 );
@@ -282,6 +285,27 @@ alter table profiles enable row level security;
 
 create policy "Users manage own profile" on profiles
   for all using (auth.uid() = user_id);
+
+-- Break-even (migración 20261105130000): |exit − entry| ≤ umbral del perfil,
+-- salvo corrección manual (be_override). Los BE suman en el P&L pero no son
+-- ganadores ni perdedores (src/lib/calculations/outcome.ts).
+create or replace function trades_set_break_even() returns trigger
+language plpgsql
+set search_path = public
+as $$
+begin
+  new.break_even := coalesce(
+    new.be_override,
+    abs(new.exit_price - new.entry_price) <= coalesce(
+      (select p.be_threshold_points from profiles p where p.user_id = new.user_id), 1.5)
+  );
+  return new;
+end;
+$$;
+
+create trigger trades_break_even
+  before insert or update of entry_price, exit_price, be_override on trades
+  for each row execute function trades_set_break_even();
 
 -- ------------------------------------------------------------
 -- REPORT SHARES — snapshot público read-only del resumen de reports.

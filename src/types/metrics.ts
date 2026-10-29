@@ -27,6 +27,7 @@ export type DashboardMetrics = {
   totalTrades:  number
   winners:      number
   losers:       number
+  breakEven:    number
 }
 
 export type DashboardData = {

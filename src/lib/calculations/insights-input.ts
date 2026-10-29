@@ -11,6 +11,7 @@
 // All zoned date math goes through ~/helpers/tz.
 
 import { winRate, totalNetPnl, avgWin, avgLoss, profitFactor, maxDrawdown } from "~/lib/calculations/metrics"
+import { isLoss } from "~/lib/calculations/outcome"
 import { computeReportBreakdown, byDayOfWeek } from "~/lib/calculations/reports"
 import { computeMistakeStats } from "~/lib/calculations/mistakes"
 import { zonedDateKey, zonedHour } from "~/helpers/tz"
@@ -114,12 +115,13 @@ function buildSessionBuckets(trades: Trade[]): SessionBucket[] {
 
 // ── Tilt / revenge trading ────────────────────────────────────────────────────
 
-/** Longest run of consecutive losing trades across the (time-sorted) set. */
+/** Longest run of consecutive losing trades across the (time-sorted) set. BE trades neither extend nor break it. */
 function maxConsecutiveLosses(sorted: Trade[]): number {
   let max = 0
   let cur = 0
   for (const t of sorted) {
-    cur = t.netPnl <= 0 ? cur + 1 : 0
+    if (t.breakEven) continue
+    cur = isLoss(t) ? cur + 1 : 0
     if (cur > max) max = cur
   }
   return max
@@ -143,7 +145,7 @@ export function buildStreakSignal(trades: Trade[]): StreakSignal {
     const sorted = [...bucket].sort(byEntryTime)
     maxStreak = Math.max(maxStreak, maxConsecutiveLosses(sorted))
     for (let i = 1; i < sorted.length; i++) {
-      if (sorted[i - 1]!.netPnl <= 0) afterLoss.push(sorted[i]!)
+      if (isLoss(sorted[i - 1]!)) afterLoss.push(sorted[i]!)
     }
   }
 

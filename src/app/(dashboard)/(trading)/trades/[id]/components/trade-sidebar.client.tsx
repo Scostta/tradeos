@@ -8,6 +8,7 @@ import { parsePlaybookRules } from "~/helpers/playbook-rules"
 import { toggleFollowed } from "~/helpers/followed-rules"
 import { gradeForRules } from "~/lib/calculations/trade-grade"
 import { GradeBadge } from "~/components/grade-badge"
+import { BeOverrideToggle } from "~/components/trades/be-override-toggle.client"
 import { useTradeSetup } from "./trade-setup-context.client"
 import { useTimezone } from "~/hooks/use-timezone"
 import { MISTAKE_PRESETS } from "~/constants/trade-mistakes"
@@ -223,6 +224,12 @@ export function TradeSidebar({ trade, playbooks }: Props) {
           </div>
         </div>
       )}
+
+      {/* Break-even: automático por umbral o forzado a mano */}
+      <div className="card p-4">
+        <div className="label-caps mb-2">{TRADES.BREAK_EVEN.LABEL}</div>
+        <BeOverrideToggle tradeId={trade.id} breakEven={trade.breakEven} beOverride={trade.beOverride} />
+      </div>
 
       {/* Executions */}
       <TradeExecutionsCard trade={trade} />

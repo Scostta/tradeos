@@ -170,6 +170,7 @@ export const REPORTS = {
       TOTAL_TRADES:         "Total number of trades",
       WINNING_TRADES:       "Number of winning trades",
       LOSING_TRADES:        "Number of losing trades",
+      BREAK_EVEN_TRADES:    "Number of break-even trades",
       MAX_CONSEC_WINS:      "Max consecutive wins",
       MAX_CONSEC_LOSSES:    "Max consecutive losses",
       TOTAL_COMMISSIONS:    "Total commissions",

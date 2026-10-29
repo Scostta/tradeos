@@ -14,6 +14,16 @@ export const SETTINGS = {
     SAVED:            "Preferences saved.",
   },
 
+  BREAK_EVEN: {
+    TITLE:       "Break-even",
+    DESCRIPTION: "A trade is break-even when it exits within this many points of its entry. Break-even trades still count in your P&L and commissions, but not as winners or losers (win rate, profit factor, averages, streaks). You can override any trade by hand in Review or on the trade page.",
+    THRESHOLD:   "Threshold (points)",
+    HINT:        "1.5 pts = 6 ticks on NQ/ES. 0 = only exact-price exits.",
+    SAVE:        "Save threshold",
+    SAVED:       "Threshold saved. Trades recalculated.",
+    INVALID:     "Enter a number between 0 and 100.",
+  },
+
   SECURITY: {
     TITLE:            "Account",
     EMAIL:            "Email",

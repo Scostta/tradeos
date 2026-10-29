@@ -8,7 +8,6 @@
 //   - avgRealizedR  — same dependency as avgPlannedR
 //   - totalFees     — NinjaTrader exports a single "Commission" field, no separate fees
 //   - totalSwap     — irrelevant for futures; no source
-//   - breakEvenTrades — needs a threshold definition; deferred to Phase 2
 
 // ── Row & insight types (shared by all 4 sub-reports) ─────────────────────────
 
@@ -184,6 +183,7 @@ export type OverviewStats = {
   totalTrades:       number
   winningTrades:     number
   losingTrades:      number
+  breakEvenTrades:   number
   maxConsecWins:     number
   maxConsecLosses:   number
   totalCommissions:  number   // negative (cost)

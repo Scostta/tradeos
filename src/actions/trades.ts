@@ -550,3 +550,46 @@ export async function reviewTrade(
   revalidatePath("/reports")
   return createDataResult({ id })
 }
+
+const setBeOverrideSchema = z.object({
+  id:         z.string().uuid(),
+  beOverride: z.boolean().nullable(),
+})
+
+/**
+ * Corrección manual del break-even de un trade: true = BE, false = no BE,
+ * null = automático por el umbral de Settings. El trigger recalcula
+ * break_even; devuelve el valor resultante.
+ */
+export async function setTradeBeOverride(
+  input: unknown,
+): Promise<ResultType<{ id: string; breakEven: boolean }, string>> {
+  const parsed = setBeOverrideSchema.safeParse(input)
+  if (!parsed.success) return createErrorResult("INVALID_INPUT")
+
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return createErrorResult("UNAUTHENTICATED")
+
+  const { id, beOverride } = parsed.data
+  const { data, error } = await supabase
+    .from("trades")
+    .update({ be_override: beOverride })
+    .eq("id", id)
+    .eq("user_id", user.id)
+    .select("break_even")
+    .single()
+  if (error) {
+    console.error(error)
+    return createErrorResult(error.message)
+  }
+
+  revalidatePath("/review")
+  revalidatePath("/trades")
+  revalidatePath(`/trades/${id}`)
+  revalidatePath("/dashboard")
+  revalidatePath("/reports")
+  revalidatePath("/journal")
+  revalidatePath("/playbooks")
+  return createDataResult({ id, breakEven: Boolean(data.break_even) })
+}

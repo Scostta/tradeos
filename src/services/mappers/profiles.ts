@@ -7,6 +7,7 @@ export function mapProfileFromDb(row: Record<string, unknown>): Profile {
     displayName:     row["display_name"]     ?? null,
     timezone:        row["timezone"]         ?? "UTC",
     defaultCurrency: row["default_currency"] ?? "USD",
+    beThresholdPoints: Number(row["be_threshold_points"] ?? 1.5),
     createdAt:       row["created_at"],
     updatedAt:       row["updated_at"],
   })

@@ -7,6 +7,7 @@ import { PreferencesCard } from "./components/preferences-card.client"
 import { SecurityCard } from "./components/security-card.client"
 import { DangerZoneCard } from "./components/danger-zone-card.client"
 import { NinjaTraderSyncCard } from "./components/ninjatrader-sync-card.client"
+import { BreakEvenCard } from "./components/break-even-card.client"
 
 export default async function SettingsPage(): Promise<ReactElement> {
   const supabase = await createClient()
@@ -36,6 +37,7 @@ export default async function SettingsPage(): Promise<ReactElement> {
             <div className="card p-4 text-sm text-loss">{SETTINGS.ERRORS.DEFAULT}</div>
           )}
           <SecurityCard email={email} />
+          {profileResult.success && <BreakEvenCard points={profileResult.data.beThresholdPoints} />}
           <div className="lg:col-span-2">
             {tokensResult.success ? (
               <NinjaTraderSyncCard tokens={tokensResult.data} timeZone={timeZone} />

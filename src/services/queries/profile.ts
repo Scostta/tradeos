@@ -34,6 +34,7 @@ export const getProfile = cache(async function getProfile(): Promise<ResultType<
       displayName:     null,
       timezone:        "UTC",
       defaultCurrency: "USD",
+      beThresholdPoints: 1.5,
       createdAt:       now,
       updatedAt:       now,
     })

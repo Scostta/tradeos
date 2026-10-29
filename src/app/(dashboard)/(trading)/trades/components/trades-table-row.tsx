@@ -32,7 +32,7 @@ export function TradesTableRow(props: Props): ReactElement {
     ? (playbooks.find(s => s.id === trade.playbookId)?.name ?? "—")
     : "—"
 
-  const pnlColor   = pnlColorVar(trade.netPnl)
+  const pnlColor   = trade.breakEven ? "var(--color-text-dim)" : pnlColorVar(trade.netPnl)
   const grossColor = pnlColorVar(trade.pnl)
   const isLong     = trade.direction === "long"
 
@@ -91,7 +91,8 @@ export function TradesTableRow(props: Props): ReactElement {
         {formatCurrency(trade.commission, { sign: false })}
         {trade.commissionEstimated && <span className="text-text-mute ml-1">{TRADES.LIST.COMM_ESTIMATED}</span>}
       </td>
-      <td className="px-3 py-2.5 mono font-semibold text-xs text-right" style={{ color: pnlColor }}>
+      <td className="px-3 py-2.5 mono font-semibold text-xs text-right whitespace-nowrap" style={{ color: pnlColor }} title={trade.breakEven ? TRADES.LIST.BE_HINT : undefined}>
+        {trade.breakEven && <span className="text-text-mute font-normal mr-1">{TRADES.LIST.BE_MARK}</span>}
         {formatCurrency(trade.netPnl)}
       </td>
       <td className="px-3 py-2.5 text-text-dim text-xs">

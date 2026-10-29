@@ -28,7 +28,7 @@ function trade(netPnl: number, entryTime = "2025-03-10T13:00:00.000Z", id = "t")
     entryTime,
     exitTime:    entryTime,
     pnl:         netPnl,
-    commission:  0, commissionEstimated: false,
+    commission:  0, commissionEstimated: false, breakEven: false, beOverride: null,
     netPnl,
     mae:         null,
     mfe:         null,
@@ -161,5 +161,30 @@ describe("computeDashboardMetrics", () => {
     expect(m.totalTrades).toBe(3)
     expect(m.winners).toBe(2)
     expect(m.losers).toBe(1)
+  })
+})
+
+describe("break-even trades", () => {
+  const be = (netPnl: number): Trade => ({ ...trade(netPnl), breakEven: true })
+  const set = [trade(100), trade(-50), be(2), be(-6)]
+
+  it("count in net P&L", () => {
+    expect(totalNetPnl(set)).toBe(46)
+  })
+
+  it("are left out of win rate, averages and profit factor", () => {
+    expect(winRate(set)).toBe(0.5)
+    expect(avgWin(set)).toBe(100)
+    expect(avgLoss(set)).toBe(-50)
+    expect(profitFactor(set)).toBe(2)
+  })
+
+  it("win rate is 0 when every trade is BE", () => {
+    expect(winRate([be(1), be(-1)])).toBe(0)
+  })
+
+  it("are counted apart in the dashboard metrics", () => {
+    const m = computeDashboardMetrics(set)
+    expect(m).toMatchObject({ totalTrades: 4, winners: 1, losers: 1, breakEven: 2 })
   })
 })

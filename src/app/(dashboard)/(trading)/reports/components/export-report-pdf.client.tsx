@@ -253,6 +253,7 @@ export function ExportReportPdf({ accountName, rangeLabel, data }: Props): React
           { label: "Total trades",    value: String(ov.totalTrades) },
           { label: "Winning trades",  value: String(ov.winningTrades) },
           { label: "Losing trades",   value: String(ov.losingTrades) },
+          { label: "Break-even trades", value: String(ov.breakEvenTrades) },
           { label: "Expectancy",      value: formatCurrency(ps.tradeExpectancy), tone: ps.tradeExpectancy >= 0 ? "pos" : "neg" },
           { label: "Avg trade P&L",   value: formatCurrency(ov.avgTradePnl), tone: ov.avgTradePnl >= 0 ? "pos" : "neg" },
           { label: "Avg hold time",   value: formatDurationMs(ov.avgHoldAllMs) },

@@ -10,6 +10,8 @@ export const TRADES = {
     EXPORT_ERROR: "Export failed. Please try again.",
     COMM_ESTIMATED:      "est.",
     COMM_ESTIMATED_HINT: "Estimated with the account commission rate (Accounts → Commissions)",
+    BE_MARK:             "BE",
+    BE_HINT:             "Break-even: counts in P&L, not as a winner or loser",
     HEADERS: {
       ACCOUNT:   "Account",
       DATE:      "Date / Time",
@@ -164,6 +166,17 @@ export const TRADES = {
     LEGEND_EXIT:      "Exit",
     LEGEND_STOP:      "Stop",
     LEGEND_TARGET:    "Target",
+  },
+  BREAK_EVEN: {
+    LABEL:     "Break-even",
+    AUTO:      "Auto",
+    YES:       "BE",
+    NO:        "Not BE",
+    AUTO_IS:   "Auto · {state} by your threshold (Settings)",
+    STATE_BE:  "break-even",
+    STATE_NOT: "not break-even",
+    MANUAL:    "Set by hand",
+    ERROR:     "Could not update break-even.",
   },
   SIDEBAR: {
     PLAYBOOK:          "Playbook",

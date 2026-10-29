@@ -1,19 +1,23 @@
 import { zonedWeekday, zonedDateKey } from "~/helpers/tz"
 import type { Trade } from "~/types/trade"
+import { isLoss, isWin } from "./outcome"
 import type { EquityPoint, DowBucket, DashboardMetrics } from "~/types/metrics"
 
 export function totalNetPnl(trades: Trade[]): number {
   return trades.reduce((sum, t) => sum + t.netPnl, 0)
 }
 
+// Ganadores / (ganadores + perdedores): los BE no entran.
 export function winRate(trades: Trade[]): number {
-  if (trades.length === 0) return 0
-  return trades.filter(t => t.netPnl > 0).length / trades.length
+  const wins   = trades.filter(isWin).length
+  const losses = trades.filter(isLoss).length
+  if (wins + losses === 0) return 0
+  return wins / (wins + losses)
 }
 
 export function profitFactor(trades: Trade[]): number {
-  const grossWin  = trades.filter(t => t.netPnl > 0).reduce((s, t) => s + t.netPnl, 0)
-  const grossLoss = Math.abs(trades.filter(t => t.netPnl <= 0).reduce((s, t) => s + t.netPnl, 0))
+  const grossWin  = trades.filter(isWin).reduce((s, t) => s + t.netPnl, 0)
+  const grossLoss = Math.abs(trades.filter(isLoss).reduce((s, t) => s + t.netPnl, 0))
   if (grossLoss === 0) return grossWin
   return grossWin / grossLoss
 }
@@ -33,13 +37,13 @@ export function maxDrawdown(trades: Trade[]): number {
 }
 
 export function avgWin(trades: Trade[]): number {
-  const winners = trades.filter(t => t.netPnl > 0)
+  const winners = trades.filter(isWin)
   if (winners.length === 0) return 0
   return winners.reduce((s, t) => s + t.netPnl, 0) / winners.length
 }
 
 export function avgLoss(trades: Trade[]): number {
-  const losers = trades.filter(t => t.netPnl <= 0)
+  const losers = trades.filter(isLoss)
   if (losers.length === 0) return 0
   return losers.reduce((s, t) => s + t.netPnl, 0) / losers.length
 }
@@ -108,7 +112,8 @@ export function sharpeRatio(trades: Trade[], timeZone = "UTC"): number {
 }
 
 export function computeDashboardMetrics(trades: Trade[], timeZone = "UTC"): DashboardMetrics {
-  const winners = trades.filter(t => t.netPnl > 0).length
+  const winners = trades.filter(isWin).length
+  const losers  = trades.filter(isLoss).length
   const totalTrades = trades.length
   return {
     netPnl:       totalNetPnl(trades),
@@ -120,6 +125,7 @@ export function computeDashboardMetrics(trades: Trade[], timeZone = "UTC"): Dash
     sharpeRatio:  sharpeRatio(trades, timeZone),
     totalTrades,
     winners,
-    losers:       totalTrades - winners,
+    losers,
+    breakEven:    totalTrades - winners - losers,
   }
 }

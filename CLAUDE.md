@@ -493,6 +493,7 @@ SUPABASE_SERVICE_ROLE_KEY=   # solo para API routes
 - El CSV de NinjaTrader puede tener trades parcialmente cerrados — ignorar filas sin `Exit time`.
 - Los contratos de NQ tienen valor de tick $5 (0.25 pts). El CSV ya exporta el P&L en USD, no recalcular.
 - Para futuros el `commission` es crítico (suele ser $8-10 por contrato RT). Siempre mostrar net_pnl.
+- **Break-even**: un trade es BE si `|exit − entry| ≤ profiles.be_threshold_points` (1,5 pts por defecto, editable en `/settings`) o si el usuario lo fuerza (`trades.be_override`, en `/review` y `/trades/[id]`). `trades.break_even` lo calcula el trigger `trades_break_even`. Los BE suman en el P&L y comisiones pero **no son ganadores ni perdedores**: win rate = W / (W + L), avg win/loss, profit factor y rachas los excluyen. Usar siempre `tradeOutcome()` / `isWin()` / `isLoss()` (`src/lib/calculations/outcome.ts`), nunca `netPnl > 0`.
 - **Cuentas auto-creadas**: el import CSV y el ingest del add-on (`/api/ingest/ninjatrader`) son las únicas fuentes de creación de cuentas. Usar `upsert` con `ignoreDuplicates: true` para no sobreescribir configuración manual del usuario (color, tipo, balance).
 - **AccountContext**: crear en `contexts/AccountContext.tsx`. Provee `activeAccount: Account | null` y `setActiveAccount`. Persiste en `localStorage` con la key `"active_account_id"`. El layout del dashboard lo wrappea.
 - **Vista "Todas las cuentas"**: cuando `activeAccount === null`, las queries usan `.in('account_id', userAccountIds)` en lugar de `.eq('account_id', id)`.

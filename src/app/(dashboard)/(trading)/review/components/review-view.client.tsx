@@ -7,6 +7,7 @@ import { reviewTrade } from "~/actions/trades"
 import { REVIEW } from "~/constants/copies/review"
 import { MISTAKE_PRESETS } from "~/constants/trade-mistakes"
 import { GradeBadge } from "~/components/grade-badge"
+import { BeOverrideToggle } from "~/components/trades/be-override-toggle.client"
 import { formatCurrency } from "~/helpers/format"
 import { toggleFollowed } from "~/helpers/followed-rules"
 import { parsePlaybookRules } from "~/helpers/playbook-rules"
@@ -27,6 +28,12 @@ const draftOf = (t: Trade): Draft => ({
   playbookId: t.playbookId, followedRules: t.followedRules, mistakes: t.mistakes ?? [], notes: t.notes ?? "",
 })
 const reviewed = (d: Pick<Draft, "playbookId" | "followedRules">) => d.playbookId != null && d.followedRules != null
+
+// Color del P&L: gris si es BE (no cuenta como ganador ni perdedor).
+function pnlClass(t: Trade): string {
+  if (t.breakEven) return "text-text-dim"
+  return t.netPnl > 0 ? "text-profit" : t.netPnl < 0 ? "text-loss" : "text-text-dim"
+}
 
 function isTyping(target: EventTarget | null): boolean {
   return target instanceof HTMLElement && ["INPUT", "TEXTAREA", "SELECT"].includes(target.tagName)
@@ -136,8 +143,8 @@ export function ReviewView({ trades, playbooks, accounts }: {
               <span className="mono text-xs text-text truncate">
                 {t.instrument} <span className={t.direction === "long" ? "text-long" : "text-short"}>{t.direction === "long" ? "L" : "S"}</span> ×{t.contracts}
               </span>
-              <span className={cn("mono text-xs text-right", t.netPnl > 0 ? "text-profit" : t.netPnl < 0 ? "text-loss" : "text-text-dim")}>
-                {formatCurrency(t.netPnl)}
+              <span className={cn("mono text-xs text-right", pnlClass(t))}>
+                {t.breakEven && <span className="text-text-mute mr-1">{REVIEW.BE_MARK}</span>}{formatCurrency(t.netPnl)}
               </span>
               <span className={cn("size-4.5 rounded-full flex items-center justify-center text-xs", done ? "bg-accent/15 text-accent" : "border border-border-hi")} aria-label={done ? REVIEW.REVIEWED : REVIEW.PENDING}>
                 {done ? "✓" : ""}
@@ -153,8 +160,8 @@ export function ReviewView({ trades, playbooks, accounts }: {
             <span className="mono text-md font-semibold text-text">{selected.instrument}</span>
             <span className={cn("text-xs font-semibold uppercase", selected.direction === "long" ? "text-long" : "text-short")}>{selected.direction}</span>
             <span className="mono text-xs text-text-dim">{time(selected.entryTime)} → {time(selected.exitTime)}</span>
-            <span className={cn("mono text-sm font-semibold", selected.netPnl > 0 ? "text-profit" : selected.netPnl < 0 ? "text-loss" : "text-text-dim")}>
-              {formatCurrency(selected.netPnl)}
+            <span className={cn("mono text-sm font-semibold", pnlClass(selected))}>
+              {selected.breakEven && <span className="text-text-mute font-normal mr-1">{REVIEW.BE_MARK}</span>}{formatCurrency(selected.netPnl)}
             </span>
             <GradeBadge grade={rules ? gradeForRules(rules, draft.followedRules) : null} showUngraded className="ml-auto" />
             <Link href={`/trades/${selected.id}`} className="text-xs text-text-mute hover:text-text">{REVIEW.OPEN_TRADE}</Link>
@@ -218,6 +225,11 @@ export function ReviewView({ trades, playbooks, accounts }: {
                   )
                 })}
               </div>
+            </div>
+
+            <div className="flex flex-col gap-1.5">
+              <span className="label-caps">{REVIEW.BREAK_EVEN}</span>
+              <BeOverrideToggle key={selected.id} tradeId={selected.id} breakEven={selected.breakEven} beOverride={selected.beOverride} />
             </div>
 
             <label className="flex flex-col gap-1.5">

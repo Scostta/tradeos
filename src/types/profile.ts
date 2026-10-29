@@ -13,6 +13,7 @@ export const profileSchema = z.object({
   displayName:     z.string().nullable(),
   timezone:        timezoneSchema,
   defaultCurrency: currencySchema,
+  beThresholdPoints: z.number().min(0),   // Trading: |salida − entrada| ≤ umbral → break-even
   createdAt:       z.string().datetime({ offset: true }),
   updatedAt:       z.string().datetime({ offset: true }),
 })
@@ -26,6 +27,10 @@ export const updateProfileInputSchema = z.object({
   defaultCurrency: currencySchema,
 })
 export type UpdateProfileInput = z.infer<typeof updateProfileInputSchema>
+
+export const updateBeThresholdInputSchema = z.object({
+  points: z.number().min(0).max(100),
+})
 
 export const changeEmailInputSchema = z.object({
   email: z.string().email(),

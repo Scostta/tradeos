@@ -58,9 +58,10 @@ export function computeRStats(
   trades: Trade[],
   fallbackByAccount: Map<string, number | null> = new Map(),
 ): RStats {
-  const rs = trades
-    .map(t => rMultiple(t, fallbackByAccount.get(t.accountId) ?? null))
-    .filter((r): r is number => r != null)
+  const withRs = trades
+    .map(t => ({ r: rMultiple(t, fallbackByAccount.get(t.accountId) ?? null), be: t.breakEven }))
+    .filter((x): x is { r: number; be: boolean } => x.r != null)
+  const rs = withRs.map(x => x.r)
   const withR = rs.length
 
   if (withR === 0) {
@@ -78,8 +79,9 @@ export function computeRStats(
     }
   }
 
-  const wins   = rs.filter(r => r > 0)
-  const losses = rs.filter(r => r <= 0)
+  // Los BE cuentan en la expectativa y el total, pero no como ganadores ni perdedores.
+  const wins   = withRs.filter(x => !x.be && x.r > 0).map(x => x.r)
+  const losses = withRs.filter(x => !x.be && x.r <= 0).map(x => x.r)
   const expectancy = mean(rs)
   const variance   = mean(rs.map(r => (r - expectancy) ** 2))
   const std        = Math.sqrt(variance)
@@ -90,7 +92,7 @@ export function computeRStats(
     totalR:       round2(rs.reduce((s, r) => s + r, 0)),
     avgRWin:      round2(mean(wins)),
     avgRLoss:     round2(mean(losses)),
-    winRate:      withR ? wins.length / withR : 0,
+    winRate:      wins.length + losses.length ? wins.length / (wins.length + losses.length) : 0,
     sqn:          std > 0 ? round2((expectancy / std) * Math.sqrt(withR)) : 0,
     bestR:        round2(Math.max(...rs)),
     worstR:       round2(Math.min(...rs)),

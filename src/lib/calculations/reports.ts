@@ -14,6 +14,7 @@
 //   - Month groupBy uses MMMM format (e.g. "January") for label.
 
 import { winRate, totalNetPnl, avgWin, avgLoss, profitFactor, maxDrawdown } from "~/lib/calculations/metrics"
+import { isLoss, isWin, tradeOutcome } from "~/lib/calculations/outcome"
 import { zonedDateKey, zonedParts, zonedWeekday, zonedYearMonthKey } from "~/helpers/tz"
 import type { Trade } from "~/types/trade"
 import type { Playbook } from "~/types/playbook"
@@ -93,9 +94,10 @@ export function byPlaybookId(trade: Trade): string | null {
   return trade.playbookId
 }
 
-/** Groups trades into "Wins" or "Losses" based on netPnl. */
+/** Groups trades into "Wins", "Losses" or "Break-even" (see tradeOutcome). */
 export function byOutcome(trade: Trade): string {
-  return trade.netPnl > 0 ? "Wins" : "Losses"
+  const o = tradeOutcome(trade)
+  return o === "win" ? "Wins" : o === "loss" ? "Losses" : "Break-even"
 }
 
 /**
@@ -438,8 +440,8 @@ export function buildAvgWinLoss(trades: Trade[], timeZone = "UTC"): AvgWinLossPo
   const entries = Array.from(byDay.entries()).sort(([a], [b]) => a.localeCompare(b))
 
   return entries.map(([dateKey, bucket]) => {
-    const winners = bucket.filter(t => t.netPnl > 0)
-    const losers  = bucket.filter(t => t.netPnl <= 0)
+    const winners = bucket.filter(isWin)
+    const losers  = bucket.filter(isLoss)
 
     const win  = winners.length > 0 ? winners.reduce((s, t) => s + t.netPnl, 0) / winners.length : 0
     const loss = losers.length  > 0 ? losers.reduce((s, t)  => s + t.netPnl, 0) / losers.length  : 0
@@ -534,7 +536,7 @@ export function computeOverview(trades: Trade[], timeZone = "UTC"): OverviewData
   if (trades.length === 0) {
     const zeroStats: OverviewStats = {
       totalPnl: 0, avgDailyVolume: 0, avgWinningTrade: 0, avgLosingTrade: 0,
-      totalTrades: 0, winningTrades: 0, losingTrades: 0, maxConsecWins: 0,
+      totalTrades: 0, winningTrades: 0, losingTrades: 0, breakEvenTrades: 0, maxConsecWins: 0,
       maxConsecLosses: 0, totalCommissions: 0, largestProfit: 0, largestLoss: 0,
       avgHoldAllMs: 0, avgHoldWinMs: 0, avgHoldLossMs: 0, avgTradePnl: 0,
       profitFactor: 0, tradingDays: 0, winningDays: 0, losingDays: 0,
@@ -554,8 +556,8 @@ export function computeOverview(trades: Trade[], timeZone = "UTC"): OverviewData
     (a, b) => new Date(a.entryTime).getTime() - new Date(b.entryTime).getTime(),
   )
 
-  const winners = sorted.filter(t => t.netPnl > 0)
-  const losers  = sorted.filter(t => t.netPnl <= 0)
+  const winners = sorted.filter(isWin)
+  const losers  = sorted.filter(isLoss)
   const net     = totalNetPnl(sorted)
 
   // Per-month aggregation for the highlight cards
@@ -587,8 +589,9 @@ export function computeOverview(trades: Trade[], timeZone = "UTC"): OverviewData
     totalTrades:       sorted.length,
     winningTrades:     winners.length,
     losingTrades:      losers.length,
-    maxConsecWins:     maxRun(sorted.map(t => t.netPnl > 0)),
-    maxConsecLosses:   maxRun(sorted.map(t => t.netPnl <= 0)),
+    breakEvenTrades:   sorted.length - winners.length - losers.length,
+    maxConsecWins:     maxRun(sorted.filter(t => !t.breakEven).map(isWin)),
+    maxConsecLosses:   maxRun(sorted.filter(t => !t.breakEven).map(isLoss)),
     totalCommissions:  -sorted.reduce((s, t) => s + t.commission, 0),
     largestProfit:     Math.max(0, ...sorted.map(t => t.netPnl)),
     largestLoss:       Math.min(0, ...sorted.map(t => t.netPnl)),

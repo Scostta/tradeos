@@ -38,7 +38,7 @@ export async function getTradeById(
 // list of operations so the (deeply generic) Supabase builder type is never
 // named — each op just receives and returns the same builder instance.
 export type FilterBuilderLike = {
-  eq(column: string, value: string | number): FilterBuilderLike
+  eq(column: string, value: string | number | boolean): FilterBuilderLike
   gt(column: string, value: number): FilterBuilderLike
   lt(column: string, value: number): FilterBuilderLike
   gte(column: string, value: string | number): FilterBuilderLike
@@ -59,9 +59,10 @@ export function tradeFilterOps(
   if (filters.direction)  ops.push(q => q.eq("direction", filters.direction!))
   if (filters.playbookId) ops.push(q => q.eq("playbook_id", filters.playbookId!))
 
-  if (filters.outcome === "win")  ops.push(q => q.gt("net_pnl", 0))
-  if (filters.outcome === "loss") ops.push(q => q.lt("net_pnl", 0))
-  if (filters.outcome === "be")   ops.push(q => q.eq("net_pnl", 0))
+  // Mismo criterio que tradeOutcome(): los BE (break_even) no son ganadores ni perdedores.
+  if (filters.outcome === "win")  ops.push(q => q.eq("break_even", false).gt("net_pnl", 0))
+  if (filters.outcome === "loss") ops.push(q => q.eq("break_even", false).lte("net_pnl", 0))
+  if (filters.outcome === "be")   ops.push(q => q.eq("break_even", true))
   if (filters.pnlMin !== null)    ops.push(q => q.gte("net_pnl", filters.pnlMin!))
   if (filters.pnlMax !== null)    ops.push(q => q.lte("net_pnl", filters.pnlMax!))
 

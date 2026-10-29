@@ -15,6 +15,8 @@ export const REVIEW = {
   REQUIRED:       "required",
   NONE_MET:       "None met",
   MISTAKES:       "Mistakes",
+  BREAK_EVEN:     "Break-even",
+  BE_MARK:        "BE",
   NOTES:          "Note",
   NOTES_PLACEHOLDER: "What happened? (Ctrl+Enter saves)",
   SAVE_NEXT:      "Save & next",

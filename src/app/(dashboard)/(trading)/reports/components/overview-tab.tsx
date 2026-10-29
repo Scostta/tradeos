@@ -33,6 +33,7 @@ function buildLeftColumn(s: OverviewStats): StatItem[] {
     { label: C.TOTAL_TRADES,      value: s.totalTrades.toString(),         kind: "neutral" },
     { label: C.WINNING_TRADES,    value: s.winningTrades.toString(),       kind: "neutral" },
     { label: C.LOSING_TRADES,     value: s.losingTrades.toString(),        kind: "neutral" },
+    { label: C.BREAK_EVEN_TRADES, value: s.breakEvenTrades.toString(),     kind: "neutral" },
     { label: C.MAX_CONSEC_WINS,   value: s.maxConsecWins.toString(),       kind: "neutral" },
     { label: C.MAX_CONSEC_LOSSES, value: s.maxConsecLosses.toString(),     kind: "neutral" },
     { label: C.TOTAL_COMMISSIONS, value: money(s.totalCommissions, false), kind: "loss" },

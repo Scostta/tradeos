@@ -21,7 +21,7 @@ function sharpeSub(s: number): string {
 }
 
 export function MetricsRow({ metrics }: Props): ReactElement {
-  const { netPnl, winRate, profitFactor, maxDrawdown, avgWin, avgLoss, sharpeRatio, winners, losers } = metrics
+  const { netPnl, winRate, profitFactor, maxDrawdown, avgWin, avgLoss, sharpeRatio, winners, losers, breakEven } = metrics
   const sharpeClass = sharpeRatio > 0 ? "text-profit" : sharpeRatio < 0 ? "text-loss" : "text-text"
   return (
     <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-7 gap-3">
@@ -34,7 +34,7 @@ export function MetricsRow({ metrics }: Props): ReactElement {
         label={DASHBOARD.METRICS.WIN_RATE}
         value={formatPct(winRate)}
         accent={<WinRateDonut pct={winRate} />}
-        sub={`${winners}W · ${losers}L`}
+        sub={`${winners}W · ${losers}L${breakEven > 0 ? ` · ${breakEven}BE` : ""}`}
       />
       <MetricCard
         label={DASHBOARD.METRICS.PROFIT_FACTOR}

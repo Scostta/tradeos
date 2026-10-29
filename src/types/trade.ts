@@ -16,6 +16,8 @@ export const tradeSchema = z.object({
   commission:  z.number(),
   commissionEstimated: z.boolean(),   // calculada con la tarifa de la cuenta (no la mandó el bróker)
   netPnl:      z.number(),
+  breakEven:   z.boolean(),             // BE: no cuenta como ganador ni perdedor (trigger en BD)
+  beOverride:  z.boolean().nullable(),  // corrección manual del BE; null = automático por umbral
   mae:         z.number().nullable(),
   mfe:         z.number().nullable(),
   stopPrice:   z.number().nullable(),

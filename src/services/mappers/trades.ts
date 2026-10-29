@@ -18,6 +18,8 @@ export function mapTradeFromDb(row: Record<string, unknown>): Trade {
     commission:  row["commission"] ?? 0,
     commissionEstimated: row["commission_estimated"] ?? false,
     netPnl:      row["net_pnl"],
+    breakEven:   row["break_even"] ?? false,
+    beOverride:  row["be_override"] ?? null,
     mae:         row["mae"],
     mfe:         row["mfe"],
     stopPrice:   row["stop_price"],

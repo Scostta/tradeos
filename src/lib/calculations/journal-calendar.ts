@@ -1,6 +1,7 @@
 import { zonedDateKey } from "~/helpers/tz"
 import type { JournalEntry, JournalDay } from "~/types/journal"
 import type { Trade } from "~/types/trade"
+import { isLoss, isWin } from "./outcome"
 
 /** "YYYY-MM-DD" for a grid cell built from plain Y/M/D numbers. */
 function gridDateKey(year: number, month: number, day: number): string {
@@ -38,7 +39,8 @@ export function buildCalendar(
     const key        = gridDateKey(year, month, d)
     const dayTrades  = tradesByDate.get(key) ?? []
     const net        = dayTrades.reduce((s, t) => s + t.netPnl, 0)
-    const wins       = dayTrades.filter((t) => t.netPnl > 0).length
+    const wins       = dayTrades.filter(isWin).length
+    const decided    = wins + dayTrades.filter(isLoss).length
     const dow        = new Date(Date.UTC(year, month - 1, d)).getUTCDay()
 
     monthNet += net
@@ -59,7 +61,7 @@ export function buildCalendar(
       })),
       net,
       tradeCount: dayTrades.length,
-      winRate:    dayTrades.length > 0 ? wins / dayTrades.length : 0,
+      winRate:    decided > 0 ? wins / decided : 0,
     })
   }
 

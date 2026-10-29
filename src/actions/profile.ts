@@ -10,6 +10,7 @@ import {
   changeEmailInputSchema,
   changePasswordInputSchema,
   deleteAccountInputSchema,
+  updateBeThresholdInputSchema,
 } from "~/types/profile"
 import type { ResultType } from "~/helpers/result"
 import type { Profile } from "~/types/profile"
@@ -52,6 +53,44 @@ export async function updateProfile(input: unknown): Promise<ResultType<Profile,
   revalidatePath("/settings")
   revalidatePath("/", "layout")
   return createDataResult(mapProfileFromDb(data))
+}
+
+/**
+ * Umbral de break-even (Trading) en puntos. Tras guardarlo reescribe
+ * be_override = null en los trades automáticos para que el trigger
+ * recalcule break_even; las correcciones manuales no cambian.
+ */
+export async function updateBeThreshold(input: unknown): Promise<ResultType<true, string>> {
+  const parsed = updateBeThresholdInputSchema.safeParse(input)
+  if (!parsed.success) return createErrorResult("INVALID_INPUT")
+
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return createErrorResult("UNAUTHENTICATED")
+
+  const { error } = await supabase
+    .from("profiles")
+    .upsert(
+      { user_id: user.id, be_threshold_points: parsed.data.points, updated_at: new Date().toISOString() },
+      { onConflict: "user_id" },
+    )
+  if (error) {
+    console.error(error)
+    return createErrorResult(error.message)
+  }
+
+  const { error: recalcError } = await supabase
+    .from("trades")
+    .update({ be_override: null })
+    .eq("user_id", user.id)
+    .is("be_override", null)
+  if (recalcError) {
+    console.error(recalcError)
+    return createErrorResult(recalcError.message)
+  }
+
+  revalidatePath("/", "layout")
+  return createDataResult(true)
 }
 
 /**
