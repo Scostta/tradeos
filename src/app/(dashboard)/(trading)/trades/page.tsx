@@ -83,6 +83,7 @@ export default async function TradesPage({
         <TradesTable
           trades={trades}
           playbooks={playbooks}
+          accounts={accounts}
         />
       </div>
       <TradesPagination

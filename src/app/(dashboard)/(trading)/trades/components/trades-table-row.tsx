@@ -19,11 +19,12 @@ function pnlColorVar(n: number): string {
 type Props = {
   trade:      Trade
   playbooks: { id: string; name: string }[]
+  account:    { name: string; color: string } | null
   grade:      GradeId | null
 }
 
 export function TradesTableRow(props: Props): ReactElement {
-  const { trade, playbooks, grade } = props
+  const { trade, playbooks, account, grade } = props
   const router = useRouter()
   const tz = useTimezone()
 
@@ -40,10 +41,15 @@ export function TradesTableRow(props: Props): ReactElement {
       className="border-b border-border transition-colors hover:bg-surface-2 cursor-pointer"
       onClick={() => router.push(`/trades/${trade.id}`)}
     >
-      <td className="px-3 py-2.5 mono text-text-mute text-xs">
-        {trade.tradeNumber !== null
-          ? trade.tradeNumber.toString().padStart(4, "0")
-          : "—"}
+      <td className="px-3 py-2.5 text-xs" style={{ maxWidth: 160 }}>
+        {account ? (
+          <span className="inline-flex items-center gap-1.5 min-w-0 max-w-full" title={account.name}>
+            <span className="size-2 rounded-full shrink-0" style={{ background: account.color }} />
+            <span className="text-text-dim truncate">{account.name}</span>
+          </span>
+        ) : (
+          <span className="text-text-mute">—</span>
+        )}
       </td>
       <td className="px-3 py-2.5 mono text-text-dim text-xs whitespace-nowrap">
         {formatDateTime(trade.entryTime, tz)}

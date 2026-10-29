@@ -2,6 +2,7 @@ import type { ReactElement } from "react"
 import { TRADES } from "~/constants/copies/trades"
 import type { Trade } from "~/types/trade"
 import type { Playbook } from "~/types/playbook"
+import type { Account } from "~/types/account"
 import { parsePlaybookRules } from "~/helpers/playbook-rules"
 import { gradeForTrade } from "~/lib/calculations/trade-grade"
 import { TradesTableRow } from "./trades-table-row"
@@ -9,10 +10,11 @@ import { TradesTableRow } from "./trades-table-row"
 type Props = {
   trades:     Trade[]
   playbooks: Pick<Playbook, "id" | "name" | "rules">[]
+  accounts:   Pick<Account, "id" | "name" | "color">[]
 }
 
 const HEADERS = [
-  { label: TRADES.LIST.HEADERS.NUMBER,     align: "left"  },
+  { label: TRADES.LIST.HEADERS.ACCOUNT,    align: "left"  },
   { label: TRADES.LIST.HEADERS.DATE,       align: "left"  },
   { label: TRADES.LIST.HEADERS.INSTRUMENT, align: "left"  },
   { label: TRADES.LIST.HEADERS.DIRECTION,  align: "left"  },
@@ -28,8 +30,9 @@ const HEADERS = [
 ] as const
 
 export function TradesTable(props: Props): ReactElement {
-  const { trades, playbooks } = props
+  const { trades, playbooks, accounts } = props
   const rulesByPlaybook = new Map(playbooks.map(p => [p.id, parsePlaybookRules(p.rules)] as const))
+  const accountsById = new Map(accounts.map(a => [a.id, a] as const))
 
   return (
     <div className="card p-0 overflow-hidden">
@@ -64,6 +67,7 @@ export function TradesTable(props: Props): ReactElement {
                 key={trade.id}
                 trade={trade}
                 playbooks={playbooks}
+                account={accountsById.get(trade.accountId) ?? null}
                 grade={gradeForTrade(trade, rulesByPlaybook)}
               />
             ))

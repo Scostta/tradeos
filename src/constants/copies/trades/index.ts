@@ -9,7 +9,7 @@ export const TRADES = {
     EXPORTING: "Exporting…",
     EXPORT_ERROR: "Export failed. Please try again.",
     HEADERS: {
-      NUMBER:    "#",
+      ACCOUNT:   "Account",
       DATE:      "Date / Time",
       INSTRUMENT:"Instrument",
       DIRECTION: "Direction",
