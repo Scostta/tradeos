@@ -3,7 +3,7 @@ import { createClient } from "~/utils/supabase/server"
 import { mapAccountFromDb } from "~/services/mappers/accounts"
 import { computePropFirmStatus } from "~/lib/calculations/prop-firm"
 import { getUserTimezone } from "~/services/queries/profile"
-import type { Account } from "~/types/account"
+import type { Account, AccountCommissions } from "~/types/account"
 import type { AccountWithPropStatus, PropFirmAlertItem, PropFirmConfig, PropFirmTrade } from "~/types/prop-firm"
 import { createDataResult, createErrorResult } from "~/helpers/result"
 import type { ResultType } from "~/helpers/result"
@@ -153,4 +153,31 @@ export async function getPropFirmStatus(
   const status = computePropFirmStatus(propConfig(account), propTrades, new Date(), await getUserTimezone())
 
   return createDataResult({ account, status })
+}
+
+/** Por cuenta: instrumentos operados y tarifas de comisión configuradas (editor de /accounts). */
+export async function getAccountCommissions(): Promise<ResultType<Record<string, AccountCommissions>, string>> {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return createErrorResult("UNAUTHENTICATED")
+
+  const [tradesRes, ratesRes] = await Promise.all([
+    supabase.from("trades").select("account_id, instrument").eq("user_id", user.id),
+    supabase.from("commission_rates").select("account_id, instrument, round_turn").eq("user_id", user.id),
+  ])
+  if (tradesRes.error || ratesRes.error) {
+    console.error(tradesRes.error ?? ratesRes.error)
+    return createErrorResult((tradesRes.error ?? ratesRes.error)!.message)
+  }
+  const out: Record<string, AccountCommissions> = {}
+  const entry = (id: string) => (out[id] ??= { instruments: [], commissionRates: [] })
+  for (const t of tradesRes.data ?? []) {
+    const e = entry(t.account_id as string)
+    if (!e.instruments.includes(t.instrument as string)) e.instruments.push(t.instrument as string)
+  }
+  for (const r of ratesRes.data ?? []) {
+    entry(r.account_id as string).commissionRates.push({ instrument: r.instrument as string, roundTurn: Number(r.round_turn) })
+  }
+  for (const e of Object.values(out)) e.instruments.sort()
+  return createDataResult(out)
 }

@@ -3,8 +3,8 @@
 import { useState, useTransition } from "react";
 import { createPortal } from "react-dom";
 import type { ReactElement } from "react";
-import type { AccountWithStats, AccountType, PropPhase, DrawdownType } from "~/types/account";
-import { updateAccount, setAccountActive } from "~/actions/accounts";
+import type { AccountCommissions, AccountWithStats, AccountType, PropPhase, DrawdownType } from "~/types/account";
+import { saveCommissionRates, updateAccount, setAccountActive } from "~/actions/accounts";
 import { ACCOUNTS } from "~/constants/copies/accounts";
 import { PROP_FIRM } from "~/constants/copies/prop-firm";
 import { PROP_FIRM_PRESETS, PROP_FIRM_PRESET_FIRMS } from "~/constants/prop-firm-presets";
@@ -14,6 +14,7 @@ import { Button } from "~/lib/ui/button";
 import { Toast } from "~/lib/ui/toast";
 import type { ToastVariant } from "~/lib/ui/toast";
 import { XIcon } from "~/lib/ui/icons/x-icon";
+import { CommissionRatesFields } from "./commission-rates-fields.client";
 
 const COLOR_PRESETS = [
   "#3b82f6",
@@ -35,12 +36,22 @@ type ToastState = { message: string; variant: ToastVariant };
 
 type Props = {
   account:        AccountWithStats;
+  commissions?:   AccountCommissions;
   renderTrigger?: (open: () => void) => ReactElement;
 };
 
-export function AccountEditor({ account, renderTrigger }: Props): ReactElement {
+/** Instrumentos operados y con tarifa → importe tecleado ("" = sin tarifa). */
+function initialRates(c: AccountCommissions | undefined): Record<string, string> {
+  const out: Record<string, string> = {};
+  for (const i of c?.instruments ?? []) out[i] = "";
+  for (const r of c?.commissionRates ?? []) out[r.instrument] = String(r.roundTurn);
+  return out;
+}
+
+export function AccountEditor({ account, commissions, renderTrigger }: Props): ReactElement {
   const [isOpen, setIsOpen]               = useState(false);
-  const [editorTab, setEditorTab]         = useState<"general" | "prop">("general");
+  const [editorTab, setEditorTab]         = useState<"general" | "prop" | "commissions">("general");
+  const [rates, setRates]                 = useState<Record<string, string>>(() => initialRates(commissions));
   const [broker, setBroker]               = useState(account.broker ?? "");
   const [accountType, setAccountType]     = useState<AccountType>(account.accountType);
   const [initialBalance, setInitialBalance] = useState<string>(
@@ -83,6 +94,7 @@ export function AccountEditor({ account, renderTrigger }: Props): ReactElement {
     setPresetId("");
     setArchiveArmed(false);
     setEditorTab("general");
+    setRates(initialRates(commissions));
     setIsOpen(true);
   }
 
@@ -123,12 +135,28 @@ export function AccountEditor({ account, renderTrigger }: Props): ReactElement {
         riskPerTrade:   numOrNull(riskPerTrade),
       });
 
-      if (result.success) {
-        showToast(ACCOUNTS.TOAST.SAVE_SUCCESS, "success");
-        closeModal();
-      } else {
+      if (!result.success) {
         showToast(result.error, "error");
+        return;
       }
+
+      // Tarifas: solo si cambiaron; recalculan los trades sin comisión real.
+      const before = initialRates(commissions);
+      const changed = Object.keys(rates).filter((k) => (rates[k] ?? "").trim() !== (before[k] ?? ""));
+      if (changed.length > 0) {
+        const rateResult = await saveCommissionRates({
+          accountId: account.id,
+          rates: changed.map((instrument) => ({ instrument, roundTurn: numOrNull(rates[instrument] ?? "") })),
+        });
+        if (!rateResult.success) {
+          showToast(ACCOUNTS.EDITOR.COMMISSIONS.ERROR, "error");
+          return;
+        }
+        showToast(ACCOUNTS.EDITOR.COMMISSIONS.SAVED.replace("{n}", String(rateResult.data.updated)), "success");
+      } else {
+        showToast(ACCOUNTS.TOAST.SAVE_SUCCESS, "success");
+      }
+      closeModal();
     });
   }
 
@@ -197,7 +225,7 @@ export function AccountEditor({ account, renderTrigger }: Props): ReactElement {
 
             {/* Tabs */}
             <div className="flex gap-1 p-0.5 rounded-sm bg-surface-2 border border-border">
-              {(["general", "prop"] as const).map((t) => (
+              {(["general", "prop", "commissions"] as const).map((t) => (
                 <button
                   key={t}
                   type="button"
@@ -207,7 +235,7 @@ export function AccountEditor({ account, renderTrigger }: Props): ReactElement {
                     editorTab === t ? "bg-surface text-text" : "text-text-mute hover:text-text-dim"
                   )}
                 >
-                  {t === "general" ? ACCOUNTS.EDITOR.TAB_GENERAL : ACCOUNTS.EDITOR.TAB_PROP}
+                  {t === "general" ? ACCOUNTS.EDITOR.TAB_GENERAL : t === "prop" ? ACCOUNTS.EDITOR.TAB_PROP : ACCOUNTS.EDITOR.TAB_COMMISSIONS}
                 </button>
               ))}
             </div>
@@ -439,6 +467,8 @@ export function AccountEditor({ account, renderTrigger }: Props): ReactElement {
               <p className="text-xxs text-text-mute -mt-1.5">{PROP_FIRM.RISK_HINT}</p>
             </div>
             )}
+
+            {editorTab === "commissions" && <CommissionRatesFields rates={rates} onChange={setRates} />}
 
             {/* Footer */}
             <div className="flex items-center justify-between gap-3 pt-1 border-t border-border">

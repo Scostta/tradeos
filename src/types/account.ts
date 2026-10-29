@@ -39,6 +39,20 @@ export type AccountWithStats = Account & {
   netPnl:     number
 }
 
+/** Tarifas de comisión de una cuenta (ida y vuelta por contrato) e instrumentos operados en ella. */
+export type AccountCommissions = {
+  instruments:     string[]
+  commissionRates: { instrument: string; roundTurn: number }[]
+}
+
+export const saveCommissionRatesInputSchema = z.object({
+  accountId: z.string().uuid(),
+  rates:     z.array(z.object({
+    instrument: z.string().trim().toUpperCase().regex(/^[A-Z0-9]{1,10}$/),
+    roundTurn:  z.number().finite().min(0).max(1000).nullable(),   // null = quitar la tarifa
+  })).max(50),
+})
+
 export const updateAccountInputSchema = z.object({
   id:             z.string().uuid(),
   broker:         z.string().nullable(),

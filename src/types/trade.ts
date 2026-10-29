@@ -14,6 +14,7 @@ export const tradeSchema = z.object({
   exitTime:    z.string().datetime({ offset: true }),
   pnl:         z.number(),
   commission:  z.number(),
+  commissionEstimated: z.boolean(),   // calculada con la tarifa de la cuenta (no la mandó el bróker)
   netPnl:      z.number(),
   mae:         z.number().nullable(),
   mfe:         z.number().nullable(),

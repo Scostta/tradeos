@@ -1,14 +1,14 @@
 "use client"
 
 import type { ReactElement } from "react"
-import type { AccountType } from "~/types/account"
+import type { AccountCommissions, AccountType } from "~/types/account"
 import type { AccountWithPropStatus, AlertLevel } from "~/types/prop-firm"
 import { ACCOUNTS } from "~/constants/copies/accounts"
 import { PROP_FIRM } from "~/constants/copies/prop-firm"
 import { cn } from "~/utils/cn"
 import { AccountEditor } from "./account-editor.client"
 
-type Props = { account: AccountWithPropStatus }
+type Props = { account: AccountWithPropStatus; commissions?: AccountCommissions }
 
 const TYPE_COLORS: Record<AccountType, string> = {
   real:   "text-text-dim",
@@ -33,10 +33,11 @@ function formatBalance(value: number): string {
   return `$${value.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
 }
 
-export function AccountCard({ account }: Props): ReactElement {
+export function AccountCard({ account, commissions }: Props): ReactElement {
   return (
     <AccountEditor
       account={account}
+      commissions={commissions}
       renderTrigger={(open) => (
         <div
           role="button"

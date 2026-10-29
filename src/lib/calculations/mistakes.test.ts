@@ -8,7 +8,7 @@ function trade(netPnl: number, mistakes: string[] | null): Trade {
     instrument: "NQ", direction: "long", contracts: 1,
     entryPrice: 1, exitPrice: 1,
     entryTime: "2026-06-10T15:00:00.000Z", exitTime: "2026-06-10T15:30:00.000Z",
-    pnl: netPnl, commission: 0, netPnl, mae: null, mfe: null, stopPrice: null,
+    pnl: netPnl, commission: 0, commissionEstimated: false, netPnl, mae: null, mfe: null, stopPrice: null,
     playbookId: null, session: null, notes: null, tags: null,
     followedRules: null, mistakes, createdAt: "2026-06-10T15:30:00.000Z",
   }

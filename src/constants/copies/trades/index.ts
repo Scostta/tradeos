@@ -8,6 +8,8 @@ export const TRADES = {
     EXPORT:    "Export",
     EXPORTING: "Exporting…",
     EXPORT_ERROR: "Export failed. Please try again.",
+    COMM_ESTIMATED:      "est.",
+    COMM_ESTIMATED_HINT: "Estimated with the account commission rate (Accounts → Commissions)",
     HEADERS: {
       ACCOUNT:   "Account",
       DATE:      "Date / Time",

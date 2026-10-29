@@ -15,6 +15,7 @@
 import { NextResponse } from "next/server"
 import type { NextRequest } from "next/server"
 import { createServerClient } from "~/utils/supabase/service"
+import { loadCommissionRates, withEstimatedCommission } from "~/services/commission-rates"
 import { hashApiToken, parseBearerToken } from "~/helpers/api-token"
 import { buildSyncTradeRows, dropCoveredRows } from "~/lib/ingest/ninjatrader-sync"
 import { compressScreenshot } from "~/lib/images/compress-screenshot"
@@ -164,6 +165,9 @@ export async function POST(req: NextRequest): Promise<NextResponse<IngestRespons
 
   let insertedIds: string[] = []
   if (fresh.length > 0) {
+    // Sin comisión del bróker (cuenta sin plantilla en NinjaTrader): tarifa de la
+    // cuenta. Si las tarifas no se pueden leer, el trade entra igual sin estimar.
+    const rates = (await loadCommissionRates(service, [accountId])) ?? new Map()
     const { data: inserted, error: insertError } = await service
       .from("trades")
       .upsert(
@@ -179,8 +183,7 @@ export async function POST(req: NextRequest): Promise<NextResponse<IngestRespons
           entry_time:  r.entryTime,
           exit_time:   r.exitTime,
           pnl:         r.pnl,
-          commission:  r.commission,
-          net_pnl:     r.netPnl,
+          ...withEstimatedCommission(r, rates.get(accountId)),
           mae:         r.mae,
           mfe:         r.mfe,
           stop_price:  r.stopPrice,

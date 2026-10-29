@@ -2,6 +2,7 @@
 
 import { z } from "zod"
 import { createClient } from "~/utils/supabase/server"
+import { loadCommissionRates, withEstimatedCommission } from "~/services/commission-rates"
 import { importTradesInputSchema } from "~/types/import"
 import type {
   DuplicateKey,
@@ -247,6 +248,10 @@ export async function importTrades(
   )
 
   const seen = new Set<string>()
+  // Filas sin comisión: tarifa de su cuenta, si la tiene. Si las tarifas no se
+  // pueden leer, se importa igual sin estimar.
+  const rates = (await loadCommissionRates(supabase, [...new Set(nameToId.values())])) ?? new Map()
+
   const tradeRows = rows
     .map((row: ImportRow) => {
       const accountId = nameToId.get(row.accountName)
@@ -265,8 +270,7 @@ export async function importTrades(
         entry_time: row.entryTime,
         exit_time: row.exitTime,
         pnl: row.pnl,
-        commission: row.commission,
-        net_pnl: row.netPnl,
+        ...withEstimatedCommission(row, rates.get(accountId)),
         mae: row.mae,
         mfe: row.mfe,
       }

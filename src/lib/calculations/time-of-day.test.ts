@@ -26,7 +26,7 @@ function trade(
     entryTime,
     exitTime:    entryTime,
     pnl:         netPnl,
-    commission:  0,
+    commission:  0, commissionEstimated: false,
     netPnl,
     mae:         null,
     mfe:         null,

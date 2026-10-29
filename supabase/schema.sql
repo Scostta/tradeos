@@ -71,6 +71,7 @@ create table if not exists trades (
   exit_time    timestamptz not null,
   pnl          numeric(10,2) not null,
   commission   numeric(8,2) default 0,
+  commission_estimated boolean not null default false,   -- calculada con commission_rates (migración 20261105120000)
   net_pnl      numeric(10,2) not null,
   mae          numeric(10,2),
   mfe          numeric(10,2),
@@ -90,6 +91,29 @@ alter table trades enable row level security;
 
 create policy "Users see own trades" on trades
   for all using (auth.uid() = user_id);
+
+-- ------------------------------------------------------------
+-- COMMISSION RATES (migración 20261105120000)
+-- Tarifa ida y vuelta por contrato por cuenta e instrumento. Se usa cuando un
+-- trade llega sin comisión (NinjaTrader manda 0 sin plantilla de comisiones).
+-- ------------------------------------------------------------
+create table if not exists commission_rates (
+  user_id     uuid references auth.users on delete cascade not null,
+  account_id  uuid references accounts(id) on delete cascade not null,
+  instrument  text not null check (instrument ~ '^[A-Z0-9]{1,10}$'),
+  round_turn  numeric(8,2) not null check (round_turn >= 0),
+  updated_at  timestamptz not null default now(),
+  primary key (account_id, instrument)
+);
+
+alter table commission_rates enable row level security;
+
+create policy "Users manage own commission rates" on commission_rates
+  for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
+
+grant select on public.commission_rates to anon;
+grant select, insert, update, delete on public.commission_rates to authenticated;
+grant select, insert, update, delete on public.commission_rates to service_role;
 
 -- ------------------------------------------------------------
 -- IMPORT EXCLUSIONS

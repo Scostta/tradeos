@@ -1,10 +1,10 @@
 import type { ReactElement } from "react";
 import { ACCOUNTS } from "~/constants/copies/accounts";
-import { getAccountsWithStats } from "~/services/queries/accounts";
+import { getAccountCommissions, getAccountsWithStats } from "~/services/queries/accounts";
 import { AccountsGrid } from "./components/accounts-grid";
 
 export default async function AccountsPage(): Promise<ReactElement> {
-  const result = await getAccountsWithStats();
+  const [result, commissions] = await Promise.all([getAccountsWithStats(), getAccountCommissions()]);
 
   return (
     <div className="flex flex-col h-full">
@@ -17,7 +17,7 @@ export default async function AccountsPage(): Promise<ReactElement> {
 
       <div className="flex-1 overflow-auto">
         {result.success ? (
-          <AccountsGrid accounts={result.data} />
+          <AccountsGrid accounts={result.data} commissions={commissions.success ? commissions.data : {}} />
         ) : (
           <div className="p-7">
             <div className="card p-4 text-sm text-loss">{ACCOUNTS.ERROR.LOAD_FAILED}</div>

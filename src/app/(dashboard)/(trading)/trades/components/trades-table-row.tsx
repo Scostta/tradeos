@@ -87,8 +87,9 @@ export function TradesTableRow(props: Props): ReactElement {
       <td className="px-3 py-2.5 mono text-xs text-right" style={{ color: grossColor }}>
         {formatCurrency(trade.pnl)}
       </td>
-      <td className="px-3 py-2.5 mono text-text-dim text-xs text-right">
+      <td className="px-3 py-2.5 mono text-text-dim text-xs text-right whitespace-nowrap" title={trade.commissionEstimated ? TRADES.LIST.COMM_ESTIMATED_HINT : undefined}>
         {formatCurrency(trade.commission, { sign: false })}
+        {trade.commissionEstimated && <span className="text-text-mute ml-1">{TRADES.LIST.COMM_ESTIMATED}</span>}
       </td>
       <td className="px-3 py-2.5 mono font-semibold text-xs text-right" style={{ color: pnlColor }}>
         {formatCurrency(trade.netPnl)}
