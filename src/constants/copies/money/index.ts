@@ -337,6 +337,26 @@ export const MONEY = {
     BUTTON:    "Cash expense",
   },
 
+  SETTINGS: {
+    TITLE:        "Money settings",
+    SUBTITLE:     "Rules that categorize your imports",
+    RULES_TITLE:  "Rules · {n}",
+    RULES_HINT:   "A rule categorizes every transaction whose concept contains its pattern, now and in future imports. Deleting one sends what it categorized back to the queue, or to another rule that matches. Categories you set by hand stay.",
+    RULES_EMPTY:  "No rules yet. Create one from a transaction: pick a category and tick \"Create rule\".",
+    HEAD_PATTERN: "Pattern",
+    HEAD_CATEGORY: "Category",
+    HEAD_COUNT:   "Transactions",
+    HEAD_ORIGIN:  "Origin",
+    ORIGIN_SUBSCRIPTION: "Subscription",
+    ORIGIN_MANUAL: "Created {date}",
+    COUNT:        "{n} tx",
+    DELETE:       "Delete",
+    CONFIRM_DELETE: "Delete?",
+    YES:          "Yes",
+    NO:           "No",
+    DELETED:      "Rule deleted · {n} transactions released",
+  },
+
   ACCOUNT_KINDS: {
     checking: "Checking",
     savings:  "Savings",

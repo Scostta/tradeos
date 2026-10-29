@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest"
-import { applyRules, matchRule } from "./match-rule"
+import { applyRules, matchRule, transactionsByRule } from "./match-rule"
 import type { Rule, RuleTarget } from "./match-rule"
 
 const rules: Rule[] = [
@@ -53,5 +53,29 @@ describe("applyRules", () => {
 
   it("sin reglas no hace nada", () => {
     expect(applyRules([{ ...base, id: "a" }], [])).toEqual([])
+  })
+})
+
+describe("transactionsByRule", () => {
+  const tx = (id: string, counterparty: string | null, categoryId: string | null, categorySource: RuleTarget["categorySource"]): RuleTarget =>
+    ({ id, counterparty, categoryId, categorySource, parentId: null, excluded: false })
+
+  it("atribuye cada movimiento de regla a su regla ganadora", () => {
+    const owned = transactionsByRule([
+      tx("1", "mercadona valencia", "groceries", "rule"),
+      tx("2", "mercadona online sl", "shopping", "rule"),
+      tx("3", "amazon prime eu", "subscriptions", "rule"),
+    ], rules)
+    expect(Object.fromEntries(owned)).toEqual({ "r-merca": ["1"], "r-merca-online": ["2"], "r-amazon-prime": ["3"] })
+  })
+
+  it("ignora lo manual, lo sin categoría y lo que no lleva la categoría de la regla", () => {
+    const owned = transactionsByRule([
+      tx("1", "mercadona valencia", "groceries", "manual"),
+      tx("2", "mercadona valencia", null, null),
+      tx("3", "mercadona valencia", "eating-out", "rule"),
+      tx("4", null, "groceries", "rule"),
+    ], rules)
+    expect(owned.size).toBe(0)
   })
 })

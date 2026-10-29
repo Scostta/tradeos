@@ -58,6 +58,7 @@ const NAV_BY_MODULE: Record<AppModule, NavItem[]> = {
     { id: "money-subscriptions", label: COMMON.NAV_LABELS.SUBSCRIPTIONS, path: APP_URLS.MONEY_SUBSCRIPTIONS, Icon: RepeatIcon },
     { id: "money-goals", label: COMMON.NAV_LABELS.GOALS, path: APP_URLS.MONEY_GOALS, Icon: TargetIcon },
     { id: "money-import", label: COMMON.NAV_LABELS.IMPORT, path: APP_URLS.MONEY_IMPORT, Icon: UploadIcon },
+    { id: "money-settings", label: COMMON.NAV_LABELS.SETTINGS, path: APP_URLS.MONEY_SETTINGS, Icon: SettingsIcon },
   ],
 };
 

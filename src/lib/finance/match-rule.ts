@@ -52,3 +52,20 @@ export function applyRules(transactions: RuleTarget[], rules: Rule[]): RuleAssig
   }
   return out
 }
+
+/**
+ * Movimientos que categoriza hoy cada regla: los de origen "rule" cuya regla
+ * ganadora es esa y les puso su categoría. Sirve para contar por regla y para
+ * devolver a la cola lo de una regla borrada (sin columna rule_id en la tabla).
+ */
+export function transactionsByRule(transactions: RuleTarget[], rules: Rule[]): Map<string, string[]> {
+  const sorted = [...rules].sort(byPrecedence)
+  const out = new Map<string, string[]>()
+  for (const t of transactions) {
+    if (t.categorySource !== "rule" || !t.counterparty) continue
+    const rule = sorted.find(r => r.pattern.length > 0 && t.counterparty!.includes(r.pattern))
+    if (!rule || rule.categoryId !== t.categoryId) continue
+    out.set(rule.id, [...(out.get(rule.id) ?? []), t.id])
+  }
+  return out
+}

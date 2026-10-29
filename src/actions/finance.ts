@@ -8,7 +8,7 @@ import { monthOf, monthPeriod, shiftMonth } from "~/lib/finance/dates"
 import type { MonthKey } from "~/lib/finance/dates"
 import { CASH_ACCOUNT_NAME, DEFAULT_CATEGORIES } from "~/lib/finance/default-categories"
 import { manualImportKey, withFinanceImportKeys } from "~/lib/finance/fingerprint"
-import { applyRules } from "~/lib/finance/match-rule"
+import { applyRules, transactionsByRule } from "~/lib/finance/match-rule"
 import type { RuleAssignment } from "~/lib/finance/match-rule"
 import { normalizeConcept } from "~/lib/finance/normalize-concept"
 import { detectRecurring } from "~/lib/finance/recurring"
@@ -20,6 +20,7 @@ import {
   categorizeTransactionInputSchema,
   createFinanceAccountInputSchema,
   createGoalInputSchema,
+  deleteRuleInputSchema,
   importTransactionsInputSchema,
   setupMoneyInputSchema,
   splitTransactionInputSchema,
@@ -640,27 +641,80 @@ async function addSubscriptionRule(supabase: Supabase, userId: string, subscript
 async function removeSubscriptionRule(supabase: Supabase, userId: string, counterparty: string): Promise<void> {
   const categoryId = await subscriptionsCategoryId(supabase, userId)
   if (!categoryId) return
-  const { data: removed, error } = await supabase
-    .from("finance_category_rules").delete()
+  const { data: rule, error } = await supabase
+    .from("finance_category_rules").select("id")
     .eq("user_id", userId).eq("pattern", counterparty).eq("category_id", categoryId)
-    .select("id")
-  if (error) {
-    console.error(error)
-    return
+    .maybeSingle()
+  if (error) console.error(error)
+  if (rule) await deleteRuleAndRequeue(supabase, userId, rule.id as string)
+}
+
+/**
+ * Borra una regla y suelta lo que categorizaba: esos movimientos quedan sin
+ * categoría y se reaplican las demás reglas (otra puede recogerlos; si no,
+ * vuelven a la cola). Lo manual y los splits no se tocan. Devuelve cuántos
+ * soltó, o null si algo falló.
+ */
+async function deleteRuleAndRequeue(supabase: Supabase, userId: string, ruleId: string): Promise<number | null> {
+  const rules = await loadRules(supabase, userId)
+  if (!rules) return null
+  const targets: { id: string; counterparty: string | null; categoryId: string | null }[] = []
+  for (let from = 0; ; from += READ_PAGE) {
+    const { data, error } = await supabase
+      .from("finance_transactions")
+      .select("id, counterparty, category_id")
+      .eq("user_id", userId)
+      .eq("category_source", "rule")
+      .range(from, from + READ_PAGE - 1)
+    if (error) {
+      console.error(error)
+      return null
+    }
+    for (const r of data ?? []) {
+      targets.push({ id: r.id as string, counterparty: (r.counterparty as string | null) ?? null, categoryId: (r.category_id as string | null) ?? null })
+    }
+    if (!data || data.length < READ_PAGE) break
   }
-  if (!removed || removed.length === 0) return
-  const { error: resetError } = await supabase
-    .from("finance_transactions")
-    .update({ category_id: null, category_source: null })
-    .eq("user_id", userId)
-    .eq("category_source", "rule")
-    .eq("category_id", categoryId)
-    .like("counterparty", `%${counterparty.replace(/[%_]/g, "\\$&")}%`)
-  if (resetError) {
-    console.error(resetError)
-    return
+  const owned = transactionsByRule(
+    targets.map(t => ({ ...t, categorySource: "rule" as const, parentId: null, excluded: false })),
+    rules,
+  ).get(ruleId) ?? []
+
+  const { error: deleteError } = await supabase.from("finance_category_rules").delete().eq("id", ruleId).eq("user_id", userId)
+  if (deleteError) {
+    console.error(deleteError)
+    return null
+  }
+  for (let i = 0; i < owned.length; i += KEY_CHUNK) {
+    const { error } = await supabase
+      .from("finance_transactions")
+      .update({ category_id: null, category_source: null })
+      .eq("user_id", userId)
+      .eq("category_source", "rule")
+      .in("id", owned.slice(i, i + KEY_CHUNK))
+    if (error) {
+      console.error(error)
+      return null
+    }
   }
   await reapplyRules(supabase, userId)
+  return owned.length
+}
+
+/** Ajustes → Rules: borra una regla y devuelve a la cola lo que categorizaba. */
+export async function deleteFinanceRule(input: unknown): Promise<ResultType<{ released: number }, FinanceActionError>> {
+  const parsed = deleteRuleInputSchema.safeParse(input)
+  if (!parsed.success) return createErrorResult("INVALID_INPUT")
+
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return createErrorResult("UNAUTHENTICATED")
+
+  const released = await deleteRuleAndRequeue(supabase, user.id, parsed.data.ruleId)
+  if (released == null) return createErrorResult("UNKNOWN")
+
+  revalidatePath(APP_URLS.MONEY, "layout")
+  return createDataResult({ released })
 }
 
 /** Uso marcado por el usuario; "unused" guarda desde cuándo (candidatas a cancelar). */

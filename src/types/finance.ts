@@ -219,6 +219,8 @@ export type SplitTransactionInput = z.infer<typeof splitTransactionInputSchema>
 
 export const unsplitTransactionInputSchema = z.object({ transactionId: z.string().uuid() })
 
+export const deleteRuleInputSchema = z.object({ ruleId: z.string().uuid() })
+
 // ── Suscripciones (§5.3) ────────────────────────────────────────────────────
 
 export const subscriptionStatusInputSchema = z.object({

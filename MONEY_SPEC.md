@@ -247,7 +247,8 @@ Todas en el módulo Money del conmutador; sidebar: Overview, Transactions, Subsc
 ### 5.5 `/money/import` — §3.
 
 ### 5.6 `/money/settings`
-Pestañas: Accounts (CRUD `finance_accounts`), Categories (CRUD + is_fixed + color + archivar), Rules (lista con hits; borrar una regla no descategoriza), Month (día de inicio, Close month manual).
+Pestañas: Accounts (CRUD `finance_accounts`), Categories (CRUD + is_fixed + color + archivar), Rules (lista con los movimientos que categoriza cada una; borrar una regla los descategoriza), Month (día de inicio, Close month manual).
+**Decisión (29/10/2026, a petición del usuario):** borrar una regla **sí** suelta lo que categorizaba: los movimientos con origen `rule` cuya regla ganadora era esa (`transactionsByRule`, sin columna `rule_id`) quedan sin categoría y se reaplican las demás reglas; si ninguna encaja, vuelven a la cola. Lo manual y los splits no se tocan. La lista muestra ese recuento calculado, no `hits` (contador histórico). Descartar una suscripción usa el mismo borrado. Rules se hizo antes que el resto del paso 10; la página es `/money/settings` con entrada "Settings" en el sidebar de Money.
 
 ### 5.7 Móvil — artboards `M1 · Móvil · Resumen` y `M2 · Móvil · Gasto en efectivo`
 No es una app aparte: es el responsive de `/money` más una pantalla nueva.
