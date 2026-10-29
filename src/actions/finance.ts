@@ -22,6 +22,7 @@ import {
   createGoalInputSchema,
   accountIdInputSchema,
   createCategoryInputSchema,
+  createRuleInputSchema,
   deleteRuleInputSchema,
   importTransactionsInputSchema,
   monthStartDayInputSchema,
@@ -49,6 +50,7 @@ export type FinanceActionError =
   | "NO_SETTINGS"
   | "ACCOUNT_EXISTS"
   | "CATEGORY_EXISTS"
+  | "RULE_EXISTS"
   | "ACCOUNT_HAS_TRANSACTIONS"
   | "CASH_ACCOUNT"
   | "MONTH_CLOSED"
@@ -281,13 +283,14 @@ async function existingKeys(supabase: Supabase, accountId: string, keys: string[
 
 async function loadRules(supabase: Supabase, userId: string) {
   const { data, error } = await supabase
-    .from("finance_category_rules").select("id, pattern, category_id, priority").eq("user_id", userId)
+    .from("finance_category_rules").select("id, pattern, amount, category_id, priority").eq("user_id", userId)
   if (error) {
     console.error(error)
     return null
   }
   return (data ?? []).map(r => ({
-    id: r.id as string, pattern: r.pattern as string, categoryId: r.category_id as string, priority: r.priority as number,
+    id: r.id as string, pattern: r.pattern as string, amount: r.amount == null ? null : Number(r.amount),
+    categoryId: r.category_id as string, priority: r.priority as number,
   }))
 }
 
@@ -311,7 +314,7 @@ export async function previewFinanceImport(input: unknown): Promise<ResultType<I
   const fresh = rows.filter(r => !existing.has(r.importKey))
   const assigned = new Map(
     applyRules(
-      fresh.map(r => ({ id: r.importKey, counterparty: r.counterparty, categoryId: null, categorySource: null, parentId: null, excluded: false })),
+      fresh.map(r => ({ id: r.importKey, counterparty: r.counterparty, amount: r.amount, categoryId: null, categorySource: null, parentId: null, excluded: false })),
       rules,
     ).map(a => [a.transactionId, a.categoryId]),
   )
@@ -353,7 +356,7 @@ export async function importFinanceTransactions(input: unknown): Promise<ResultT
   if (!(await ownAccount(supabase, user.id, accountId))) return createErrorResult("INVALID_INPUT")
 
   const rows = keyRows(parsed.data.rows)
-  const inserted: { id: string; counterparty: string | null }[] = []
+  const inserted: { id: string; counterparty: string | null; amount: number }[] = []
   for (let i = 0; i < rows.length; i += READ_PAGE) {
     const { data, error } = await supabase
       .from("finance_transactions")
@@ -371,18 +374,20 @@ export async function importFinanceTransactions(input: unknown): Promise<ResultT
         })),
         { onConflict: "account_id,import_key", ignoreDuplicates: true },
       )
-      .select("id, counterparty")
+      .select("id, counterparty, amount")
     if (error) {
       console.error(error)
       return createErrorResult("UNKNOWN")
     }
-    for (const row of data ?? []) inserted.push({ id: row.id as string, counterparty: (row.counterparty as string | null) ?? null })
+    for (const row of data ?? []) {
+      inserted.push({ id: row.id as string, counterparty: (row.counterparty as string | null) ?? null, amount: Number(row.amount) })
+    }
   }
 
   const rules = await loadRules(supabase, user.id)
   if (!rules) return createErrorResult("UNKNOWN")
   const assignments = applyRules(
-    inserted.map(t => ({ id: t.id, counterparty: t.counterparty, categoryId: null, categorySource: null, parentId: null, excluded: false })),
+    inserted.map(t => ({ id: t.id, counterparty: t.counterparty, amount: t.amount, categoryId: null, categorySource: null, parentId: null, excluded: false })),
     rules,
   )
   if (!(await writeRuleAssignments(supabase, user.id, assignments))) return createErrorResult("UNKNOWN")
@@ -479,11 +484,11 @@ async function recomputeSubscriptions(supabase: Supabase, userId: string): Promi
 async function reapplyRules(supabase: Supabase, userId: string): Promise<number | null> {
   const rules = await loadRules(supabase, userId)
   if (!rules) return null
-  const targets: { id: string; counterparty: string | null; categoryId: string | null; categorySource: "rule" | null }[] = []
+  const targets: { id: string; counterparty: string | null; amount: number; categoryId: string | null; categorySource: "rule" | null }[] = []
   for (let from = 0; ; from += READ_PAGE) {
     const { data, error } = await supabase
       .from("finance_transactions")
-      .select("id, counterparty, category_id, category_source")
+      .select("id, counterparty, amount, category_id, category_source")
       .eq("user_id", userId)
       .is("parent_id", null)
       .eq("excluded", false)
@@ -495,7 +500,7 @@ async function reapplyRules(supabase: Supabase, userId: string): Promise<number 
     }
     for (const r of data ?? []) {
       targets.push({
-        id: r.id as string, counterparty: (r.counterparty as string | null) ?? null,
+        id: r.id as string, counterparty: (r.counterparty as string | null) ?? null, amount: Number(r.amount),
         categoryId: (r.category_id as string | null) ?? null, categorySource: r.category_source === "rule" ? "rule" : null,
       })
     }
@@ -551,10 +556,11 @@ export async function categorizeTransaction(input: unknown): Promise<ResultType<
       {
         user_id:      user.id,
         pattern:      normalizeConcept(data.rulePattern),
+        amount:       null,
         category_id:  data.categoryId,
         created_from: data.transactionId,
       },
-      { onConflict: "user_id,pattern" },
+      { onConflict: "user_id,pattern,amount" },
     )
     if (ruleError) {
       console.error(ruleError)
@@ -720,8 +726,8 @@ async function addSubscriptionRule(supabase: Supabase, userId: string, subscript
   const categoryId = await subscriptionsCategoryId(supabase, userId)
   if (!categoryId) return
   const { error } = await supabase.from("finance_category_rules").upsert(
-    { user_id: userId, pattern: counterparty, category_id: categoryId, priority: SUBSCRIPTION_RULE_PRIORITY },
-    { onConflict: "user_id,pattern" },
+    { user_id: userId, pattern: counterparty, amount: null, category_id: categoryId, priority: SUBSCRIPTION_RULE_PRIORITY },
+    { onConflict: "user_id,pattern,amount" },
   )
   if (error) {
     console.error(error)
@@ -741,7 +747,7 @@ async function removeSubscriptionRule(supabase: Supabase, userId: string, counte
   if (!categoryId) return
   const { data: rule, error } = await supabase
     .from("finance_category_rules").select("id")
-    .eq("user_id", userId).eq("pattern", counterparty).eq("category_id", categoryId)
+    .eq("user_id", userId).eq("pattern", counterparty).is("amount", null).eq("category_id", categoryId)
     .maybeSingle()
   if (error) console.error(error)
   if (rule) await deleteRuleAndRequeue(supabase, userId, rule.id as string)
@@ -756,11 +762,11 @@ async function removeSubscriptionRule(supabase: Supabase, userId: string, counte
 async function deleteRuleAndRequeue(supabase: Supabase, userId: string, ruleId: string): Promise<number | null> {
   const rules = await loadRules(supabase, userId)
   if (!rules) return null
-  const targets: { id: string; counterparty: string | null; categoryId: string | null }[] = []
+  const targets: { id: string; counterparty: string | null; amount: number; categoryId: string | null }[] = []
   for (let from = 0; ; from += READ_PAGE) {
     const { data, error } = await supabase
       .from("finance_transactions")
-      .select("id, counterparty, category_id")
+      .select("id, counterparty, amount, category_id")
       .eq("user_id", userId)
       .eq("category_source", "rule")
       .range(from, from + READ_PAGE - 1)
@@ -769,7 +775,10 @@ async function deleteRuleAndRequeue(supabase: Supabase, userId: string, ruleId: 
       return null
     }
     for (const r of data ?? []) {
-      targets.push({ id: r.id as string, counterparty: (r.counterparty as string | null) ?? null, categoryId: (r.category_id as string | null) ?? null })
+      targets.push({
+        id: r.id as string, counterparty: (r.counterparty as string | null) ?? null, amount: Number(r.amount),
+        categoryId: (r.category_id as string | null) ?? null,
+      })
     }
     if (!data || data.length < READ_PAGE) break
   }
@@ -813,6 +822,40 @@ export async function deleteFinanceRule(input: unknown): Promise<ResultType<{ re
 
   revalidatePath(APP_URLS.MONEY, "layout")
   return createDataResult({ released })
+}
+
+/**
+ * Ajustes → Rules: regla nueva, con importe exacto opcional (p. ej. la
+ * retirada de 500 € del alquiler). Se aplica al momento a lo pendiente y a lo
+ * categorizado por otras reglas; lo manual no se toca.
+ */
+export async function createFinanceRule(input: unknown): Promise<ResultType<{ applied: number }, FinanceActionError>> {
+  const parsed = createRuleInputSchema.safeParse(input)
+  if (!parsed.success) return createErrorResult("INVALID_INPUT")
+  const data = parsed.data
+  const pattern = normalizeConcept(data.pattern)
+  if (pattern.length < 2) return createErrorResult("INVALID_INPUT")
+
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return createErrorResult("UNAUTHENTICATED")
+
+  const { error } = await supabase.from("finance_category_rules").insert({
+    user_id:     user.id,
+    pattern,
+    amount:      data.amount == null ? null : Math.round(data.amount * 100) / 100,
+    category_id: data.categoryId,
+  })
+  if (error) {
+    if (error.code === "23505") return createErrorResult("RULE_EXISTS")
+    console.error(error)
+    return createErrorResult("UNKNOWN")
+  }
+  const applied = await reapplyRules(supabase, user.id)
+  if (applied == null) return createErrorResult("UNKNOWN")
+
+  revalidatePath(APP_URLS.MONEY, "layout")
+  return createDataResult({ applied })
 }
 
 /**

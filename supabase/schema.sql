@@ -578,12 +578,13 @@ create table if not exists finance_category_rules (
   id            uuid primary key default gen_random_uuid(),
   user_id       uuid references auth.users on delete cascade not null,
   pattern       text not null,                      -- normalizado; match por "contiene"
+  amount        numeric(12,2) check (amount is null or amount > 0),  -- importe absoluto exacto; null = cualquiera
   category_id   uuid references finance_categories(id) on delete cascade not null,
   priority      integer not null default 0,
   created_from  uuid references finance_transactions(id) on delete set null,
   hits          integer not null default 0,
   created_at    timestamptz not null default now(),
-  unique (user_id, pattern)
+  constraint finance_category_rules_user_id_pattern_amount_key unique nulls not distinct (user_id, pattern, amount)
 );
 
 -- 2.5 ─────────────────────────────────────────────────────────

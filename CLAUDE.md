@@ -387,7 +387,7 @@ Finanzas personales a partir del export de movimientos del banco (imagin / Caixa
 | `finance_accounts` | cuentas (`checking`, `savings`, `broker`, `cash`); del IBAN solo `iban_last4`. El alta crea la cuenta principal y **Cash** (gastos en efectivo) |
 | `finance_categories` | `kind` `expense` / `income` / `transfer` / `savings` + `is_fixed`; seed de 18 al dar de alta. Archivar, nunca borrar |
 | `finance_transactions` | importe firmado (negativo = sale), `concept_raw`, `counterparty` (`normalizeConcept`), `category_source` `rule`/`manual`/`split`, `excluded`, `parent_id` (partes de un split), `source` `import`/`manual`, `import_key` único por cuenta |
-| `finance_category_rules` | `pattern` (contiene, sobre la contraparte normalizada) → categoría, `priority`, `hits` |
+| `finance_category_rules` | `pattern` (contiene, sobre la contraparte normalizada) + `amount` opcional (importe absoluto exacto) → categoría, `priority`, `hits`; único por `(user_id, pattern, amount)` |
 | `finance_subscriptions` | recurrentes detectadas; `status` y `usage` son del usuario y el recálculo no los toca |
 | `finance_goals` | objetivos de ahorro: no mueven dinero, reparten el ahorro real del mes cerrado |
 | `finance_settings` | `month_start_day` (1–28), `default_account`, `closed_through` (último mes repartido a objetivos) |
@@ -402,7 +402,7 @@ Todas con RLS `auth.uid() = user_id`. Sin `finance_settings`, cada página de Mo
 
 ### Categorización (§4.2)
 
-- Gana la `priority` más alta y, a igualdad, el patrón más largo. Solo categorizan lo sin categoría o con origen `rule`; **nunca pisan `manual` ni `split`**.
+- Gana la regla con importe, después la `priority` más alta y, a igualdad, el patrón más largo. Solo categorizan lo sin categoría o con origen `rule`; **nunca pisan `manual` ni `split`**.
 - Categorizar a mano en el panel de `/money/transactions` propone crear la regla (`pattern = counterparty`) y la reaplica a todo lo pendiente. Modo cola (`?queue=1`): ↑↓, Enter, Esc.
 - No hay columna `rule_id`: qué regla categoriza cada movimiento se calcula con `transactionsByRule()`. **Borrar una regla** deja sin categoría lo suyo y reaplica las demás; **cambiar su categoría** mueve lo suyo. Lo manual no se toca.
 - Lo **sin categorizar** cuenta como gasto variable (salidas) y no como ingreso (entradas): el ahorro real nunca sale inflado mientras quede cola.

@@ -107,6 +107,8 @@ create table if not exists finance_category_rules (
 );
 ```
 
+**Decisión (29/10/2026, a petición del usuario):** columna `amount` (migración `20261104120000_finance_rule_amount.sql`): con importe, la regla solo casa con movimientos de ese importe absoluto exacto y gana a cualquier regla sin importe (después cuentan prioridad y longitud del patrón). Caso de uso: la retirada de cajero de 500 € del alquiler → Housing; el resto de retiradas → ATM withdrawals. La unicidad pasa a `(user_id, pattern, amount)` con `nulls not distinct`. Las reglas con importe se crean en Settings → Rules ("New rule").
+
 ### 2.5 `finance_subscriptions` — recurrentes detectadas
 ```sql
 create table if not exists finance_subscriptions (

@@ -1,11 +1,14 @@
 // Reglas de categorización aprendidas (MONEY_SPEC.md §4.2): "contiene" sobre la
-// contraparte normalizada. Gana la prioridad más alta y, a igualdad, el patrón
-// más largo (el más específico). Solo categorizan movimientos sin categoría o
-// categorizados por una regla: nunca pisan una categoría manual ni un split.
+// contraparte normalizada y, si la regla lleva importe, además el importe
+// absoluto exacto. Gana la regla con importe (la más específica), después la
+// prioridad más alta y, a igualdad, el patrón más largo. Solo categorizan
+// movimientos sin categoría o categorizados por una regla: nunca pisan una
+// categoría manual ni un split.
 
 export type Rule = {
   id:         string
-  pattern:    string    // ya normalizado (normalizeConcept)
+  pattern:    string          // ya normalizado (normalizeConcept)
+  amount:     number | null   // importe absoluto exacto; null = cualquiera
   categoryId: string
   priority:   number
 }
@@ -15,6 +18,7 @@ export type CategorySource = "rule" | "manual" | "split"
 export type RuleTarget = {
   id:             string
   counterparty:   string | null
+  amount:         number      // firmado
   categoryId:     string | null
   categorySource: CategorySource | null
   parentId:       string | null
@@ -22,12 +26,23 @@ export type RuleTarget = {
 }
 
 function byPrecedence(a: Rule, b: Rule): number {
-  return b.priority - a.priority || b.pattern.length - a.pattern.length
+  return Number(b.amount != null) - Number(a.amount != null) || b.priority - a.priority || b.pattern.length - a.pattern.length
 }
 
-export function matchRule(counterparty: string | null, rules: Rule[]): Rule | null {
+const cents = (n: number) => Math.round(Math.abs(n) * 100)
+
+function matches(rule: Rule, counterparty: string, amount: number): boolean {
+  return rule.pattern.length > 0 && counterparty.includes(rule.pattern) && (rule.amount == null || cents(rule.amount) === cents(amount))
+}
+
+/** Regla ganadora en una lista ya ordenada por precedencia. */
+function firstMatch(sorted: Rule[], counterparty: string | null, amount: number): Rule | null {
   if (!counterparty) return null
-  return [...rules].sort(byPrecedence).find(r => r.pattern.length > 0 && counterparty.includes(r.pattern)) ?? null
+  return sorted.find(r => matches(r, counterparty, amount)) ?? null
+}
+
+export function matchRule(counterparty: string | null, amount: number, rules: Rule[]): Rule | null {
+  return firstMatch([...rules].sort(byPrecedence), counterparty, amount)
 }
 
 export type RuleAssignment = { transactionId: string; categoryId: string; ruleId: string }
@@ -45,7 +60,7 @@ export function applyRules(transactions: RuleTarget[], rules: Rule[]): RuleAssig
     if (t.excluded || t.parentId != null) continue
     if (t.categorySource === "manual" || t.categorySource === "split") continue
     if (t.categoryId != null && t.categorySource !== "rule") continue
-    const rule = t.counterparty ? sorted.find(r => r.pattern.length > 0 && t.counterparty!.includes(r.pattern)) : undefined
+    const rule = firstMatch(sorted, t.counterparty, t.amount)
     if (rule && rule.categoryId !== t.categoryId) {
       out.push({ transactionId: t.id, categoryId: rule.categoryId, ruleId: rule.id })
     }
@@ -62,8 +77,8 @@ export function transactionsByRule(transactions: RuleTarget[], rules: Rule[]): M
   const sorted = [...rules].sort(byPrecedence)
   const out = new Map<string, string[]>()
   for (const t of transactions) {
-    if (t.categorySource !== "rule" || !t.counterparty) continue
-    const rule = sorted.find(r => r.pattern.length > 0 && t.counterparty!.includes(r.pattern))
+    if (t.categorySource !== "rule") continue
+    const rule = firstMatch(sorted, t.counterparty, t.amount)
     if (!rule || rule.categoryId !== t.categoryId) continue
     out.set(rule.id, [...(out.get(rule.id) ?? []), t.id])
   }

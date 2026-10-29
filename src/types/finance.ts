@@ -73,6 +73,7 @@ export const financeRuleSchema = z.object({
   id:          z.string().uuid(),
   userId:      z.string().uuid(),
   pattern:     z.string(),
+  amount:      money.nullable(),        // importe absoluto exacto; null = cualquiera
   categoryId:  z.string().uuid(),
   priority:    z.number().int(),
   createdFrom: z.string().uuid().nullable(),
@@ -235,6 +236,13 @@ export type SplitTransactionInput = z.infer<typeof splitTransactionInputSchema>
 export const unsplitTransactionInputSchema = z.object({ transactionId: z.string().uuid() })
 
 export const deleteRuleInputSchema = z.object({ ruleId: z.string().uuid() })
+
+export const createRuleInputSchema = z.object({
+  pattern:    z.string().trim().min(2).max(100),
+  amount:     z.number().finite().positive().max(1_000_000).nullable(),
+  categoryId: z.string().uuid(),
+})
+export type CreateRuleInput = z.infer<typeof createRuleInputSchema>
 
 export const updateRuleInputSchema = z.object({
   ruleId:     z.string().uuid(),

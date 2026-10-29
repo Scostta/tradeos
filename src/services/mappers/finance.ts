@@ -76,6 +76,7 @@ export function mapFinanceRuleFromDb(row: Record<string, unknown>): FinanceRule 
     id:          row["id"],
     userId:      row["user_id"],
     pattern:     row["pattern"],
+    amount:      row["amount"] == null ? null : Number(row["amount"]),
     categoryId:  row["category_id"],
     priority:    row["priority"] ?? 0,
     createdFrom: row["created_from"] ?? null,

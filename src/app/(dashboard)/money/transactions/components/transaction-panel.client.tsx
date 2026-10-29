@@ -52,7 +52,7 @@ export const TransactionPanel = forwardRef<HTMLSelectElement, Props>(function Tr
 
   const byId = new Map(categories.map(c => [c.id, c]))
   const appliedRule = !isSplitParent && t.categorySource === "rule" && categoryId === t.categoryId
-    ? matchRule(t.counterparty, rules)
+    ? matchRule(t.counterparty, t.amount, rules)
     : null
   const ruleInfo = appliedRule ? rules.find(r => r.id === appliedRule.id) ?? null : null
   const canCreateRule = !isPart && !isSplitParent && categoryId != null && !ruleInfo && pattern.trim().length >= 2
@@ -117,6 +117,7 @@ export const TransactionPanel = forwardRef<HTMLSelectElement, Props>(function Tr
           <span className="text-sm text-text">
             {T.RULE_TEXT.split("{pattern}")[0]}
             <span className="mono bg-surface-2 px-1 rounded-sm">{ruleInfo.pattern}</span>
+            {ruleInfo.amount != null && T.RULE_AMOUNT.replace("{amount}", fmtEur(ruleInfo.amount))}
             {T.RULE_TEXT.split("{pattern}")[1]!.replace("{category}", byId.get(ruleInfo.categoryId)?.name ?? "—")}
           </span>
           <span className="text-xs text-text-mute">
