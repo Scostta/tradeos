@@ -602,6 +602,7 @@ create table if not exists finance_subscriptions (
   status        text not null default 'pending' check (status in ('pending','confirmed','cancelled','ignored')),
   usage         text not null default 'unknown' check (usage in ('unknown','used','unused','fixed')),
   unused_since  date,
+  notes         text check (char_length(notes) <= 500),   -- nota libre del usuario
   updated_at    timestamptz not null default now(),
   unique (user_id, counterparty, cadence)
 );

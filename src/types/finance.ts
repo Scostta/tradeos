@@ -102,6 +102,7 @@ export const financeSubscriptionSchema = z.object({
   status:       subscriptionStatusSchema,
   usage:        subscriptionUsageSchema,
   unusedSince:  isoDate.nullable(),
+  notes:        z.string().nullable(),
   updatedAt:    timestamp,
 })
 export type FinanceSubscription = z.infer<typeof financeSubscriptionSchema>
@@ -273,6 +274,11 @@ export type UpdateCategoryInput = z.infer<typeof updateCategoryInputSchema>
 export const subscriptionStatusInputSchema = z.object({
   subscriptionId: z.string().uuid(),
   status:         subscriptionStatusSchema,
+})
+
+export const subscriptionNotesInputSchema = z.object({
+  subscriptionId: z.string().uuid(),
+  notes:          z.string().trim().max(500),          // vacío = sin nota
 })
 
 export const subscriptionUsageInputSchema = z.object({

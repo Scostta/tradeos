@@ -133,6 +133,8 @@ Se recalcula tras cada import (§4.3). `status`: `pending` (detectada, por confi
 
 **Categoría automática (28/10/2026, a petición del usuario):** al **confirmar** una suscripción se crea la regla `contraparte → Subscriptions` (prioridad 10, gana a las reglas genéricas) y se reaplica: sus cargos pendientes y los de futuros imports quedan en Subscriptions; nunca pisa lo manual ni los splits. Al descartarla (`ignored`) o devolverla a `pending` se borra esa regla y lo que categorizó vuelve a la cola (o a otra regla). `cancelled` la conserva, o la crea si venía de `ignored`/`pending`: lo que cobró era de una suscripción. Al ser una regla por comercio, cualquier otro pago a ese mismo comercio también entra en Subscriptions.
 
+**Decisión (29/10/2026, a petición del usuario):** columna `notes` (texto libre, ≤ 500; migración `20261104130000_finance_subscription_notes.sql`), editable en Edit y visible bajo el nombre. No cambia `updated_at`.
+
 **Decisión de implementación (28/10/2026):** `updated_at` marca el último cambio **del usuario** (status o usage); el recálculo tras cada import no lo toca. Así, una `cancelled` cuyo `last_seen` es posterior a `updated_at` es una suscripción que ha vuelto a cobrar tras cancelarla (aviso arriba en §5.3), sin columna extra. El texto de "Detection rule" del diseño (≥ 3 cargos, ±5 %) se sustituye por el de esta spec (≥ 2 cargos, ±10 %), y el botón "Add manually" del diseño no se implementa (no está en §5.3).
 
 ### 2.6 `finance_goals` — objetivos de ahorro

@@ -29,6 +29,7 @@ import {
   setupMoneyInputSchema,
   splitTransactionInputSchema,
   subscriptionStatusInputSchema,
+  subscriptionNotesInputSchema,
   subscriptionUsageInputSchema,
   unsplitTransactionInputSchema,
   updateCategoryInputSchema,
@@ -992,6 +993,34 @@ export async function setSubscriptionUsage(input: unknown): Promise<ResultType<{
     console.error(error)
     return createErrorResult("UNKNOWN")
   }
+
+  revalidatePath(APP_URLS.MONEY, "layout")
+  return createDataResult({ ok: true })
+}
+
+/**
+ * Nota libre de una suscripción. No toca updated_at: marca cambios de status o
+ * uso y sirve para detectar una cancelada que vuelve a cobrar (§5.3).
+ */
+export async function setSubscriptionNotes(input: unknown): Promise<ResultType<{ ok: true }, FinanceActionError>> {
+  const parsed = subscriptionNotesInputSchema.safeParse(input)
+  if (!parsed.success) return createErrorResult("INVALID_INPUT")
+
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return createErrorResult("UNAUTHENTICATED")
+
+  const { data, error } = await supabase
+    .from("finance_subscriptions")
+    .update({ notes: parsed.data.notes || null })
+    .eq("id", parsed.data.subscriptionId)
+    .eq("user_id", user.id)
+    .select("id")
+  if (error) {
+    console.error(error)
+    return createErrorResult("UNKNOWN")
+  }
+  if (!data || data.length === 0) return createErrorResult("NOT_FOUND")
 
   revalidatePath(APP_URLS.MONEY, "layout")
   return createDataResult({ ok: true })

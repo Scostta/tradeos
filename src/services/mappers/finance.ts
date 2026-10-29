@@ -100,6 +100,7 @@ export function mapFinanceSubscriptionFromDb(row: Record<string, unknown>): Fina
     status:       row["status"],
     usage:        row["usage"],
     unusedSince:  row["unused_since"] ?? null,
+    notes:        row["notes"] ?? null,
     updatedAt:    row["updated_at"],
   })
 }

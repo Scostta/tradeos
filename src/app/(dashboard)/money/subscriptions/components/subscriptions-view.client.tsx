@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from "react"
 import type { ReactElement, ReactNode } from "react"
-import { setSubscriptionStatus, setSubscriptionUsage } from "~/actions/finance"
+import { setSubscriptionNotes, setSubscriptionStatus, setSubscriptionUsage } from "~/actions/finance"
 import { MONEY } from "~/constants/copies/money"
 import {
   candidatesToCancel,
@@ -102,6 +102,7 @@ export function SubscriptionsView({ subscriptions, evidence, avgMonthlySpent, to
   const [tab, setTab] = useState<Tab>(confirmed.length ? "confirmed" : "pending")
   const [editing, setEditing] = useState<FinanceSubscription | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const [saved, setSaved] = useState<string | null>(null)
   const [pendingAction, startTransition] = useTransition()
 
   const monthly = confirmed.reduce((a, s) => a + monthlyCost(s), 0)
@@ -123,6 +124,19 @@ export function SubscriptionsView({ subscriptions, evidence, avgMonthlySpent, to
     run(() => setSubscriptionStatus({ subscriptionId: s.id, status }))
   const setUsage = (s: FinanceSubscription, usage: FinanceSubscription["usage"]) =>
     run(() => setSubscriptionUsage({ subscriptionId: s.id, usage }))
+  const setNotes = (s: FinanceSubscription, notes: string) => {
+    if (notes.trim() === (s.notes ?? "")) return
+    startTransition(async () => {
+      const res = await setSubscriptionNotes({ subscriptionId: s.id, notes })
+      if (res.success) {
+        setSaved(S.NOTES_SAVED)
+        setTimeout(() => setSaved(null), 2500)
+      } else {
+        setError(moneyErrorMessage(res.error))
+        setTimeout(() => setError(null), 4000)
+      }
+    })
+  }
 
   const tabs: { id: Tab; label: string }[] = [
     { id: "confirmed", label: S.TAB_CONFIRMED.replace("{n}", String(confirmed.length)) },
@@ -136,6 +150,7 @@ export function SubscriptionsView({ subscriptions, evidence, avgMonthlySpent, to
   return (
     <>
       {error && <div className="fixed top-4 right-4 z-50"><Toast variant="error" message={error} /></div>}
+      {saved && <div className="fixed top-4 right-4 z-50"><Toast variant="success" message={saved} /></div>}
 
       <div className="flex flex-wrap items-center gap-2 px-4 md:px-7 py-2.5 border-b border-border bg-bg shrink-0">
         <div className="inline-flex items-center rounded-md border border-border overflow-x-auto max-w-full">
@@ -205,6 +220,7 @@ export function SubscriptionsView({ subscriptions, evidence, avgMonthlySpent, to
                         <td className="px-3 py-2.5">
                           <div className="text-sm font-medium text-text">{displayName(s.counterparty)}</div>
                           <div className="mono text-xs text-text-mute">{S.CHARGES.replace("{n}", String(s.occurrences))}</div>
+                          {s.notes && <div className="text-xs text-text-dim truncate" style={{ maxWidth: 260 }}>{s.notes}</div>}
                         </td>
                         <td className="px-3 py-2.5 text-sm text-text-dim">{S.CADENCES[s.cadence]}</td>
                         <td className="px-3 py-2.5 mono text-sm text-right text-text whitespace-nowrap">{fmtEur(s.amount)}</td>
@@ -237,6 +253,7 @@ export function SubscriptionsView({ subscriptions, evidence, avgMonthlySpent, to
                         <span className="mono whitespace-nowrap"><DateCell sub={s} tab={tab} today={today} /></span>
                         <span className="ml-auto"><Usage sub={s} today={today} /></span>
                       </div>
+                      {s.notes && <div className="text-xs text-text-dim truncate">{s.notes}</div>}
                     </button>
                   ))}
                 </div>
@@ -323,6 +340,14 @@ export function SubscriptionsView({ subscriptions, evidence, avgMonthlySpent, to
               >
                 {(["confirmed", "pending", "cancelled", "ignored"] as const).map(st => <option key={st} value={st}>{S.STATUS[st]}</option>)}
               </select>
+            </label>
+            <label className="flex flex-col gap-1.5">
+              <span className="label-caps">{S.NOTES_LABEL}</span>
+              <textarea
+                key={editingNow.id} defaultValue={editingNow.notes ?? ""} maxLength={500} rows={3}
+                placeholder={S.NOTES_PLACEHOLDER} onBlur={e => setNotes(editingNow, e.target.value)}
+                className={`${INPUT_CLS} resize-none`}
+              />
             </label>
             <div className="flex justify-end">
               <button type="button" onClick={() => setEditing(null)} className="btn-ghost">{S.CLOSE}</button>
