@@ -20,6 +20,7 @@ import {
   categorizeTransactionInputSchema,
   createFinanceAccountInputSchema,
   createGoalInputSchema,
+  createCategoryInputSchema,
   deleteRuleInputSchema,
   importTransactionsInputSchema,
   setupMoneyInputSchema,
@@ -27,7 +28,9 @@ import {
   subscriptionStatusInputSchema,
   subscriptionUsageInputSchema,
   unsplitTransactionInputSchema,
+  updateCategoryInputSchema,
   updateGoalInputSchema,
+  updateRuleInputSchema,
 } from "~/types/finance"
 import type { CategorizeResult, ImportPreview, ImportPreviewRow, ImportResult, ImportRow } from "~/types/finance"
 import { createDataResult, createErrorResult } from "~/helpers/result"
@@ -42,6 +45,7 @@ export type FinanceActionError =
   | "ALREADY_SET_UP"
   | "NO_SETTINGS"
   | "ACCOUNT_EXISTS"
+  | "CATEGORY_EXISTS"
   | "NOT_FOUND"
   | "SPLIT_SUM"
   | "UNKNOWN"
@@ -715,6 +719,108 @@ export async function deleteFinanceRule(input: unknown): Promise<ResultType<{ re
 
   revalidatePath(APP_URLS.MONEY, "layout")
   return createDataResult({ released })
+}
+
+/**
+ * Ajustes → Rules: cambia la categoría de una regla. Al reaplicar, lo que ya
+ * categorizaba (origen "rule") pasa a la nueva; lo manual no se toca.
+ */
+export async function updateFinanceRule(input: unknown): Promise<ResultType<{ applied: number }, FinanceActionError>> {
+  const parsed = updateRuleInputSchema.safeParse(input)
+  if (!parsed.success) return createErrorResult("INVALID_INPUT")
+
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return createErrorResult("UNAUTHENTICATED")
+
+  const { data, error } = await supabase
+    .from("finance_category_rules")
+    .update({ category_id: parsed.data.categoryId })
+    .eq("id", parsed.data.ruleId)
+    .eq("user_id", user.id)
+    .select("id")
+  if (error) {
+    console.error(error)
+    return createErrorResult("UNKNOWN")
+  }
+  if (!data || data.length === 0) return createErrorResult("NOT_FOUND")
+  const applied = await reapplyRules(supabase, user.id)
+  if (applied == null) return createErrorResult("UNKNOWN")
+
+  revalidatePath(APP_URLS.MONEY, "layout")
+  return createDataResult({ applied })
+}
+
+// ── Categorías (§5.6) ───────────────────────────────────────────────────────
+
+/** Nueva categoría al final de su tipo. isFixed solo tiene sentido en gastos. */
+export async function createFinanceCategory(input: unknown): Promise<ResultType<{ id: string }, FinanceActionError>> {
+  const parsed = createCategoryInputSchema.safeParse(input)
+  if (!parsed.success) return createErrorResult("INVALID_INPUT")
+  const data = parsed.data
+
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return createErrorResult("UNAUTHENTICATED")
+
+  const { data: last } = await supabase
+    .from("finance_categories").select("sort").eq("user_id", user.id).order("sort", { ascending: false }).limit(1).maybeSingle()
+  const { data: inserted, error } = await supabase
+    .from("finance_categories")
+    .insert({
+      user_id:  user.id,
+      name:     data.name,
+      kind:     data.kind,
+      is_fixed: data.kind === "expense" && data.isFixed,
+      color:    data.color,
+      sort:     ((last?.sort as number | undefined) ?? 0) + 1,
+    })
+    .select("id")
+    .single()
+  if (error) {
+    if (error.code === "23505") return createErrorResult("CATEGORY_EXISTS")
+    console.error(error)
+    return createErrorResult("UNKNOWN")
+  }
+
+  revalidatePath(APP_URLS.MONEY, "layout")
+  return createDataResult({ id: inserted.id as string })
+}
+
+/**
+ * Editar o archivar. Archivar la quita de los selectores; sus movimientos y
+ * reglas siguen con ella (no se borra nunca: el histórico la necesita).
+ */
+export async function updateFinanceCategory(input: unknown): Promise<ResultType<{ ok: true }, FinanceActionError>> {
+  const parsed = updateCategoryInputSchema.safeParse(input)
+  if (!parsed.success) return createErrorResult("INVALID_INPUT")
+  const data = parsed.data
+
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return createErrorResult("UNAUTHENTICATED")
+
+  const { data: updated, error } = await supabase
+    .from("finance_categories")
+    .update({
+      name:     data.name,
+      kind:     data.kind,
+      is_fixed: data.kind === "expense" && data.isFixed,
+      color:    data.color,
+      archived: data.archived,
+    })
+    .eq("id", data.categoryId)
+    .eq("user_id", user.id)
+    .select("id")
+  if (error) {
+    if (error.code === "23505") return createErrorResult("CATEGORY_EXISTS")
+    console.error(error)
+    return createErrorResult("UNKNOWN")
+  }
+  if (!updated || updated.length === 0) return createErrorResult("NOT_FOUND")
+
+  revalidatePath(APP_URLS.MONEY, "layout")
+  return createDataResult({ ok: true })
 }
 
 /** Uso marcado por el usuario; "unused" guarda desde cuándo (candidatas a cancelar). */

@@ -221,6 +221,30 @@ export const unsplitTransactionInputSchema = z.object({ transactionId: z.string(
 
 export const deleteRuleInputSchema = z.object({ ruleId: z.string().uuid() })
 
+export const updateRuleInputSchema = z.object({
+  ruleId:     z.string().uuid(),
+  categoryId: z.string().uuid(),
+})
+
+// ── Categorías (§5.6) ───────────────────────────────────────────────────────
+
+const categoryFields = {
+  name:    z.string().trim().min(1).max(40),
+  kind:    categoryKindSchema,
+  isFixed: z.boolean(),                        // solo cuenta en gastos
+  color:   z.string().regex(/^#[0-9a-f]{6}$/i),
+}
+
+export const createCategoryInputSchema = z.object(categoryFields)
+export type CreateCategoryInput = z.infer<typeof createCategoryInputSchema>
+
+export const updateCategoryInputSchema = z.object({
+  categoryId: z.string().uuid(),
+  ...categoryFields,
+  archived:   z.boolean(),
+})
+export type UpdateCategoryInput = z.infer<typeof updateCategoryInputSchema>
+
 // ── Suscripciones (§5.3) ────────────────────────────────────────────────────
 
 export const subscriptionStatusInputSchema = z.object({
