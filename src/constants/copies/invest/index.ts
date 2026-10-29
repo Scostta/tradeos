@@ -323,6 +323,9 @@ export const INVEST = {
     LEGEND_RELATIVE: "Price / {benchmark} (100 = first month)",
     NO_HISTORY:      "No price history yet: the monthly job saves 36 months for every ticker it evaluates.",
     FUNDAMENTALS:    "Fundamentals · last 4 fiscal years",
+    IMPROVING:       "Improving vs FY{year}",
+    WEAKENING:       "Weakening vs FY{year}",
+    SHOW_TABLE:      "Exact figures and year-on-year changes",
     NO_FUNDAMENTALS: "No fundamentals history yet: the next monthly run saves it.",
     CURRENCY_NOTE:   "Amounts in {currency}, the reporting currency.",
     HEADERS: {
@@ -336,6 +339,8 @@ export const INVEST = {
     BUSINESS:        "Business description",
     NO_SUMMARY:      "Yahoo has no business description for this ticker.",
     AI_DRAFT:       "Draft with AI",
+    PROGRESS:       "{n} of {total} answered",
+    FALSIFIER_TAG:  "Falsifier",
     AI_DRAFTING:    "Drafting…",
     AI_CHOOSE:      "The AI draft is ready. You already wrote some answers:",
     AI_FILL_EMPTY:  "Fill empty only",

@@ -16,6 +16,8 @@ import { useThesisDraft } from "./thesis-draft-context.client"
 
 const D = INVEST.DETAIL
 const AUTOSAVE_MS = 1500
+// Las respuestas 2 y 4 se proponen como falsadores al abrir (thesisFromDraft).
+const FALSIFIER_KEYS: ThesisPromptKey[] = ["stopper", "signal"]
 
 type Status = "idle" | "dirty" | "saving" | "saved" | "error"
 
@@ -89,6 +91,17 @@ export function ThesisPrompts({ ticker, initial, aiEnabled }: { ticker: string; 
 
   return (
     <div className="flex flex-col gap-4">
+      {/* Progreso: cuántas respuestas hay; la 2 y la 4 son los falsadores del modal Open. */}
+      <div className="flex items-center gap-2.5">
+        <span className="flex gap-1" aria-hidden="true">
+          {THESIS_PROMPT_KEYS.map(k => (
+            <span key={k} className={cn("w-7 h-1 rounded-full", answers[k].trim() ? "bg-accent" : "bg-border-hi")} />
+          ))}
+        </span>
+        <span className="mono text-xs text-text-mute">
+          {D.PROGRESS.replace("{n}", String(THESIS_PROMPT_KEYS.filter(k => answers[k].trim()).length)).replace("{total}", String(THESIS_PROMPT_KEYS.length))}
+        </span>
+      </div>
       <div className="flex items-start justify-between gap-3">
         <p className="text-sm text-text-mute">{D.PROMPTS_HINT}</p>
         {aiEnabled && (
@@ -127,6 +140,7 @@ export function ThesisPrompts({ ticker, initial, aiEnabled }: { ticker: string; 
           <span className="text-sm font-medium text-text">
             <span className="mono text-text-mute mr-2">{i + 1}</span>
             {D.PROMPTS[key]}
+            {FALSIFIER_KEYS.includes(key) && <span className="mono text-xs font-semibold uppercase ml-2 px-1.5 py-0.5 rounded-sm bg-short/10 text-short">{D.FALSIFIER_TAG}</span>}
           </span>
           <textarea
             value={answers[key]}

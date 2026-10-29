@@ -20,6 +20,7 @@ import { fmtDay } from "../components/invest-format"
 import { TickerChart } from "./components/ticker-chart.client"
 import { smaSteps } from "~/lib/calculations/invest-position-chart"
 import { FundamentalsTable } from "./components/fundamentals-table"
+import { FundamentalsCharts } from "./components/fundamentals-charts"
 import { ThesisPrompts } from "./components/thesis-prompts.client"
 import { ThesisDraftProvider } from "./components/thesis-draft-context.client"
 import { DetailOpenButton } from "./components/detail-open-button.client"
@@ -136,7 +137,13 @@ export default async function InvestTickerPage({
 
         <Card title={D.FUNDAMENTALS}>
           {fundamentals.length > 0 ? (
-            <FundamentalsTable rows={fundamentals} currency={info?.financialCurrency ?? null} />
+            <>
+              <FundamentalsCharts rows={fundamentals} />
+              <details className="border-t border-border group">
+                <summary className="px-4 py-2.5 text-xs text-text-mute hover:text-text-dim cursor-pointer">{D.SHOW_TABLE}</summary>
+                <FundamentalsTable rows={fundamentals} currency={info?.financialCurrency ?? null} />
+              </details>
+            </>
           ) : (
             <div className="px-4 py-8 text-center text-sm text-text-mute">{D.NO_FUNDAMENTALS}</div>
           )}
