@@ -36,11 +36,13 @@ import {
   createFinanceAccountInputSchema,
   createGoalInputSchema,
   accountIdInputSchema,
+  copyBudgetsInputSchema,
   createCategoryInputSchema,
   createRuleInputSchema,
   deleteRuleInputSchema,
   importTransactionsInputSchema,
   monthStartDayInputSchema,
+  saveBudgetsInputSchema,
   setupMoneyInputSchema,
   splitTransactionInputSchema,
   subscriptionStatusInputSchema,
@@ -1390,6 +1392,85 @@ export async function closeCurrentMonth(): Promise<ResultType<{ ok: true }, Fina
   await runMonthClose(supabase, user.id, current)
   revalidatePath(APP_URLS.MONEY, "layout")
   return createDataResult({ ok: true })
+}
+
+// ── Presupuestos (§5.9) ─────────────────────────────────────────────────────
+
+/** Guarda los presupuestos editados de un mes; amount null borra el de esa categoría. */
+export async function saveBudgets(input: unknown): Promise<ResultType<{ saved: number }, FinanceActionError>> {
+  const parsed = saveBudgetsInputSchema.safeParse(input)
+  if (!parsed.success) return createErrorResult("INVALID_INPUT")
+  const { month, amounts } = parsed.data
+
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return createErrorResult("UNAUTHENTICATED")
+
+  // Solo categorías de gasto del usuario.
+  const { data: cats, error: catError } = await supabase
+    .from("finance_categories").select("id").eq("user_id", user.id).eq("kind", "expense")
+    .in("id", amounts.map(a => a.categoryId))
+  if (catError) {
+    console.error(catError)
+    return createErrorResult("UNKNOWN")
+  }
+  const own = new Set((cats ?? []).map(c => c.id as string))
+  const upserts = amounts.filter(a => own.has(a.categoryId) && a.amount != null)
+    .map(a => ({ user_id: user.id, month, category_id: a.categoryId, amount: Math.round(a.amount! * 100) / 100 }))
+  const deletes = amounts.filter(a => own.has(a.categoryId) && a.amount == null).map(a => a.categoryId)
+
+  if (upserts.length) {
+    const { error } = await supabase.from("finance_budgets").upsert(upserts, { onConflict: "user_id,month,category_id" })
+    if (error) {
+      console.error(error)
+      return createErrorResult("UNKNOWN")
+    }
+  }
+  if (deletes.length) {
+    const { error } = await supabase.from("finance_budgets").delete().eq("user_id", user.id).eq("month", month).in("category_id", deletes)
+    if (error) {
+      console.error(error)
+      return createErrorResult("UNKNOWN")
+    }
+  }
+
+  revalidatePath(APP_URLS.MONEY, "layout")
+  return createDataResult({ saved: upserts.length + deletes.length })
+}
+
+/** "Copy from <mes>": copia los presupuestos de un mes a otro, sustituyendo los del destino. */
+export async function copyBudgets(input: unknown): Promise<ResultType<{ copied: number }, FinanceActionError>> {
+  const parsed = copyBudgetsInputSchema.safeParse(input)
+  if (!parsed.success || parsed.data.from === parsed.data.to) return createErrorResult("INVALID_INPUT")
+  const { from, to } = parsed.data
+
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return createErrorResult("UNAUTHENTICATED")
+
+  const { data: source, error } = await supabase
+    .from("finance_budgets").select("category_id, amount").eq("user_id", user.id).eq("month", from)
+  if (error) {
+    console.error(error)
+    return createErrorResult("UNKNOWN")
+  }
+  if (!source?.length) return createDataResult({ copied: 0 })
+
+  const { error: delError } = await supabase.from("finance_budgets").delete().eq("user_id", user.id).eq("month", to)
+  if (delError) {
+    console.error(delError)
+    return createErrorResult("UNKNOWN")
+  }
+  const { error: insError } = await supabase.from("finance_budgets").insert(
+    source.map(r => ({ user_id: user.id, month: to, category_id: r.category_id as string, amount: Number(r.amount) })),
+  )
+  if (insError) {
+    console.error(insError)
+    return createErrorResult("UNKNOWN")
+  }
+
+  revalidatePath(APP_URLS.MONEY, "layout")
+  return createDataResult({ copied: source.length })
 }
 
 // ── Efectivo (§5.7 M2) ──────────────────────────────────────────────────────

@@ -652,6 +652,15 @@ create table if not exists finance_ai_summaries (
   primary key (user_id, month)
 );
 
+-- 2.9 · presupuesto por mes y categoría (MONEY_SPEC §5.9, migración 20261104160000)
+create table if not exists finance_budgets (
+  user_id      uuid references auth.users on delete cascade not null,
+  month        text not null check (month ~ '^\d{4}-(0[1-9]|1[0-2])$'),
+  category_id  uuid references finance_categories(id) on delete cascade not null,
+  amount       numeric(12,2) not null check (amount >= 0),
+  primary key (user_id, month, category_id)
+);
+
 -- 2.7 ─────────────────────────────────────────────────────────
 create table if not exists finance_settings (
   user_id          uuid primary key references auth.users on delete cascade,
@@ -669,6 +678,11 @@ alter table finance_subscriptions  enable row level security;
 alter table finance_goals          enable row level security;
 alter table finance_settings       enable row level security;
 alter table finance_ai_summaries   enable row level security;
+alter table finance_budgets        enable row level security;
+
+drop policy if exists "Users manage own finance budgets" on finance_budgets;
+create policy "Users manage own finance budgets" on finance_budgets
+  for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
 
 drop policy if exists "Users manage own finance ai summaries" on finance_ai_summaries;
 create policy "Users manage own finance ai summaries" on finance_ai_summaries

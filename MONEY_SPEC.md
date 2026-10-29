@@ -168,6 +168,18 @@ create table if not exists finance_ai_summaries (
 ```
 Migración `20261104140000_finance_ai_summaries.sql`.
 
+### 2.9 `finance_budgets` — presupuesto por mes y categoría (§5.9)
+```sql
+create table if not exists finance_budgets (
+  user_id      uuid references auth.users on delete cascade not null,
+  month        text not null check (month ~ '^\d{4}-(0[1-9]|1[0-2])$'),
+  category_id  uuid references finance_categories(id) on delete cascade not null,
+  amount       numeric(12,2) not null check (amount >= 0),
+  primary key (user_id, month, category_id)
+);
+```
+Migración `20261104160000_finance_budgets.sql`. La categoría Subscriptions no se guarda: su presupuesto es automático (§5.9).
+
 ### 2.7 `finance_settings`
 ```sql
 create table if not exists finance_settings (
@@ -273,6 +285,14 @@ Todas las llamadas pasan por `src/lib/ai/claude-json.ts` (compartido): Claude Op
 - **Categorizar la cola** (`/money/transactions?queue=1`): botón "Suggest with AI". Envía los movimientos sin categorizar de la página (contraparte, concepto, importe, fecha), las categorías (nombre y tipo) y las reglas existentes como ejemplos. Devuelve por movimiento una categoría (o ninguna), la confianza (`high`/`medium`/`low`) y, si procede, un patrón de regla. Cada sugerencia se acepta (con o sin regla, por `categorizeTransaction`) o se descarta; "Accept all high" acepta las de confianza alta. No se guarda nada aparte.
 - **Resumen del mes** (Overview): botón "AI summary" → 3–5 observaciones con la cifra que las respalda (gasto por categoría vs. media 3 meses, ritmo vs. mes anterior, ahorro real, suscripciones sin usar o por confirmar, sin categorizar). Se guarda en `finance_ai_summaries` por mes.
 
+### 5.9 `/money/budgets` — artboard `04 · Presupuestos` (29/10/2026, a petición del usuario; antes en v2)
+- Cabecera: mes, "day d of D", botones **Copy from <mes anterior>** y **Save changes** (guarda todas las celdas editadas de una vez). Chips: categorías pasadas y proyectadas por encima. Selector de mes: los meses con datos, el actual y el siguiente.
+- Cuatro tarjetas: **Total budget** (de los ingresos del mes; lo que deja para ahorrar), **Spent** (barra frente a los días transcurridos), **Projected close** y **3-mo average**.
+- Tabla por categoría de gasto (no archivadas): Budget (editable), Spent (barra; rojo si se pasa), Left, Projected, 3-mo avg con **suggest**. Fila **Subscriptions** "Auto": su presupuesto es el coste mensual de las suscripciones confirmadas, no se edita. Fila **Uncategorized** sin presupuesto (solo gastado). Fila Total.
+- Proyección por categoría: fijas, su importe conocido (`max(este mes, el anterior)`); variables, gastado + ritmo de los últimos 14 días × días que quedan; meses pasados, lo gastado.
+- **Suggest** = media de hasta 3 meses anteriores con datos, redondeada por arriba a la decena. Con menos de 3 meses se indica "based on N months". Botón **Apply suggestions** rellena las vacías.
+- Overview (§5.1): la marca de cada categoría es su presupuesto si el mes tiene presupuestos; si no, la media de 3 meses.
+
 ### 5.7 Móvil — artboards `M1 · Móvil · Resumen` y `M2 · Móvil · Gasto en efectivo`
 No es una app aparte: es el responsive de `/money` más una pantalla nueva.
 - **M1:** `/money` a 390 px: "Left this month" grande, dos tarjetas (ahorro real, suscripciones), categorías, próximas renovaciones, barra inferior con Overview / Transactions / **+** / Subscriptions / Goals. La barra inferior solo aparece en Money y a ancho de móvil.
@@ -315,7 +335,7 @@ Ninguna en código. La tasa de ahorro que sale de aquí es la que decide cuándo
 ## 9. Fuera de alcance
 
 ### v2 (después de 3 meses de datos reales)
-- **Presupuestos por categoría** · artboard `04 · Presupuestos` (`Presupuestos.dc.html`): importe editable por categoría, "Copy from last month", proyección, sugerido = media 3 meses redondeada a la decena, fila fija para suscripciones (auto). El diseño ya está; se implementa cuando haya tres meses de media con la que sugerir. Hasta entonces, las barras del Overview usan la media 3 meses como referencia.
+- **Net worth** (29/10/2026, aparcada a petición del usuario): vista que lea de los tres módulos sin escribir en ninguno (saldo del banco, satélite de Invest, cuentas de Trading) y su evolución mensual.
 - Proyecciones (FIRE, interés compuesto) sobre `savingsRate`.
 
 ### No se hace

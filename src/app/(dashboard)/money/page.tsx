@@ -9,6 +9,7 @@ import {
   getFinanceCategories,
   getFinanceSettings,
   getGoals,
+  getBudgets,
   getMoneySummary,
   getSubscriptions,
   getTransactions,
@@ -23,7 +24,7 @@ import { displayName, fmtDay, fmtEur } from "./components/money-format"
 import { buildOverview } from "./components/overview/overview-data"
 import type { OverviewData } from "./components/overview/overview-data"
 import { Bar, Card, Chip, Metric } from "./components/overview/overview-parts"
-import { MonthSelect } from "./components/overview/month-select.client"
+import { MonthSelect } from "./components/month-select.client"
 import { CashFlowCard } from "./components/overview/cash-flow-card"
 
 const O = MONEY.OVERVIEW
@@ -39,10 +40,13 @@ function renewalWhen(days: number, date: string): string {
 
 // ── Bloques ───────────────────────────────────────────────────────────────
 
-function CategoryBars({ d, limit }: { d: OverviewData; limit?: number }): ReactElement {
+// La marca es el presupuesto del mes si lo hay (§5.9); si no, la media de 3 meses.
+function CategoryBars({ d, limit, budgets }: { d: OverviewData; limit?: number; budgets: Record<string, number> | null }): ReactElement {
   const lines = limit ? d.categoryLines.slice(0, limit) : d.categoryLines
   // La media solo es referencia si es positiva (Bizum puede quedar en neto negativo).
-  const ref = (l: OverviewData["categoryLines"][number]) => (l.avg3 != null && l.avg3 > 0 ? l.avg3 : null)
+  const ref = (l: OverviewData["categoryLines"][number]) => budgets
+    ? (l.categoryId ? budgets[l.categoryId] ?? null : null)
+    : (l.avg3 != null && l.avg3 > 0 ? l.avg3 : null)
   const scale = Math.max(1, ...d.categoryLines.map(l => Math.max(l.total, ref(l) ?? 0)))
   if (lines.length === 0) return <div className="px-4 py-8 text-center text-sm text-text-mute">{O.NO_SPENDING}</div>
   return (
@@ -178,6 +182,13 @@ export default async function MoneyPage({
   const s = d.summary
   const rate = savingsRate(s)
 
+  // §5.9: presupuestos del mes (con Subscriptions automática) como marca de las barras.
+  const budgetRes = await getBudgets(month)
+  const subsCategory = categoriesResult.data.find(c => c.name === "Subscriptions" && c.kind === "expense" && !c.archived)
+  const budgets = budgetRes.success && Object.keys(budgetRes.data).length > 0
+    ? { ...budgetRes.data, ...(subsCategory ? { [subsCategory.id]: d.subs.monthly } : {}) }
+    : null
+
   // §5.8: resumen con IA guardado; "stale" si las cifras cambiaron desde que se generó.
   const aiEnabled = aiConfigured()
   const stored = aiEnabled ? await getMoneySummary(month) : null
@@ -269,8 +280,8 @@ export default async function MoneyPage({
           {aiCard}
 
           <div className="grid grid-cols-3 gap-3">
-            <Card title={O.BY_CATEGORY} right={<span className="text-xs text-text-mute">{O.VS_AVG}</span>} className="col-span-2">
-              <CategoryBars d={d} />
+            <Card title={O.BY_CATEGORY} right={<span className="text-xs text-text-mute">{budgets ? O.VS_BUDGET : O.VS_AVG}</span>} className="col-span-2">
+              <CategoryBars d={d} budgets={budgets} />
             </Card>
             <Card title={O.RENEWALS} link={{ href: APP_URLS.MONEY_SUBSCRIPTIONS, label: O.VIEW_ALL }}>
               <Renewals d={d} />
@@ -312,7 +323,7 @@ export default async function MoneyPage({
           </div>
           {aiCard}
           <Card title={O.BY_CATEGORY_MOBILE} link={{ href: `${APP_URLS.MONEY_TRANSACTIONS}?month=${month}`, label: O.VIEW_ALL }}>
-            <CategoryBars d={d} limit={4} />
+            <CategoryBars d={d} limit={4} budgets={budgets} />
           </Card>
           <Card title={O.RENEWALS} link={{ href: APP_URLS.MONEY_SUBSCRIPTIONS, label: O.VIEW_ALL }}>
             <Renewals d={d} limit={2} />

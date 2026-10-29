@@ -17,6 +17,7 @@ export const APP_URLS = {
   MONEY_TRANSACTIONS: "/money/transactions",
   MONEY_SUBSCRIPTIONS: "/money/subscriptions",
   MONEY_GOALS:        "/money/goals",
+  MONEY_BUDGETS:      "/money/budgets",
   MONEY_IMPORT:       "/money/import",
   MONEY_SETTINGS:     "/money/settings",
   MONEY_CASH:         "/money/cash",

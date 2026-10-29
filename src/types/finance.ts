@@ -242,6 +242,21 @@ export const suggestCategoriesInputSchema = z.object({
   transactionIds: z.array(z.string().uuid()).min(1).max(100),
 })
 
+// ── Presupuestos (§5.9) ─────────────────────────────────────────────────────
+
+const monthKey = z.string().regex(/^\d{4}-(0[1-9]|1[0-2])$/)
+
+/** amount null = quitar el presupuesto de esa categoría ese mes. */
+export const saveBudgetsInputSchema = z.object({
+  month:   monthKey,
+  amounts: z.array(z.object({
+    categoryId: z.string().uuid(),
+    amount:     z.number().finite().min(0).max(1_000_000).nullable(),
+  })).min(1).max(200),
+})
+
+export const copyBudgetsInputSchema = z.object({ from: monthKey, to: monthKey })
+
 export const aiSummaryInputSchema = z.object({
   month:   z.string().regex(/^\d{4}-(0[1-9]|1[0-2])$/),
   refresh: z.boolean().default(false),

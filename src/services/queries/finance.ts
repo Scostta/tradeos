@@ -216,6 +216,21 @@ export const getMoneySummary = cache(async (month: MonthKey): Promise<ResultType
 
 export type StoredMoneySummary = { content: SummaryContent; inputHash: string; createdAt: string }
 
+/** Presupuestos de un mes (§5.9): categoryId → importe. */
+export const getBudgets = cache(async (month: MonthKey): Promise<ResultType<Record<string, number>, string>> => {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return createErrorResult("UNAUTHENTICATED")
+
+  const { data, error } = await supabase
+    .from("finance_budgets").select("category_id, amount").eq("user_id", user.id).eq("month", month)
+  if (error) {
+    console.error(error)
+    return createErrorResult(error.message)
+  }
+  return createDataResult(Object.fromEntries((data ?? []).map(r => [r.category_id as string, Number(r.amount)])))
+})
+
 export const getSubscriptions = cache(async (): Promise<ResultType<FinanceSubscription[], string>> => {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()

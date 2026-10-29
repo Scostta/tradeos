@@ -395,6 +395,7 @@ Finanzas personales a partir del export de movimientos del banco (imagin / Caixa
 | `finance_goals` | objetivos de ahorro: no mueven dinero, reparten el ahorro real del mes cerrado |
 | `finance_settings` | `month_start_day` (1–28), `default_account`, `closed_through` (último mes repartido a objetivos) |
 | `finance_ai_summaries` | resumen del mes con IA por usuario y mes, con el hash de las cifras enviadas |
+| `finance_budgets` | presupuesto por mes y categoría de gasto; Subscriptions no se guarda (automática = suscripciones confirmadas) |
 
 Todas con RLS `auth.uid() = user_id`. Sin `finance_settings`, cada página de Money muestra el alta (cuenta + seed).
 
@@ -419,7 +420,7 @@ Todas con RLS `auth.uid() = user_id`. Sin `finance_settings`, cada página de Mo
 
 ### App
 
-- Rutas: `/money` (Overview), `/money/transactions`, `/money/subscriptions`, `/money/goals`, `/money/import`, `/money/cash` y `/money/settings?tab=accounts|categories|rules|month`.
+- Rutas: `/money` (Overview), `/money/transactions`, `/money/subscriptions`, `/money/budgets` (§5.9), `/money/goals`, `/money/import`, `/money/cash` y `/money/settings?tab=accounts|categories|rules|month`.
 - `src/types/finance.ts` (Zod), `src/services/mappers/finance.ts`, `src/services/queries/finance.ts`, `src/actions/finance.ts`, lógica pura con vitest en `src/lib/finance/`, copies en `src/constants/copies/money/`. Regla ESLint `no-restricted-imports`: Money no importa de Trading ni de Invest.
 - **IA** (§5.8, `src/lib/finance/ai/`): "Suggest with AI" en la cola (propone categoría, confianza y regla; solo escribe lo que el usuario acepta) y "AI summary" en el Overview (3–5 observaciones con la cifra que las respalda).
 - **Móvil** (§5.7): barra inferior solo en Money (Overview / Transactions / **+** / Subscriptions / Goals); tablas con filas compactas por debajo de `md`. El alta de efectivo es un único `CashSheetProvider` en `money/layout.tsx`: hoja desde el "+" en móvil y modal desde el botón "Cash expense" de las cabeceras en escritorio.

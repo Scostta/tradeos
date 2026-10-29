@@ -66,6 +66,19 @@ function lineKey(categoryId: string | null, kind: CategoryLine["kind"]): string 
   return `${kind}:${categoryId ?? ""}`
 }
 
+/** Gasto por categoría (null = sin categorizar) entre [from, to), con el mismo criterio que el resumen. */
+export function expenseTotals(
+  transactions: SummaryTransaction[], categoryList: SummaryCategory[], from: string, to: string,
+): Map<string | null, number> {
+  const { bucket } = totalsFor(transactions, new Map(categoryList.map(c => [c.id, c])), from, to)
+  const out = new Map<string | null, number>()
+  for (const [key, value] of bucket) {
+    const [kind, id] = key.split(":")
+    if (kind === "expense") out.set(id || null, round2(value))
+  }
+  return out
+}
+
 function totalsFor(transactions: SummaryTransaction[], categories: Map<string, SummaryCategory>, from: string, to: string) {
   const bucket: Bucket = new Map()
   let uncategorizedCount = 0
