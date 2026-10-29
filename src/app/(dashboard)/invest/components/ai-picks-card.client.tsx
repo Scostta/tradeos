@@ -74,7 +74,9 @@ export function AiPicksCard({ runId, initial, stale, results, sectorOrder }: {
 
       {error && <p className="px-4 pt-3 text-sm text-loss">{error}</p>}
       {note ? (
-        <div className="grid gap-3 p-4" style={{ gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))" }}>
+        // Una columna por destacado, todas en la misma fila; si no caben, scroll horizontal.
+        <div className="overflow-x-auto">
+        <div className="grid gap-3 p-4" style={{ gridTemplateColumns: `repeat(${note.content.highlights.length}, minmax(220px, 1fr))` }}>
           {note.content.highlights.map(h => {
             const r = byTicker.get(h.ticker)
             const vsSma = r ? distanceToSma(r.price, r.sma10m) : null
@@ -113,6 +115,7 @@ export function AiPicksCard({ runId, initial, stale, results, sectorOrder }: {
               </article>
             )
           })}
+        </div>
         </div>
       ) : (
         !error && <p className="px-4 py-3 text-sm text-text-mute">{S.AI_EMPTY}</p>
