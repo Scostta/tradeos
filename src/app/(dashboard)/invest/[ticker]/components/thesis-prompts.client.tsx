@@ -102,17 +102,8 @@ export function ThesisPrompts({ ticker, initial, aiEnabled }: { ticker: string; 
           {D.PROGRESS.replace("{n}", String(THESIS_PROMPT_KEYS.filter(k => answers[k].trim()).length)).replace("{total}", String(THESIS_PROMPT_KEYS.length))}
         </span>
       </div>
-      <div className="flex items-start justify-between gap-3">
-        <p className="text-sm text-text-mute">{D.PROMPTS_HINT}</p>
-        {aiEnabled && (
-          <button
-            type="button" onClick={() => void draftWithAi()} disabled={ai.state === "loading"}
-            className="btn-ghost inline-flex items-center gap-1.5 shrink-0 disabled:opacity-60"
-          >
-            {ai.state === "loading" ? <Spinner size={10} /> : <SparklesIcon width={14} height={14} className="text-accent" />}
-            {ai.state === "loading" ? D.AI_DRAFTING : D.AI_DRAFT}
-          </button>
-        )}
+      <div className="flex items-center gap-3">
+        <p className="flex-1 min-w-0 text-sm text-text-mute">{D.PROMPTS_HINT}</p>
         <span
           className={cn(
             "inline-flex items-center gap-1.5 text-xs whitespace-nowrap shrink-0",
@@ -124,6 +115,15 @@ export function ThesisPrompts({ ticker, initial, aiEnabled }: { ticker: string; 
           {status === "saved" && D.SAVED}
           {status === "error" && D.SAVE_ERROR}
         </span>
+        {aiEnabled && (
+          <button
+            type="button" onClick={() => void draftWithAi()} disabled={ai.state === "loading"}
+            className="btn-ghost inline-flex items-center gap-1.5 shrink-0 disabled:opacity-60"
+          >
+            {ai.state === "loading" ? <Spinner size={10} /> : <SparklesIcon width={14} height={14} className="text-accent" />}
+            {ai.state === "loading" ? D.AI_DRAFTING : D.AI_DRAFT}
+          </button>
+        )}
       </div>
       {ai.state === "error" && <p className="text-sm text-loss">{ai.message}</p>}
       {ai.state === "choose" && (
