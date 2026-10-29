@@ -41,11 +41,11 @@ const NAV_BY_MODULE: Record<AppModule, NavItem[]> = {
   trading: [
     { id: "dashboard", label: COMMON.NAV_LABELS.DASHBOARD, path: APP_URLS.DASHBOARD, Icon: GridIcon, exact: true },
     { id: "trades", label: COMMON.NAV_LABELS.TRADES, path: APP_URLS.TRADES, Icon: ListIcon },
+    { id: "review", label: COMMON.NAV_LABELS.REVIEW, path: APP_URLS.REVIEW, Icon: CircleCheckIcon },
     { id: "import", label: COMMON.NAV_LABELS.IMPORT, path: APP_URLS.IMPORT, Icon: UploadIcon },
     { id: "reports", label: COMMON.NAV_LABELS.REPORTS, path: APP_URLS.REPORTS, Icon: BarIcon },
     { id: "insights", label: COMMON.NAV_LABELS.INSIGHTS, path: APP_URLS.INSIGHTS, Icon: SparklesIcon },
     { id: "playbooks", label: COMMON.NAV_LABELS.PLAYBOOKS, path: APP_URLS.PLAYBOOKS, Icon: LayersIcon },
-    { id: "review",     label: COMMON.NAV_LABELS.REVIEW,     path: APP_URLS.REVIEW,     Icon: CircleCheckIcon },
     { id: "journal",    label: COMMON.NAV_LABELS.JOURNAL,    path: APP_URLS.JOURNAL,    Icon: CalendarIcon },
     { id: "goals",     label: COMMON.NAV_LABELS.GOALS,      path: APP_URLS.GOALS,      Icon: TargetIcon },
     { id: "accounts",  label: COMMON.NAV_LABELS.ACCOUNTS,   path: APP_URLS.ACCOUNTS,   Icon: WalletIcon },
