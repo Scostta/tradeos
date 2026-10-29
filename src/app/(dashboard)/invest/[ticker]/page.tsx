@@ -17,7 +17,8 @@ import { mapThesisAnswersFromDb } from "~/services/mappers/invest"
 import { InvestOnboarding } from "../components/invest-onboarding"
 import { TickerDetail } from "../components/ticker-detail"
 import { fmtDay } from "../components/invest-format"
-import { PriceChart } from "./components/price-chart.client"
+import { TickerChart } from "./components/ticker-chart.client"
+import { smaSteps } from "~/lib/calculations/invest-position-chart"
 import { FundamentalsTable } from "./components/fundamentals-table"
 import { ThesisPrompts } from "./components/thesis-prompts.client"
 import { ThesisDraftProvider } from "./components/thesis-draft-context.client"
@@ -125,27 +126,12 @@ export default async function InvestTickerPage({
           )}
         </Card>
 
-        <Card
-          title={D.CHART_TITLE}
-          right={series.length > 0 && (
-            <div className="flex flex-wrap gap-x-4 gap-y-1 text-sm text-text-dim">
-              <span className="flex items-center gap-1.5"><span className="size-2 rounded-full bg-text" />{D.LEGEND_PRICE}</span>
-              <span className="flex items-center gap-1.5"><span className="size-2 rounded-full bg-accent" />{D.LEGEND_SMA}</span>
-              <span className="flex items-center gap-1.5"><span className="size-2 rounded-full bg-long" />{D.LEGEND_RELATIVE.replace("{benchmark}", benchmark)}</span>
-            </div>
+        <Card title={D.CHART_TITLE}>
+          {series.length > 1 ? (
+            <TickerChart ticker={ticker} currency={currency} series={series} steps={smaSteps(pricesResult.data, ticker)} benchmark={benchmark} />
+          ) : (
+            <div className="py-12 text-center text-sm text-text-mute">{D.NO_HISTORY}</div>
           )}
-        >
-          <div className="px-2 py-3">
-            {series.length > 1 ? (
-              <PriceChart
-                data={series}
-                currency={currency}
-                labels={{ price: D.LEGEND_PRICE, sma: D.LEGEND_SMA, relative: D.LEGEND_RELATIVE.replace("{benchmark}", benchmark) }}
-              />
-            ) : (
-              <div className="py-12 text-center text-sm text-text-mute">{D.NO_HISTORY}</div>
-            )}
-          </div>
         </Card>
 
         <Card title={D.FUNDAMENTALS}>
