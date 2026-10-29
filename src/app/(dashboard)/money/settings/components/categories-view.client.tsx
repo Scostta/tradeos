@@ -66,7 +66,7 @@ export function CategoriesView({ categories, counts }: {
   ].filter(g => g.rows.length > 0)
 
   return (
-    <div className="flex flex-col gap-3 max-w-4xl">
+    <div className="flex flex-col gap-3">
       {toast && <div className="fixed top-4 right-4 z-50"><Toast variant={toast.variant} message={toast.message} /></div>}
 
       <form onSubmit={e => { e.preventDefault(); add() }} className="card px-4 py-3 flex flex-col gap-3">

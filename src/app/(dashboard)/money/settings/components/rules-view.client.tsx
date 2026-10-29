@@ -72,7 +72,7 @@ export function RulesView({ rules, categories, counts }: {
   )
 
   return (
-    <div className="card p-0 max-w-4xl">
+    <div className="card p-0">
       {toast && <div className="fixed top-4 right-4 z-50"><Toast variant={toast.variant} message={toast.message} /></div>}
 
       <div className="px-4 py-3 border-b border-border flex flex-col gap-1">
