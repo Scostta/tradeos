@@ -28,7 +28,7 @@ function trade(netPnl: number, entryTime = "2025-03-10T13:00:00.000Z", id = "t")
     entryTime,
     exitTime:    entryTime,
     pnl:         netPnl,
-    commission:  0, commissionEstimated: false, breakEven: false, beOverride: null,
+    commission:  0, commissionEstimated: false, breakEven: false, beOverride: null, reviewedAt: null,
     netPnl,
     mae:         null,
     mfe:         null,

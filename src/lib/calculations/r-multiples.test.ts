@@ -17,7 +17,7 @@ function tr(over: Partial<Trade>): Trade {
     entryTime:   "2026-06-10T15:00:00.000Z",
     exitTime:    "2026-06-10T15:30:00.000Z",
     pnl:         0,
-    commission:  0, commissionEstimated: false, breakEven: false, beOverride: null,
+    commission:  0, commissionEstimated: false, breakEven: false, beOverride: null, reviewedAt: null,
     netPnl:      0,
     mae:         null,
     mfe:         null,

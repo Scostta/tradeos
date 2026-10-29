@@ -515,7 +515,8 @@ const reviewTradeSchema = z.object({
 
 /**
  * Repaso de sesión (/review): guarda de una vez playbook, checklist, errores
- * y nota de un trade. Si no hay playbook, el checklist se guarda como null.
+ * y nota de un trade, y lo marca como revisado (reviewed_at), tenga playbook o
+ * no. Si no hay playbook, el checklist se guarda como null.
  */
 export async function reviewTrade(
   input: unknown,
@@ -535,6 +536,7 @@ export async function reviewTrade(
       followed_rules: playbookId ? followedRules : null,
       mistakes:       mistakes && mistakes.length > 0 ? mistakes : null,
       notes:          notes?.trim() ? notes.trim() : null,
+      reviewed_at:    new Date().toISOString(),
     })
     .eq("id", id)
     .eq("user_id", user.id)

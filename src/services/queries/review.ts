@@ -3,14 +3,14 @@ import { mapJournalEntryFromDb } from "~/services/mappers/journal"
 import { mapTradeFromDb } from "~/services/mappers/trades"
 import { getUserTimezone } from "~/services/queries/profile"
 import { zonedDateKey } from "~/helpers/tz"
+import { isReviewed } from "~/helpers/trade-review"
 import { createDataResult, createErrorResult } from "~/helpers/result"
 import type { ResultType } from "~/helpers/result"
 import type { JournalEntry } from "~/types/journal"
 import type { Trade } from "~/types/trade"
 
 // Repaso de sesión (/review): días con trades sin revisar y los trades de un
-// día con su entrada del Journal. Un trade está revisado cuando tiene playbook
-// y su checklist registrado (followed_rules no null; [] = ninguna regla).
+// día con su entrada del Journal. Qué es "revisado": isReviewed().
 
 const LOOKBACK_DAYS = 120
 const DAY_MS = 86_400_000
@@ -25,10 +25,6 @@ export type ReviewData = {
   pending:  number               // pendientes en total
 }
 
-export function isReviewed(t: { playbookId: string | null; followedRules: string[] | null }): boolean {
-  return t.playbookId != null && t.followedRules != null
-}
-
 export async function getReviewData(requested: string | null): Promise<ResultType<ReviewData, string>> {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
@@ -38,7 +34,7 @@ export async function getReviewData(requested: string | null): Promise<ResultTyp
   const since = new Date(Date.now() - LOOKBACK_DAYS * DAY_MS).toISOString()
   const { data: index, error } = await supabase
     .from("trades")
-    .select("entry_time, playbook_id, followed_rules")
+    .select("entry_time, reviewed_at, playbook_id, followed_rules")
     .eq("user_id", user.id)
     .gte("entry_time", since)
   if (error) {
@@ -51,7 +47,7 @@ export async function getReviewData(requested: string | null): Promise<ResultTyp
     const date = zonedDateKey(t.entry_time as string, timeZone)
     const day = byDay.get(date) ?? { date, pending: 0, total: 0 }
     day.total++
-    if (!isReviewed({ playbookId: (t.playbook_id as string | null) ?? null, followedRules: (t.followed_rules as string[] | null) ?? null })) day.pending++
+    if (!isReviewed({ reviewedAt: (t.reviewed_at as string | null) ?? null, playbookId: (t.playbook_id as string | null) ?? null, followedRules: (t.followed_rules as string[] | null) ?? null })) day.pending++
     byDay.set(date, day)
   }
   const all = [...byDay.values()].sort((a, b) => b.date.localeCompare(a.date))

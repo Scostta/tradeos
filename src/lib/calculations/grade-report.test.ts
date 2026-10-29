@@ -9,7 +9,7 @@ function trade(over: Partial<Trade>): Trade {
     instrument: "ES", direction: "long", contracts: 1,
     entryPrice: 5000, exitPrice: 5000,
     entryTime: "2026-10-01T15:00:00.000Z", exitTime: "2026-10-01T15:30:00.000Z",
-    pnl: 0, commission: 0, commissionEstimated: false, breakEven: false, beOverride: null, netPnl: 0, mae: null, mfe: null, stopPrice: 4990,
+    pnl: 0, commission: 0, commissionEstimated: false, breakEven: false, beOverride: null, reviewedAt: null, netPnl: 0, mae: null, mfe: null, stopPrice: 4990,
     playbookId: null, session: null, notes: null, tags: null, followedRules: null, mistakes: null,
     createdAt: "2026-10-01T15:30:00.000Z", ...over,
   }

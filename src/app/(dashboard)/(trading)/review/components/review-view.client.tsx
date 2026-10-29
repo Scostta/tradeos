@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState, useTransition } from "react"
 import type { ReactElement } from "react"
 import Link from "next/link"
 import { reviewTrade } from "~/actions/trades"
+import { isReviewed } from "~/helpers/trade-review"
 import { REVIEW } from "~/constants/copies/review"
 import { MISTAKE_PRESETS } from "~/constants/trade-mistakes"
 import { GradeBadge } from "~/components/grade-badge"
@@ -27,7 +28,6 @@ type Draft = { playbookId: string | null; followedRules: string[] | null; mistak
 const draftOf = (t: Trade): Draft => ({
   playbookId: t.playbookId, followedRules: t.followedRules, mistakes: t.mistakes ?? [], notes: t.notes ?? "",
 })
-const reviewed = (d: Pick<Draft, "playbookId" | "followedRules">) => d.playbookId != null && d.followedRules != null
 
 // Color del P&L: gris si es BE (no cuenta como ganador ni perdedor).
 function pnlClass(t: Trade): string {
@@ -52,8 +52,8 @@ export function ReviewView({ trades, playbooks, accounts }: {
   const accountsById = useMemo(() => new Map(accounts.map(a => [a.id, a])), [accounts])
 
   const [drafts, setDrafts] = useState<Record<string, Draft>>(() => Object.fromEntries(trades.map(t => [t.id, draftOf(t)])))
-  const [saved, setSaved] = useState<Record<string, boolean>>(() => Object.fromEntries(trades.map(t => [t.id, reviewed(draftOf(t))])))
-  const [selectedId, setSelectedId] = useState<string | null>(() => trades.find(t => !reviewed(draftOf(t)))?.id ?? trades[0]?.id ?? null)
+  const [saved, setSaved] = useState<Record<string, boolean>>(() => Object.fromEntries(trades.map(t => [t.id, isReviewed(t)])))
+  const [selectedId, setSelectedId] = useState<string | null>(() => trades.find(t => !isReviewed(t))?.id ?? trades[0]?.id ?? null)
   const [toast, setToast] = useState<{ message: string; variant: ToastVariant } | null>(null)
   const [pending, startTransition] = useTransition()
   const notesRef = useRef<HTMLTextAreaElement>(null)
@@ -94,7 +94,7 @@ export function ReviewView({ trades, playbooks, accounts }: {
         mistakes: d.mistakes.length ? d.mistakes : null, notes: d.notes.trim() || null,
       })
       if (!res.success) { showToast(REVIEW.ERROR, "error"); return }
-      setSaved(s => ({ ...s, [id]: reviewed(d) }))
+      setSaved(s => ({ ...s, [id]: true }))
       showToast(REVIEW.SAVED)
       // Siguiente sin revisar después de este; si no hay, el siguiente a secas.
       const i = trades.findIndex(t => t.id === id)

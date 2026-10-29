@@ -8,7 +8,7 @@ function t(netPnl: number, entryTime: string): Trade {
     id: "t", userId: "u", accountId: "a1", tradeNumber: null,
     instrument: "NQ", direction: "long", contracts: 1,
     entryPrice: 1, exitPrice: 1, entryTime, exitTime: entryTime,
-    pnl: netPnl, commission: 0, commissionEstimated: false, breakEven: false, beOverride: null, netPnl, mae: null, mfe: null, stopPrice: null,
+    pnl: netPnl, commission: 0, commissionEstimated: false, breakEven: false, beOverride: null, reviewedAt: null, netPnl, mae: null, mfe: null, stopPrice: null,
     playbookId: null, session: null, notes: null, tags: null,
     followedRules: null, mistakes: null, createdAt: entryTime,
   }

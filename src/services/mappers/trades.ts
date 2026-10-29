@@ -29,6 +29,7 @@ export function mapTradeFromDb(row: Record<string, unknown>): Trade {
     tags:        row["tags"],
     followedRules: row["followed_rules"] ?? null,
     mistakes:    row["mistakes"] ?? null,
+    reviewedAt:  row["reviewed_at"] ?? null,
     createdAt:   row["created_at"],
   })
 }

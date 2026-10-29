@@ -16,7 +16,7 @@ function trade(over: Partial<Trade>): Trade {
     instrument: "NQ", direction: "long", contracts: 1,
     entryPrice: 19850, exitPrice: 19850,
     entryTime: "2026-06-10T15:00:00.000Z", exitTime: "2026-06-10T15:30:00.000Z",
-    pnl: 0, commission: 0, commissionEstimated: false, breakEven: false, beOverride: null, netPnl: 0, mae: null, mfe: null, stopPrice: null,
+    pnl: 0, commission: 0, commissionEstimated: false, breakEven: false, beOverride: null, reviewedAt: null, netPnl: 0, mae: null, mfe: null, stopPrice: null,
     playbookId: "s1", session: null, notes: null, tags: null, followedRules: null, mistakes: null,
     createdAt: "2026-06-10T15:30:00.000Z", ...over,
   }

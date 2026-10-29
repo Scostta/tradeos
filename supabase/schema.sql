@@ -75,6 +75,7 @@ create table if not exists trades (
   net_pnl      numeric(10,2) not null,
   be_override  boolean,                          -- BE a mano: true/false; null = automático (migración 20261105130000)
   break_even   boolean not null default false,   -- lo calcula el trigger trades_break_even
+  reviewed_at  timestamptz,                      -- guardado en /review (migración 20261105140000)
   mae          numeric(10,2),
   mfe          numeric(10,2),
   stop_price   numeric(12,4),

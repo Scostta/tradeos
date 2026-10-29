@@ -27,6 +27,7 @@ export const tradeSchema = z.object({
   tags:        z.array(z.string()).nullable(),
   followedRules: z.array(z.string()).nullable(),  // playbook rules confirmed for this trade
   mistakes:    z.array(z.string()).nullable(),    // tagged execution mistakes
+  reviewedAt:  z.string().datetime({ offset: true }).nullable(),  // guardado en el repaso de sesión (/review)
   createdAt:   z.string().datetime({ offset: true }),
 })
 
