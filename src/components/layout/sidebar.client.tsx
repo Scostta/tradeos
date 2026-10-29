@@ -26,6 +26,7 @@ import { RepeatIcon } from "~/lib/ui/icons/repeat-icon";
 import { BrandMark } from "~/lib/ui/icons/brand-mark";
 import type { AppModule } from "~/helpers/active-module";
 import { ModuleSwitcher } from "./module-switcher.client";
+import { SIDEBAR_MODULE_FOOTER_ID } from "./sidebar-slot";
 
 interface NavItem {
   id: string;
@@ -164,6 +165,10 @@ export function Sidebar({
       </nav>
 
       <div className="flex-1" />
+
+      {/* Hueco para el pie del módulo activo: lo rellena su layout con un portal
+          (Money: cuenta por defecto e "Imported through"). */}
+      <div id={SIDEBAR_MODULE_FOOTER_ID} />
 
       {/* User footer */}
       <div className="flex items-center gap-2.5 px-2 pt-2.5 mt-3 border-t border-border">

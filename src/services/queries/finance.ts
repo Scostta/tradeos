@@ -173,6 +173,27 @@ export const getTransactionsIndex = cache(async (startDay = 1): Promise<ResultTy
   })
 })
 
+/** Fecha del último movimiento importado (no cuenta el efectivo manual): pie del sidebar. */
+export const getImportedThrough = cache(async (): Promise<ResultType<string | null, string>> => {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return createErrorResult("UNAUTHENTICATED")
+
+  const { data, error } = await supabase
+    .from("finance_transactions")
+    .select("booked_at")
+    .eq("user_id", user.id)
+    .eq("source", "import")
+    .order("booked_at", { ascending: false })
+    .limit(1)
+    .maybeSingle()
+  if (error) {
+    console.error(error)
+    return createErrorResult(error.message)
+  }
+  return createDataResult((data?.booked_at as string | undefined) ?? null)
+})
+
 export const getSubscriptions = cache(async (): Promise<ResultType<FinanceSubscription[], string>> => {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
