@@ -241,7 +241,7 @@ Reparte el ahorro real del mes cerrado entre objetivos activos según `monthly_a
 
 ## 5. Pantallas
 
-Todas en el módulo Money del conmutador; sidebar: Overview, Transactions, Subscriptions, Goals, Import, Settings. Pie del sidebar con la cuenta por defecto y "Imported through <fecha>" (como en el diseño).
+Todas en el módulo Money del conmutador; sidebar: Overview, Year, Transactions, Subscriptions, Budgets, Goals, Import, Settings. Pie del sidebar con la cuenta por defecto y "Imported through <fecha>" (como en el diseño).
 
 ### 5.1 `/money` — Overview · artboard `01 · Resumen del mes` (`Main.dc.html`)
 - Cabecera: mes, "N days left · d of D", chip del estado del último import (ámbar si > 7 días), botón Import.
@@ -293,6 +293,15 @@ Todas las llamadas pasan por `src/lib/ai/claude-json.ts` (compartido): Claude Op
 - Proyección por categoría: fijas, su importe conocido (`max(este mes, el anterior)`); variables, gastado + ritmo de los últimos 14 días × días que quedan; meses pasados, lo gastado.
 - **Suggest** = media de hasta 3 meses anteriores con datos, redondeada por arriba a la decena. Con menos de 3 meses se indica "based on N months". Botón **Apply suggestions** rellena las vacías.
 - Overview (§5.1): la marca de cada categoría es su presupuesto si el mes tiene presupuestos; si no, la media de 3 meses.
+
+### 5.10 `/money/year` — resumen del año (29/10/2026, a petición del usuario)
+- `?year=YYYY`; por defecto el año en curso. Selector con los años con movimientos. Sidebar: "Year" bajo Overview (no va en la barra inferior del móvil).
+- El año son los 12 meses que se llaman de ese año (§5.6: con día de inicio 25, el año 2026 va del 25/12/2025 al 24/12/2026). Cada mes sale de `monthlySummary()`, así las cifras cuadran con el Overview (transferencias, excluidos, splits y sin categorizar igual). Lógica pura en `src/lib/finance/year.ts` (`yearSummary`, tests).
+- Cuatro tarjetas: **Income**, **Spent** (fijos · variables y media mensual), **Real savings** (y lo aportado a categorías `savings`), **Savings rate** del año. La media mensual usa los meses cerrados con datos; el mes en curso solo si es el único.
+- **Month by month**: ingreso frente a gasto (fijo + variable) de los 12 meses, ahorro real encima y tasa de ahorro debajo; el mes en curso atenuado y marcado "in progress", los meses sin datos vacíos.
+- **Spending by category**: total del año, parte del gasto y una tira de 12 celdas con la intensidad mensual (solo escritorio). Una categoría en neto negativo (Bizum con más recibido que enviado) va en verde y sin parte.
+- **Subscriptions · yearly cost**: las confirmadas a su precio actual (`yearlyCost`) y el total al año.
+- **Decisión (29/10/2026):** no se muestra lo aportado a cada objetivo en el año: solo se guarda `saved_amount` acumulado, no el reparto de cada mes, y reconstruirlo sería inventarlo.
 
 ### 5.7 Móvil — artboards `M1 · Móvil · Resumen` y `M2 · Móvil · Gasto en efectivo`
 No es una app aparte: es el responsive de `/money` más una pantalla nueva.

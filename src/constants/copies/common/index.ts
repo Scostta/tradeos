@@ -34,6 +34,7 @@ export const COMMON = {
     SUBSCRIPTIONS: "Subscriptions",
     SETTINGS:    "Settings",
     BUDGETS:     "Budgets",
+    YEAR:        "Year",
   },
   SESSION: {
     LABEL:    "Session · —",

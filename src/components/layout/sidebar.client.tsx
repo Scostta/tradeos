@@ -59,6 +59,7 @@ const NAV_BY_MODULE: Record<AppModule, NavItem[]> = {
   ],
   money: [
     { id: "overview", label: COMMON.NAV_LABELS.OVERVIEW, path: APP_URLS.MONEY, Icon: CoinsIcon, exact: true },
+    { id: "money-year", label: COMMON.NAV_LABELS.YEAR, path: APP_URLS.MONEY_YEAR, Icon: CalendarIcon },
     { id: "money-transactions", label: COMMON.NAV_LABELS.TRANSACTIONS, path: APP_URLS.MONEY_TRANSACTIONS, Icon: ListIcon },
     { id: "money-subscriptions", label: COMMON.NAV_LABELS.SUBSCRIPTIONS, path: APP_URLS.MONEY_SUBSCRIPTIONS, Icon: RepeatIcon },
     { id: "money-budgets", label: COMMON.NAV_LABELS.BUDGETS, path: APP_URLS.MONEY_BUDGETS, Icon: BarIcon },
