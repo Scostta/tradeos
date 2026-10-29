@@ -8,6 +8,7 @@ export const COMMON = {
   OR:           "or",
   ALL_ACCOUNTS: "All accounts",
   OPEN_MENU:    "Open menu",
+  NAV_BADGE_NEW: "New",
   MODULES: {
     TRADING: "Trading",
     INVEST:  "Invest",

@@ -276,13 +276,16 @@ export async function markRunReviewed(input: unknown): Promise<ResultType<{ ok: 
     return createErrorResult("NO_CURRENT_RUN")
   }
 
-  const { error } = await supabase
+  const { data: inserted, error } = await supabase
     .from("invest_reviews")
     .upsert({ user_id: user.id, run_id: run.id }, { onConflict: "user_id,run_id", ignoreDuplicates: true })
+    .select("run_id")
   if (error) {
     console.error(error)
     return createErrorResult("UNKNOWN")
   }
+  // Primera visita al run: el aviso "New" del sidebar (layout) desaparece.
+  if ((inserted ?? []).length > 0) revalidatePath("/", "layout")
   return createDataResult({ ok: true })
 }
 

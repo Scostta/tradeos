@@ -3,7 +3,8 @@ import { createClient } from "~/utils/supabase/server";
 import { getProfile } from "~/services/queries/profile";
 import { DashboardShell } from "~/components/layout/dashboard-shell.client";
 import { InvestSellBanner } from "~/components/layout/invest-sell-banner.client";
-import { getInvestSellAlerts } from "~/services/queries/invest";
+import { getInvestNewRun, getInvestSellAlerts } from "~/services/queries/invest";
+import { getReviewPendingCount } from "~/services/queries/review";
 import { ACTIVE_MODULE_COOKIE, parseModule } from "~/helpers/active-module";
 
 export default async function DashboardLayout({
@@ -12,12 +13,15 @@ export default async function DashboardLayout({
   children: React.ReactNode;
 }) {
   const supabase = await createClient();
-  // Aviso de venta de Invest en toda la app (INVEST_SPEC §4.9): solo lectura.
-  const [{ data: { user } }, profileResult, cookieStore, sellAlerts] = await Promise.all([
+  // Aviso de venta de Invest en toda la app (INVEST_SPEC §4.9) y avisos del
+  // sidebar (trades sin revisar, run de Invest sin abrir): solo lectura.
+  const [{ data: { user } }, profileResult, cookieStore, sellAlerts, reviewPending, investNewRun] = await Promise.all([
     supabase.auth.getUser(),
     getProfile(),
     cookies(),
     getInvestSellAlerts(),
+    getReviewPendingCount(),
+    getInvestNewRun(),
   ]);
 
   const userName = profileResult.success ? profileResult.data.displayName : null;
@@ -31,6 +35,7 @@ export default async function DashboardLayout({
       userName={userName ?? undefined}
       timezone={timezone}
       initialModule={initialModule}
+      badges={{ reviewPending, investNewRun: investNewRun != null }}
     >
       <InvestSellBanner alerts={sellAlerts} />
       {/* El `h-full` de cada página mide lo que queda debajo del aviso. */}

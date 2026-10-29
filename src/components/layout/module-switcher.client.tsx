@@ -14,9 +14,11 @@ const LABELS: Record<AppModule, string> = {
 }
 
 // Control segmentado bajo la marca. En móvil vive dentro del drawer del
-// sidebar, así que es el mismo componente.
-export function ModuleSwitcher({ active, onNavigate }: {
+// sidebar, así que es el mismo componente. `flagged`: módulos con un aviso
+// pendiente (punto si no es el activo).
+export function ModuleSwitcher({ active, flagged, onNavigate }: {
   active:      AppModule
+  flagged:     Set<AppModule>
   onNavigate?: () => void
 }): ReactElement {
   const router = useRouter()
@@ -46,13 +48,16 @@ export function ModuleSwitcher({ active, onNavigate }: {
             aria-selected={isActive}
             onClick={() => select(module)}
             className={cn(
-              "py-1.5 rounded-sm text-sm transition-colors cursor-pointer",
+              "relative py-1.5 rounded-sm text-sm transition-colors cursor-pointer",
               isActive
                 ? "bg-surface-2 text-text font-semibold"
                 : "text-text-mute hover:text-text-dim",
             )}
           >
             {LABELS[module]}
+            {!isActive && flagged.has(module) && (
+              <span className="absolute top-1 right-1 size-1.5 rounded-full bg-accent" aria-hidden />
+            )}
           </button>
         )
       })}

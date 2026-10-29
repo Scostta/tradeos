@@ -81,3 +81,29 @@ export async function getReviewData(requested: string | null): Promise<ResultTyp
     journal: journalRes.data ? mapJournalEntryFromDb(journalRes.data) : null,
   })
 }
+
+/**
+ * Trades sin revisar en la misma ventana que /review, para el contador del
+ * sidebar. 0 si algo falla: es solo un aviso.
+ */
+export async function getReviewPendingCount(): Promise<number> {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return 0
+
+  const since = new Date(Date.now() - LOOKBACK_DAYS * DAY_MS).toISOString()
+  const { data, error } = await supabase
+    .from("trades")
+    .select("reviewed_at, playbook_id, followed_rules")
+    .eq("user_id", user.id)
+    .gte("entry_time", since)
+  if (error) {
+    console.error(error)
+    return 0
+  }
+  return (data ?? []).filter(t => !isReviewed({
+    reviewedAt:    (t.reviewed_at as string | null) ?? null,
+    playbookId:    (t.playbook_id as string | null) ?? null,
+    followedRules: (t.followed_rules as string[] | null) ?? null,
+  })).length
+}

@@ -7,18 +7,22 @@ import { TimezoneContext } from "~/hooks/use-timezone"
 import { useActiveModule } from "~/hooks/use-active-module"
 import { COMMON } from "~/constants/copies/common"
 import type { AppModule } from "~/helpers/active-module"
+import { modulesWithBadge } from "./sidebar-badges"
+import type { SidebarBadges } from "./sidebar-badges"
 
 export function DashboardShell({
   userEmail,
   userName,
   timezone = "UTC",
   initialModule,
+  badges,
   children,
 }: {
   userEmail?: string
   userName?: string
   timezone?: string
   initialModule: AppModule   // cookie active_module, para las rutas compartidas
+  badges: SidebarBadges
   children: ReactNode
 }) {
   const [sidebarOpen, setSidebarOpen] = useState(false)
@@ -41,6 +45,7 @@ export function DashboardShell({
         userEmail={userEmail}
         userName={userName}
         activeModule={activeModule}
+        badges={badges}
         isOpen={sidebarOpen}
         onClose={() => setSidebarOpen(false)}
       />
@@ -49,9 +54,12 @@ export function DashboardShell({
           <button
             type="button"
             onClick={() => setSidebarOpen(true)}
-            className="p-1.5 rounded text-text-mute hover:text-text transition-colors"
+            className="relative p-1.5 rounded text-text-mute hover:text-text transition-colors"
             aria-label={COMMON.OPEN_MENU}
           >
+            {modulesWithBadge(badges).size > 0 && (
+              <span className="absolute top-1 right-1 size-1.5 rounded-full bg-accent" aria-hidden />
+            )}
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round">
               <line x1="3" y1="6" x2="21" y2="6" />
               <line x1="3" y1="12" x2="21" y2="12" />

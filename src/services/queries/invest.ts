@@ -24,6 +24,7 @@ import type {
 } from "~/types/invest"
 import { createDataResult, createErrorResult } from "~/helpers/result"
 import type { ResultType } from "~/helpers/result"
+import { isCurrentMonthRun } from "~/lib/calculations/invest-run"
 
 const FETCH_CHUNK = 1000   // max-rows por defecto de PostgREST en Supabase
 
@@ -333,4 +334,18 @@ export async function getInvestSellAlerts(): Promise<InvestSellAlert[]> {
     const c = checks.data[p.id]
     return c?.signal === "sell" ? [{ positionId: p.id, ticker: p.ticker, paper: p.paper, runDate: c.runDate }] : []
   })
+}
+
+/**
+ * §4.9: run del mes en curso que el usuario aún no ha abierto en Screen, para
+ * el aviso del sidebar. null sin ajustes de Invest, sin run del mes o ya
+ * revisado (y si algo falla: es solo un aviso).
+ */
+export async function getInvestNewRun(): Promise<{ runDate: string } | null> {
+  const [settings, run] = await Promise.all([getInvestSettings(), getLatestRun()])
+  if (!settings.success || !settings.data || !run.success || !run.data) return null
+  if (!isCurrentMonthRun(run.data.runDate, new Date().toISOString().slice(0, 10))) return null
+  const reviewed = await getReviewedRunIds()
+  if (!reviewed.success || reviewed.data.has(run.data.id)) return null
+  return { runDate: run.data.runDate }
 }

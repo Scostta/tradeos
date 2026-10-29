@@ -28,6 +28,8 @@ import { BrandMark } from "~/lib/ui/icons/brand-mark";
 import type { AppModule } from "~/helpers/active-module";
 import { ModuleSwitcher } from "./module-switcher.client";
 import { SIDEBAR_MODULE_FOOTER_ID } from "./sidebar-slot";
+import { modulesWithBadge } from "./sidebar-badges";
+import type { SidebarBadges } from "./sidebar-badges";
 
 interface NavItem {
   id: string;
@@ -78,18 +80,27 @@ export function Sidebar({
   userEmail,
   userName,
   activeModule,
+  badges,
   isOpen,
   onClose,
 }: {
   userEmail?: string
   userName?: string
   activeModule: AppModule
+  badges: SidebarBadges
   isOpen?: boolean
   onClose?: () => void
 }) {
   const pathname = usePathname();
   const [pending, startSignOut] = useTransition();
   const initials = getInitials(userName ?? userEmail);
+
+  // Aviso a la derecha de un item: trades sin revisar en Review, run nuevo en Screen.
+  function badgeFor(item: NavItem): string | null {
+    if (item.id === "review" && badges.reviewPending > 0) return String(badges.reviewPending);
+    if (item.id === "screen" && badges.investNewRun) return COMMON.NAV_BADGE_NEW;
+    return null;
+  }
 
   function isActive(item: NavItem): boolean {
     if (item.exact) return pathname === item.path;
@@ -131,13 +142,14 @@ export function Sidebar({
 
       {/* Module switcher (en móvil, dentro del drawer) */}
       <div className="pb-3">
-        <ModuleSwitcher active={activeModule} onNavigate={onClose} />
+        <ModuleSwitcher active={activeModule} flagged={modulesWithBadge(badges)} onNavigate={onClose} />
       </div>
 
       {/* Nav */}
       <nav className="flex flex-col gap-px mt-1">
         {NAV_BY_MODULE[activeModule].map((item) => {
           const active = isActive(item);
+          const badge = badgeFor(item);
           return (
             <Link
               key={item.id}
@@ -162,6 +174,9 @@ export function Sidebar({
                 <item.Icon />
               </span>
               {item.label}
+              {badge && (
+                <span className="ml-auto mono text-xxs font-semibold px-1.5 rounded-full bg-accent/15 text-accent">{badge}</span>
+              )}
             </Link>
           );
         })}
