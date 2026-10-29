@@ -37,6 +37,7 @@ export const JOURNAL = {
   WEEK: {
     TITLE:        "WEEK",
     OPEN:         "Open week recap",
+    MOBILE_TITLE: "WEEKS",
     EMPTY:        "No trades or journal entries this week.",
     NET:          "NET P&L",
     VS_PREV:      "{amount} vs last week",

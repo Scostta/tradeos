@@ -20,6 +20,16 @@ const MONTH_NAMES = [
   "July", "August", "September", "October", "November", "December",
 ] as const
 
+/** "Oct 25 – 31" o "Sep 27 – Oct 3". */
+function weekRange(from: string, to: string): string {
+  const f = new Date(`${from}T00:00:00Z`), t = new Date(`${to}T00:00:00Z`)
+  const fm = f.toLocaleDateString("en-US", { month: "short", day: "numeric", timeZone: "UTC" })
+  const tm = f.getUTCMonth() === t.getUTCMonth()
+    ? String(t.getUTCDate())
+    : t.toLocaleDateString("en-US", { month: "short", day: "numeric", timeZone: "UTC" })
+  return `${fm} – ${tm}`
+}
+
 function moodColor(mood: number): string {
   return JOURNAL.MOODS.find(m => m.v === mood)?.color ?? "#6b7280"
 }
@@ -324,6 +334,35 @@ export function JournalCalendar({
               </div>
             )
           })}
+
+          {/* Móvil: la columna de semanas no cabe; lista aparte que abre el mismo resumen. */}
+          {weekStarts.length > 0 && (
+            <div className="md:hidden flex flex-col gap-1 mt-3">
+              <div className="label-caps px-1">{JOURNAL.WEEK.MOBILE_TITLE}</div>
+              {weekStarts.map((from, wi) => {
+                const r = recaps[from]!
+                return (
+                  <button
+                    key={from}
+                    type="button"
+                    onClick={() => setSelectedWeek(from)}
+                    className="flex items-center gap-3 bg-surface border border-border rounded-sm px-3 py-2.5 text-left cursor-pointer active:border-border-hi"
+                  >
+                    <span className="mono text-xs text-text-mute" style={{ width: 24 }}>W{wi + 1}</span>
+                    <span className="mono text-xs text-text-dim flex-1">{weekRange(r.from, r.to)}</span>
+                    <span className="mono text-xs text-text-mute">{r.trades > 0 ? `${r.trades} tr` : ""}</span>
+                    <span
+                      className="mono text-sm font-semibold text-right"
+                      style={{ width: 64, color: r.netPnl > 0 ? "var(--color-profit)" : r.netPnl < 0 ? "var(--color-loss)" : "var(--color-text-mute)" }}
+                    >
+                      {r.trades > 0 ? formatCurrency(r.netPnl, { decimals: 0 }) : "—"}
+                    </span>
+                    <span className="text-text-mute">›</span>
+                  </button>
+                )
+              })}
+            </div>
+          )}
         </div>
       </div>
 
