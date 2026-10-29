@@ -7,8 +7,8 @@ import { createDataResult, createErrorResult } from "~/helpers/result"
 import type { ResultType } from "~/helpers/result"
 
 // Llamada a Claude con salida JSON validada, compartida por los módulos que
-// usan IA (Money, Invest). Cada módulo pone su prompt, su esquema JSON y su
-// esquema Zod; aquí solo va el transporte. Insights (Trading) tiene el suyo.
+// usan IA (Insights de Trading, Money, Invest). Cada uno pone su prompt, su
+// esquema JSON y su esquema Zod; aquí solo va el transporte.
 
 export const AI_MODEL = "claude-opus-5-5"
 // Si Claude Opus 5.5 rechaza por seguridad, la API reintenta la misma petición

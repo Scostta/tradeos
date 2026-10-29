@@ -15,10 +15,11 @@ import type { MistakeRow } from "./reports"
 /** Headline figures for the whole filtered set. */
 export type InsightsOverview = {
   totalTrades:  number
+  breakEvenTrades: number  // count in P&L, not as winners or losers
   netPnl:       number
-  winRate:      number   // 0–1
+  winRate:      number   // 0–1, wins / (wins + losses)
   profitFactor: number
-  expectancy:   number   // winRate*avgWin + (1-winRate)*avgLoss (per trade)
+  expectancy:   number   // net P&L per trade (BE included)
   maxDrawdown:  number   // peak-to-trough (negative)
   avgWin:       number
   avgLoss:      number   // negative or 0

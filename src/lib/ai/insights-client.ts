@@ -1,9 +1,9 @@
 import "server-only"
 
-import Anthropic from "@anthropic-ai/sdk"
-import { envServer } from "~/env/server"
-import { createDataResult, createErrorResult } from "~/helpers/result"
+import { claudeJson } from "~/lib/ai/claude-json"
+import { createDataResult } from "~/helpers/result"
 import { insightsResponseSchema } from "~/types/insights"
+import type { AiError } from "~/lib/ai/claude-json"
 import type { ResultType } from "~/helpers/result"
 import type { Insight, InsightsInput } from "~/types/insights"
 
@@ -46,49 +46,24 @@ Strict rules:
 - "category": "timing" (hour/day/session), "discipline" (rules, tilt, overtrading), "risk" (R-multiples, drawdown) or "strategy" (what works).
 - "recommendation": one concrete, brief action — not generic advice.
 - Don't repeat the same pattern across insights. Order from highest to lowest impact.
-- If the data is thin or contradictory, return fewer insights rather than inventing.`
+- If the data is thin or contradictory, return fewer insights rather than inventing.
+- Break-even trades (exit within a few points of entry, "breakEvenTrades") count in net P&L but not as winners or losers: every win rate is wins / (wins + losses). Don't treat them as losses.`
 
 /**
- * Calls Claude with the pre-computed aggregation and returns validated insights.
- * Never throws — Anthropic and parsing errors come back as createErrorResult.
- * Returns "AI_NOT_CONFIGURED" when no API key is set (UI shows a setup notice).
+ * Calls Claude with the pre-computed aggregation and returns validated insights
+ * plus the model that answered. Transport (model, fallback, errors) is the
+ * shared claudeJson(); never throws.
  */
 export async function generateInsightsFromInput(
   input: InsightsInput,
-): Promise<ResultType<Insight[], string>> {
-  if (!envServer.ANTHROPIC_API_KEY) return createErrorResult("AI_NOT_CONFIGURED")
-
-  const client = new Anthropic({ apiKey: envServer.ANTHROPIC_API_KEY })
-
-  try {
-    const response = await client.messages.create({
-      model:      envServer.ANTHROPIC_MODEL,
-      max_tokens: 4000,
-      thinking:   { type: "adaptive" },
-      system:     SYSTEM_PROMPT,
-      output_config: { effort: "medium", format: { type: "json_schema", schema: OUTPUT_SCHEMA } },
-      messages:   [{ role: "user", content: JSON.stringify(input) }],
-    })
-
-    if (response.stop_reason === "refusal") return createErrorResult("AI_REFUSED")
-
-    const text = response.content
-      .filter((b): b is Anthropic.TextBlock => b.type === "text")
-      .map(b => b.text)
-      .join("")
-
-    if (!text.trim()) return createErrorResult("AI_EMPTY_RESPONSE")
-
-    const parsed = insightsResponseSchema.safeParse(JSON.parse(text))
-    if (!parsed.success) return createErrorResult("AI_INVALID_RESPONSE")
-
-    return createDataResult(parsed.data.insights)
-  } catch (error) {
-    if (error instanceof Anthropic.APIError) {
-      console.error(`Anthropic API error ${error.status}:`, error.message)
-      return createErrorResult(`AI_API_ERROR`)
-    }
-    console.error(error)
-    return createErrorResult("AI_UNKNOWN_ERROR")
-  }
+): Promise<ResultType<{ insights: Insight[]; model: string }, AiError>> {
+  const result = await claudeJson({
+    system:     SYSTEM_PROMPT,
+    input,
+    jsonSchema: OUTPUT_SCHEMA,
+    zod:        insightsResponseSchema,
+    effort:     "medium",
+  })
+  if (!result.success) return result
+  return createDataResult({ insights: result.data.data.insights, model: result.data.model })
 }

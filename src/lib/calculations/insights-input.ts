@@ -48,10 +48,11 @@ function buildOverview(trades: Trade[]): InsightsOverview {
   const al = avgLoss(trades)
   return {
     totalTrades:  trades.length,
+    breakEvenTrades: trades.filter(t => t.breakEven).length,
     netPnl:       round2(totalNetPnl(trades)),
     winRate:      round4(wr),
     profitFactor: round2(profitFactor(trades)),
-    expectancy:   round2(wr * aw + (1 - wr) * al),
+    expectancy:   round2(trades.length ? totalNetPnl(trades) / trades.length : 0),
     maxDrawdown:  round2(maxDrawdown(trades)),
     avgWin:       round2(aw),
     avgLoss:      round2(al),

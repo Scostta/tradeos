@@ -5,7 +5,6 @@ import { createClient } from "~/utils/supabase/server"
 import { loadInsightsInput } from "~/services/queries/insights"
 import { generateInsightsFromInput } from "~/lib/ai/insights-client"
 import { createDataResult, createErrorResult } from "~/helpers/result"
-import { envServer } from "~/env/server"
 import { generateInsightsInputSchema, MIN_TRADES_FOR_INSIGHTS } from "~/types/insights"
 import type { ResultType } from "~/helpers/result"
 import type { Insight } from "~/types/insights"
@@ -60,8 +59,8 @@ export async function generateInsights(
     user_id:      user.id,
     account_id:   accountId,
     input_hash:   hash,
-    insights:     result.data,
-    model:        envServer.ANTHROPIC_MODEL,
+    insights:     result.data.insights,
+    model:        result.data.model,
     trades_count: tradesCount,
     generated_at: new Date().toISOString(),
   }
@@ -78,5 +77,5 @@ export async function generateInsights(
 
   revalidatePath("/dashboard")
   revalidatePath("/insights")
-  return createDataResult({ insights: result.data, cached: false })
+  return createDataResult({ insights: result.data.insights, cached: false })
 }

@@ -36,6 +36,7 @@ export const INSIGHTS = {
   ERRORS: {
     AI_NOT_CONFIGURED: "AI is not configured — add an ANTHROPIC_API_KEY.",
     INSUFFICIENT_DATA: "Need at least 25 closed trades.",
+    AI_RATE_LIMITED:   "Too many requests right now. Try again in a minute.",
     DEFAULT:           "Could not generate the analysis. Try again.",
   },
 
