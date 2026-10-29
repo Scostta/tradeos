@@ -296,3 +296,21 @@ export const getThesisDrafts = cache(async (): Promise<ResultType<Record<string,
     Object.fromEntries((data ?? []).map(r => [r.ticker as string, mapThesisAnswersFromDb(r.answers)])),
   )
 })
+
+/** Nota de IA guardada (INVEST_SPEC §4.8): el comentario de un run o la revisión de una posición en un run. */
+export async function getInvestAiNote(
+  kind: "picks" | "review", runId: string, positionId: string | null,
+): Promise<ResultType<{ content: unknown; inputHash: string; createdAt: string } | null, string>> {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return createErrorResult("UNAUTHENTICATED")
+
+  const q = supabase.from("invest_ai_notes").select("content, input_hash, created_at")
+    .eq("user_id", user.id).eq("kind", kind).eq("run_id", runId)
+  const { data, error } = await (positionId == null ? q.is("position_id", null) : q.eq("position_id", positionId)).maybeSingle()
+  if (error) {
+    console.error(error)
+    return createErrorResult(error.message)
+  }
+  return createDataResult(data ? { content: data.content, inputHash: data.input_hash as string, createdAt: data.created_at as string } : null)
+}

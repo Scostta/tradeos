@@ -170,6 +170,15 @@ export const INVEST = {
   },
 
   SCREEN: {
+    AI_TITLE:      "AI read of this run",
+    AI_GENERATE:   "Generate",
+    AI_REFRESH:    "Refresh",
+    AI_THINKING:   "Thinking…",
+    AI_GENERATED:  "Generated {date}",
+    AI_STALE:      "Run or positions changed · refresh",
+    AI_EMPTY:      "3–5 tickers that stand out among the ones that pass, with the figures behind them. Only passing tickers; you decide.",
+    AI_RISK:       "Risk: {risk}",
+    AI_DISCLAIMER: "AI · only tickers that pass the screener · a reading aid, not advice",
     NO_RUN:        "No screener run yet. The job runs on the first business day of each month.",
     LOAD_ERROR:    "Could not load the screener run.",
     LAST_RUN:      "Last run",

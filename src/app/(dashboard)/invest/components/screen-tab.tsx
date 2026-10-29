@@ -1,6 +1,9 @@
 import type { ReactElement } from "react"
 import { INVEST } from "~/constants/copies/invest"
-import { getLatestRun, getScreenResult, getScreenResults, getThesisDrafts } from "~/services/queries/invest"
+import { aiConfigured, inputHash } from "~/lib/ai/claude-json"
+import { picksContentSchema } from "~/lib/invest/ai/picks"
+import { picksInput } from "~/lib/invest/ai/picks-input"
+import { getInvestAiNote, getLatestRun, getPositions, getScreenResult, getScreenResults, getThesisDrafts } from "~/services/queries/invest"
 import type { InvestSettings } from "~/types/invest"
 import { RunSummary } from "./run-summary"
 import { TickerSearch } from "./ticker-search"
@@ -8,6 +11,7 @@ import { PassingTable } from "./passing-table"
 import { loadOpenContext, openActionFor } from "./open-action"
 import type { OpenAction } from "./open-action"
 import { MarkReviewed } from "./mark-reviewed.client"
+import { AiPicksCard } from "./ai-picks-card.client"
 
 type Props = {
   query:    string | null
@@ -39,10 +43,22 @@ export async function ScreenTab({ query, settings }: Props): Promise<ReactElemen
     actions[r.ticker] = openActionFor(openCtx, r, drafts.data[r.ticker] ?? null)
   }
 
+  // §4.8: comentario de la IA guardado; "stale" si el run o las posiciones cambiaron.
+  let aiCard: ReactElement | null = null
+  if (aiConfigured() && passing.data.length > 0) {
+    const [note, positions] = await Promise.all([getInvestAiNote("picks", run.id, null), getPositions()])
+    const content = note.success && note.data ? picksContentSchema.safeParse(note.data.content) : null
+    const initial = content?.success && note.success && note.data ? { content: content.data, createdAt: note.data.createdAt } : null
+    const stale = initial != null && positions.success
+      && note.success && note.data?.inputHash !== await inputHash(picksInput(run, passing.data, positions.data, settings))
+    aiCard = <AiPicksCard runId={run.id} initial={initial} stale={stale} />
+  }
+
   return (
     <>
       {openCtx.isCurrent && <MarkReviewed runId={run.id} />}
       <RunSummary run={run} isCurrent={openCtx.isCurrent} />
+      {aiCard}
       <TickerSearch
         query={query}
         runDate={run.runDate}

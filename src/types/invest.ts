@@ -229,3 +229,9 @@ export type SaveThesisDraftInput = z.infer<typeof saveThesisDraftInputSchema>
 // ── IA (§4.8) ───────────────────────────────────────────────────────────────
 
 export const draftThesisInputSchema = z.object({ ticker: z.string().trim().min(1).max(20).transform(t => t.toUpperCase()) })
+
+export const aiNoteInputSchema = z.object({
+  runId:      z.string().uuid(),
+  positionId: z.string().uuid().nullable().default(null),
+  refresh:    z.boolean().default(false),
+})
