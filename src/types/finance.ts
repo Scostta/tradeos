@@ -236,6 +236,17 @@ export type SplitTransactionInput = z.infer<typeof splitTransactionInputSchema>
 
 export const unsplitTransactionInputSchema = z.object({ transactionId: z.string().uuid() })
 
+// ── IA (§5.8) ───────────────────────────────────────────────────────────────
+
+export const suggestCategoriesInputSchema = z.object({
+  transactionIds: z.array(z.string().uuid()).min(1).max(100),
+})
+
+export const aiSummaryInputSchema = z.object({
+  month:   z.string().regex(/^d{4}-(0[1-9]|1[0-2])$/),
+  refresh: z.boolean().default(false),
+})
+
 export const deleteRuleInputSchema = z.object({ ruleId: z.string().uuid() })
 
 export const createRuleInputSchema = z.object({

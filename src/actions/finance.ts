@@ -10,7 +10,10 @@ import { CASH_ACCOUNT_NAME, DEFAULT_CATEGORIES } from "~/lib/finance/default-cat
 import { manualImportKey, withFinanceImportKeys } from "~/lib/finance/fingerprint"
 import { applyRules, transactionsByRule } from "~/lib/finance/match-rule"
 import type { RuleAssignment } from "~/lib/finance/match-rule"
+import { suggestCategories } from "~/lib/finance/ai/categorize"
+import type { CategorySuggestion } from "~/lib/finance/ai/categorize"
 import { normalizeConcept } from "~/lib/finance/normalize-concept"
+import type { AiError } from "~/lib/ai/claude-json"
 import { detectRecurring } from "~/lib/finance/recurring"
 import { monthlySummary } from "~/lib/finance/summary"
 import { mapFinanceCategoryFromDb, mapFinanceGoalFromDb, mapFinanceTransactionFromDb } from "~/services/mappers/finance"
@@ -30,6 +33,7 @@ import {
   splitTransactionInputSchema,
   subscriptionStatusInputSchema,
   subscriptionNotesInputSchema,
+  suggestCategoriesInputSchema,
   subscriptionUsageInputSchema,
   unsplitTransactionInputSchema,
   updateCategoryInputSchema,
@@ -474,6 +478,53 @@ async function recomputeSubscriptions(supabase: Supabase, userId: string): Promi
     { onConflict: "user_id,counterparty,cadence" },
   )
   if (error) console.error(error)
+}
+
+// ── IA (§5.8) ──────────────────────────────────────────────────────────────
+
+/**
+ * Sugerencias de categoría para movimientos de la cola. Solo lee: lo que el
+ * usuario acepte se guarda con categorizeTransaction. Ignora los que ya no
+ * están sin categorizar o no son del usuario.
+ */
+export async function suggestTransactionCategories(
+  input: unknown,
+): Promise<ResultType<{ suggestions: CategorySuggestion[] }, FinanceActionError | AiError>> {
+  const parsed = suggestCategoriesInputSchema.safeParse(input)
+  if (!parsed.success) return createErrorResult("INVALID_INPUT")
+
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return createErrorResult("UNAUTHENTICATED")
+
+  const [txRes, catRes, ruleRes] = await Promise.all([
+    supabase.from("finance_transactions")
+      .select("id, counterparty, concept_raw, amount, booked_at")
+      .eq("user_id", user.id).is("category_id", null).is("parent_id", null).eq("excluded", false)
+      .in("id", parsed.data.transactionIds),
+    supabase.from("finance_categories").select("id, name, kind, is_fixed").eq("user_id", user.id).eq("archived", false).order("sort"),
+    supabase.from("finance_category_rules").select("pattern, amount, category_id").eq("user_id", user.id).limit(150),
+  ])
+  if (txRes.error || catRes.error || ruleRes.error) {
+    console.error(txRes.error ?? catRes.error ?? ruleRes.error)
+    return createErrorResult("UNKNOWN")
+  }
+  if (!txRes.data?.length) return createDataResult({ suggestions: [] })
+
+  const names = new Map((catRes.data ?? []).map(c => [c.id as string, c.name as string]))
+  const result = await suggestCategories({
+    transactions: txRes.data.map(t => ({
+      id: t.id as string, counterparty: (t.counterparty as string | null) ?? null, concept: t.concept_raw as string,
+      amount: Number(t.amount), date: t.booked_at as string,
+    })),
+    categories: (catRes.data ?? []).map(c => ({ id: c.id as string, name: c.name as string, kind: c.kind as string, isFixed: c.is_fixed as boolean })),
+    rules: (ruleRes.data ?? []).flatMap(r => {
+      const category = names.get(r.category_id as string)
+      return category ? [{ pattern: r.pattern as string, amount: r.amount == null ? null : Number(r.amount), category }] : []
+    }),
+  })
+  if (!result.success) return createErrorResult(result.error)
+  return createDataResult({ suggestions: result.data.suggestions })
 }
 
 // ── Movimientos (§5.2) ──────────────────────────────────────────────────────

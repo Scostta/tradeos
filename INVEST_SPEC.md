@@ -184,6 +184,23 @@ create table if not exists invest_position_checks (
 ```
 RLS: `select using (exists (select 1 from invest_positions p where p.id = position_id and p.user_id = auth.uid()))`. Escritura solo service role.
 
+### 2.8 `invest_ai_notes` — notas de IA por usuario (§4.8)
+```sql
+create table if not exists invest_ai_notes (
+  id           uuid primary key default gen_random_uuid(),
+  user_id      uuid references auth.users on delete cascade not null,
+  kind         text not null check (kind in ('picks', 'review')),
+  run_id       uuid references invest_screen_runs(id) on delete cascade not null,
+  position_id  uuid references invest_positions(id) on delete cascade,   -- solo 'review'
+  input_hash   text not null,
+  content      jsonb not null,
+  model        text not null,
+  created_at   timestamptz not null default now(),
+  unique nulls not distinct (user_id, kind, run_id, position_id)
+);
+```
+RLS por `user_id`. Migración `20261104150000_invest_ai_notes.sql`.
+
 ### 2.7 Página de detalle (§4.7)
 Migración `20261027170000_invest_ticker_detail.sql`.
 - `invest_tickers (ticker PK, name, exchange, currency, financial_currency, sector, industry, summary, updated_at)`: ficha por ticker; `financial_currency` es la divisa de los estados financieros (puede no coincidir con la de cotización). Job, upsert. RLS `select` para `authenticated`.
@@ -263,6 +280,12 @@ Ayuda a **escribir** la tesis y los falsadores; **no decide nada** (las reglas s
 - **Thesis prompts**: cuatro preguntas fijas con un textarea cada una (de dónde viene el crecimiento; qué lo pararía; quién pierde si esta empresa gana; qué dato de los próximos dos trimestres lo confirmaría o desmentiría), con autoguardado en `invest_thesis_drafts`. El modal "Open position" precarga la tesis con las cuatro respuestas y propone como falsadores las respuestas 2 y 4; su validación no cambia.
 - Cada fila de Screen enlaza al detalle (las de Positions, a `/invest/positions/[ticker]`, §4.3).
 - Botón "Open position" en la cabecera, el mismo de Screen (§4.2) con el mismo bloqueo y tooltip.
+
+### 4.8 IA (29/10/2026, a petición del usuario)
+Todas las llamadas pasan por `src/lib/ai/claude-json.ts` (compartido): Claude Opus 5.5 con thinking adaptativo, salida JSON con esquema (`output_config.format`) validada con Zod, y fallback de servidor a Claude Opus 4.8 si el modelo rechaza por seguridad. Solo se llama al pulsar un botón; lo que se guarda lleva un hash de la entrada y no se regenera si no cambia. La IA **solo usa cifras que le pasa la app** (nunca recalcula ni inventa), todo va etiquetado como "AI · not advice" y **nunca escribe nada sin que el usuario lo acepte**. Sin `ANTHROPIC_API_KEY`, los botones no aparecen. La IA **no decide nada**: ni qué pasa el screener ni qué se vende; las reglas siguen solo en `evaluate()` y la salida en `sma_exit`.
+- **Borrador de tesis** (`/invest/[ticker]`): botón "Draft with AI" que rellena las cuatro Thesis prompts a partir de la ficha (`invest_tickers`), los 4 años de `invest_fundamentals_history` y el resultado del último run. Se escribe en el borrador (autoguardado de `invest_thesis_drafts`); el usuario lo edita. Solo rellena preguntas vacías salvo que el usuario confirme sustituir.
+- **Comentario del run** (Screen): botón "AI read" → destaca 3–5 tickers **de los que pasan** el run vigente, cada uno con el porqué citando sus cifras de `invest_screen_results`, y una línea de riesgo. Nunca menciona tickers que no pasan. Se guarda en `invest_ai_notes` (`kind = 'picks'`) por run.
+- **Revisión mensual** (`/invest/positions/[id]`, abiertas, también de papel): botón "AI review" → para cada falsador, `likely` / `not_yet` / `unclear` con la cifra que lo respalda (precio vs. SMA 10, checks, fundamentales del último run) y una nota corta. El estado del falsador (`falsifier_status`) lo sigue marcando el usuario. Se guarda en `invest_ai_notes` (`kind = 'review'`) por posición y run.
 
 ### 4.6 Pestaña Performance
 - "Month N of 36" desde `started_at`. Sin posiciones reales, la curva es la de las posiciones de papel (desde la primera apertura de papel) con la etiqueta **"Paper"** bien visible; con reales, solo las reales y un bloque plegado **"Paper positions"** al final.
@@ -364,4 +387,5 @@ Nada pendiente por ahora.
 | 2026-10-28 | 4.3 / 4.7 | Positions: las abiertas pasan de tarjetas a tabla; tesis y falsadores salen de la lista y viven en `/invest/positions/[ticker]` (todas las posiciones del ticker). `/invest/[ticker]` tiene el botón "Open position" de Screen en la cabecera, que precarga la tesis con lo escrito en Thesis prompts aunque no se haya guardado. |
 | 2026-10-28 | 3.2 | Precios con `start` = día 1 del mes `run_date − 35 meses` en vez de `period="3y"`: "3 años desde hoy" dejaba fuera el primer mes (35 cierres en el run de 2026-09-30) y en un rerun de un `run_date` antiguo aún menos. `months_listed` llega a 36; el umbral de 12 no cambia. |
 | 2026-10-28 | Later (shell) | Hechas las tres ideas del shell: el último módulo pasa a la cookie `active_module` y las rutas compartidas (`/settings`) lo mantienen; `/` y el login con sesión van al home de ese módulo desde el middleware (se elimina `root-redirect.client.tsx`); las rutas de Trading pasan al route group `(dashboard)/(trading)/`, cuyo layout es el único que pide las alertas de prop firm. |
+| 2026-10-29 | 4.8 | IA en Invest a petición del usuario: borrador de tesis, comentario del run y revisión mensual de falsadores (§4.8). Las recomendaciones se limitan a **los tickers que pasan** el run: recomendar fuera del screener contaminaría el forward test (la hipótesis es que las reglas fijas baten al benchmark). La IA no decide aperturas ni salidas. |
 | 2026-10-28 | 4.3 | Página por posición `/invest/positions/[id]` (sustituye a `/invest/positions/[ticker]`): gráfico diario de 18 meses (`/api/invest/bars`, Yahoo, caché 24 h) con entrada, SMA 10 mensual escalonada y nivel de salida del próximo cierre (media de los 9 cierres anteriores), o el precio de salida en el color del P&L realizado en las cerradas; tesis y falsadores con estado manual (`invest_positions.falsifier_status`, migración `20261028120000_invest_falsifier_status.sql`); checks mensuales; cierre. Velas ajustadas por dividendos para compararlas con la SMA sobre `adj_close`. Calendario NYSE copiado a TS (`invest-calendar.ts`), con un test que lo compara con el del job. |

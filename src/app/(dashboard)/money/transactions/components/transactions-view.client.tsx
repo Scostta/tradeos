@@ -4,10 +4,13 @@ import { Fragment, useEffect, useMemo, useRef, useState } from "react"
 import type { ReactElement } from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
+import { categorizeTransaction, suggestTransactionCategories } from "~/actions/finance"
 import { APP_URLS } from "~/constants/app-urls"
 import { MONEY } from "~/constants/copies/money"
 import { INPUT_CLS } from "~/lib/ui/form"
+import { SparklesIcon } from "~/lib/ui/icons/sparkles-icon"
 import { XIcon } from "~/lib/ui/icons/x-icon"
+import { Spinner } from "~/lib/ui/spinner"
 import { Toast } from "~/lib/ui/toast"
 import type { ToastVariant } from "~/lib/ui/toast"
 import type { CategorizeResult, FinanceAccount, FinanceCategory, FinanceRule, FinanceTransaction } from "~/types/finance"
@@ -15,6 +18,9 @@ import { cn } from "~/utils/cn"
 import { AddCashButton } from "../../components/add-cash-button.client"
 import { CategoryPill } from "../../components/category-pill"
 import { displayName, fmtDay, fmtEur } from "../../components/money-format"
+import { moneyErrorMessage } from "../../components/money-errors"
+import { AiSuggestion } from "./ai-suggestion.client"
+import type { Suggestion } from "./ai-suggestion.client"
 import { SplitModal } from "./split-modal.client"
 import { TransactionPanel } from "./transaction-panel.client"
 
@@ -32,6 +38,7 @@ type Props = {
   queue:         boolean              // modo cola: solo sin categorizar
   uncategorized: number
   initialCategory: string             // ?category=<id>
+  aiEnabled:     boolean              // §5.8: hay ANTHROPIC_API_KEY
 }
 
 function monthLabel(month: string): string {
@@ -66,7 +73,7 @@ function isTyping(target: EventTarget | null): boolean {
 // siguiente, Esc vuelve a la lista. En móvil la tabla pasa a filas compactas y
 // el panel se abre como hoja al tocar una fila (en la cola, abierta de inicio).
 export function TransactionsView(props: Props): ReactElement {
-  const { transactions, categories, rules, accounts, months, month, queue, uncategorized, initialCategory } = props
+  const { transactions, categories, rules, accounts, months, month, queue, uncategorized, initialCategory, aiEnabled } = props
   const router = useRouter()
   const selectRef = useRef<HTMLSelectElement>(null)
   const [search, setSearch] = useState("")
@@ -76,6 +83,8 @@ export function TransactionsView(props: Props): ReactElement {
   const [splitFor, setSplitFor] = useState<FinanceTransaction | null>(null)
   const [sheetOpen, setSheetOpen] = useState(queue)          // panel como hoja (solo móvil)
   const [toast, setToast] = useState<{ message: string; variant: ToastVariant } | null>(null)
+  const [suggestions, setSuggestions] = useState<Map<string, Suggestion>>(new Map())
+  const [aiBusy, setAiBusy] = useState<"suggest" | "accept" | null>(null)
 
   const categoriesById = useMemo(() => new Map(categories.map(c => [c.id, c])), [categories])
   const accountsById = useMemo(() => new Map(accounts.map(a => [a.id, a])), [accounts])
@@ -148,6 +157,55 @@ export function TransactionsView(props: Props): ReactElement {
     }
   }
 
+  // §5.8: sugerencias para los movimientos sin categorizar de la página.
+  async function suggest() {
+    const ids = flat.filter(t => !t.parentId && t.categoryId == null && !t.excluded).map(t => t.id)
+    if (ids.length === 0 || aiBusy) return
+    setAiBusy("suggest")
+    const res = await suggestTransactionCategories({ transactionIds: ids })
+    setAiBusy(null)
+    if (!res.success) { showToast(moneyErrorMessage(res.error), "error"); return }
+    if (res.data.suggestions.length === 0) { showToast(T.AI_NO_SUGGESTIONS); return }
+    setSuggestions(new Map(res.data.suggestions.map(s => [s.transactionId, s])))
+  }
+
+  function dropSuggestion(id: string) {
+    setSuggestions(prev => { const next = new Map(prev); next.delete(id); return next })
+  }
+
+  /** Acepta en orden: cada regla creada puede categorizar otros de la lista (el refresco los quita). */
+  async function accept(ids: string[]) {
+    if (aiBusy) return
+    setAiBusy("accept")
+    let done = 0
+    for (const id of ids) {
+      const s = suggestions.get(id)
+      const t = transactions.find(x => x.id === id)
+      if (!s?.categoryId || !t) continue
+      const res = await categorizeTransaction({ transactionId: id, categoryId: s.categoryId, notes: t.notes, excluded: false, rulePattern: s.rulePattern })
+      if (!res.success) { showToast(moneyErrorMessage(res.error), "error"); break }
+      done++
+      dropSuggestion(id)
+    }
+    setAiBusy(null)
+    if (done > 0) showToast(T.AI_ACCEPTED.replace("{n}", String(done)))
+  }
+
+  const highIds = [...suggestions.entries()]
+    .filter(([id, s]) => s.confidence === "high" && s.categoryId && flat.some(t => t.id === id && t.categoryId == null))
+    .map(([id]) => id)
+
+  const aiChip = (t: FinanceTransaction) => {
+    const s = t.categoryId == null ? suggestions.get(t.id) : undefined
+    if (!s) return null
+    return (
+      <AiSuggestion
+        suggestion={s} category={s.categoryId ? categoriesById.get(s.categoryId) ?? null : null} pending={aiBusy != null}
+        onAccept={() => void accept([t.id])} onDismiss={() => dropSuggestion(t.id)}
+      />
+    )
+  }
+
   function navigate(params: { month?: string; queue?: boolean }) {
     const q = new URLSearchParams()
     const m = params.month ?? month
@@ -200,6 +258,20 @@ export function TransactionsView(props: Props): ReactElement {
         >
           {T.UNCATEGORIZED_N.replace("{n}", String(uncategorized))}
         </button>
+        {queue && aiEnabled && flat.length > 0 && (
+          <>
+            <button type="button" onClick={() => void suggest()} disabled={aiBusy != null} className="btn-ghost inline-flex items-center gap-1.5 disabled:opacity-60">
+              {aiBusy === "suggest" ? <Spinner /> : <SparklesIcon width={14} height={14} className="text-accent" />}
+              {aiBusy === "suggest" ? T.AI_SUGGESTING : T.AI_SUGGEST}
+            </button>
+            {highIds.length > 0 && (
+              <button type="button" onClick={() => void accept(highIds)} disabled={aiBusy != null} className="btn-accent disabled:opacity-60">
+                {T.AI_ACCEPT_HIGH.replace("{n}", String(highIds.length))}
+              </button>
+            )}
+            {suggestions.size > 0 && <span className="text-xs text-text-mute">{T.AI_LABEL}</span>}
+          </>
+        )}
         {!queue && (
           <div className="flex gap-2 w-full md:contents">
             <select
@@ -261,6 +333,7 @@ export function TransactionsView(props: Props): ReactElement {
                           </td>
                           <td className="px-3 py-2">
                             {!isParent && <CategoryPill category={t.categoryId ? categoriesById.get(t.categoryId) ?? null : null} muted={dim} />}
+                            {aiChip(t) && <div className="mt-1">{aiChip(t)}</div>}
                           </td>
                           <td className={cn("px-3 py-2 mono text-sm text-right whitespace-nowrap", amountCls(t, isParent, dim))}>
                             {fmtEur(t.amount, { sign: true })}
@@ -279,13 +352,11 @@ export function TransactionsView(props: Props): ReactElement {
                 {rows.map(({ t, newDay, isPart, isParent, dim }) => (
                   <Fragment key={t.id}>
                     {newDay && <div className="label-caps px-3 pt-3 pb-1">{dayLabel(t.bookedAt)}</div>}
+                    <div className={cn("border-b border-border", selected?.id === t.id && "bg-surface-2")}>
                     <button
                       type="button" data-tx={t.id}
                       onClick={() => { setSelectedId(t.id); setSheetOpen(true) }}
-                      className={cn(
-                        "w-full text-left flex flex-col gap-1 px-3 py-2.5 border-b border-border cursor-pointer",
-                        isPart && "pl-8", selected?.id === t.id && "bg-surface-2",
-                      )}
+                      className={cn("w-full text-left flex flex-col gap-1 px-3 py-2.5 cursor-pointer", isPart && "pl-8")}
                     >
                       <div className="flex items-baseline gap-3">
                         <div className="flex-1 min-w-0"><Name t={t} isPart={isPart} isParent={isParent} dim={dim} /></div>
@@ -299,6 +370,8 @@ export function TransactionsView(props: Props): ReactElement {
                       )}
                       {isParent && <span className="mono text-xs text-text-mute truncate">{t.conceptRaw}</span>}
                     </button>
+                    {aiChip(t) && <div className="px-3 pb-2.5 -mt-1">{aiChip(t)}</div>}
+                    </div>
                   </Fragment>
                 ))}
               </div>

@@ -154,6 +154,20 @@ create table if not exists finance_goals (
 ```
 Los objetivos **no mueven dinero**: reparten sobre el papel el ahorro real del mes cerrado (§4.5). El dinero físico sigue en la cuenta hasta que el usuario lo traspase; ese traspaso se categoriza como `savings` o `transfer` y no es gasto.
 
+### 2.8 `finance_ai_summaries` — resumen del mes con IA (§5.8)
+```sql
+create table if not exists finance_ai_summaries (
+  user_id     uuid references auth.users on delete cascade not null,
+  month       text not null check (month ~ '^\d{4}-(0[1-9]|1[0-2])$'),
+  input_hash  text not null,        -- hash de las cifras enviadas; si no cambia, no se regenera
+  content     jsonb not null,       -- { observations: [...] }
+  model       text not null,
+  created_at  timestamptz not null default now(),
+  primary key (user_id, month)
+);
+```
+Migración `20261104140000_finance_ai_summaries.sql`.
+
 ### 2.7 `finance_settings`
 ```sql
 create table if not exists finance_settings (
@@ -254,6 +268,11 @@ Todas en el módulo Money del conmutador; sidebar: Overview, Transactions, Subsc
 Pestañas: Accounts (CRUD `finance_accounts`), Categories (CRUD + is_fixed + color + archivar), Rules (lista con los movimientos que categoriza cada una; borrar una regla los descategoriza), Month (día de inicio, Close month manual).
 **Decisión (29/10/2026, a petición del usuario):** borrar una regla **sí** suelta lo que categorizaba: los movimientos con origen `rule` cuya regla ganadora era esa (`transactionsByRule`, sin columna `rule_id`) quedan sin categoría y se reaplican las demás reglas; si ninguna encaja, vuelven a la cola. Lo manual y los splits no se tocan. La lista muestra ese recuento calculado, no `hits` (contador histórico). Descartar una suscripción usa el mismo borrado. En Rules también se cambia la categoría de una regla (`updateFinanceRule`): lo que categorizaba pasa a la nueva al reaplicar. Categories: alta (nombre, tipo, fijo, color) y edición en línea; archivar la quita de los selectores, nunca se borra. Accounts: alta, edición en línea, cuenta por defecto (la del import), archivar; borrar solo si no tiene movimientos; Cash no cambia de tipo ni se borra. Month: día de inicio 1–28 y "Close month" del mes en curso con confirmación (`closeCurrentMonth` → `runMonthClose`). **Decisión (29/10/2026, a petición del usuario):** con día de inicio > 15 el periodo se llama como el mes en que termina, que es donde cae la mayoría de sus días: con 25 (nómina el 28), "November" = 25 oct – 24 nov, el mes que se vive con la nómina de finales de octubre. Con ≤ 15, como el mes en que empieza. Lo decide `monthOf`/`monthPeriod` en `dates.ts`; `closed_through` guarda la clave del periodo. La página es `/money/settings?tab=accounts|categories|rules|month`, con entrada "Settings" en el sidebar de Money.
 
+### 5.8 IA (29/10/2026, a petición del usuario; antes en v2)
+Todas las llamadas pasan por `src/lib/ai/claude-json.ts` (compartido): Claude Opus 5.5 con thinking adaptativo, salida JSON con esquema (`output_config.format`) validada con Zod, y fallback de servidor a Claude Opus 4.8 si el modelo rechaza por seguridad. Solo se llama al pulsar un botón; lo que se guarda lleva un hash de la entrada y no se regenera si no cambia. La IA **solo usa cifras que le pasa la app** (nunca recalcula ni inventa), todo va etiquetado como "AI · not advice" y **nunca escribe nada sin que el usuario lo acepte**. Sin `ANTHROPIC_API_KEY`, los botones no aparecen.
+- **Categorizar la cola** (`/money/transactions?queue=1`): botón "Suggest with AI". Envía los movimientos sin categorizar de la página (contraparte, concepto, importe, fecha), las categorías (nombre y tipo) y las reglas existentes como ejemplos. Devuelve por movimiento una categoría (o ninguna), la confianza (`high`/`medium`/`low`) y, si procede, un patrón de regla. Cada sugerencia se acepta (con o sin regla, por `categorizeTransaction`) o se descarta; "Accept all high" acepta las de confianza alta. No se guarda nada aparte.
+- **Resumen del mes** (Overview): botón "AI summary" → 3–5 observaciones con la cifra que las respalda (gasto por categoría vs. media 3 meses, ritmo vs. mes anterior, ahorro real, suscripciones sin usar o por confirmar, sin categorizar). Se guarda en `finance_ai_summaries` por mes.
+
 ### 5.7 Móvil — artboards `M1 · Móvil · Resumen` y `M2 · Móvil · Gasto en efectivo`
 No es una app aparte: es el responsive de `/money` más una pantalla nueva.
 - **M1:** `/money` a 390 px: "Left this month" grande, dos tarjetas (ahorro real, suscripciones), categorías, próximas renovaciones, barra inferior con Overview / Transactions / **+** / Subscriptions / Goals. La barra inferior solo aparece en Money y a ancho de móvil.
@@ -298,7 +317,6 @@ Ninguna en código. La tasa de ahorro que sale de aquí es la que decide cuándo
 ### v2 (después de 3 meses de datos reales)
 - **Presupuestos por categoría** · artboard `04 · Presupuestos` (`Presupuestos.dc.html`): importe editable por categoría, "Copy from last month", proyección, sugerido = media 3 meses redondeada a la decena, fila fija para suscripciones (auto). El diseño ya está; se implementa cuando haya tres meses de media con la que sugerir. Hasta entonces, las barras del Overview usan la media 3 meses como referencia.
 - Proyecciones (FIRE, interés compuesto) sobre `savingsRate`.
-- Categorización asistida con IA para el residuo que las reglas no cubran, con la `ANTHROPIC_API_KEY` de Insights.
 
 ### No se hace
 - Conexión directa con bancos (PSD2, agregadores). El import manual es suficiente y no mete credenciales bancarias en la app.

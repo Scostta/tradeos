@@ -1,5 +1,6 @@
 import type { ReactElement } from "react"
 import { MONEY } from "~/constants/copies/money"
+import { aiConfigured } from "~/lib/ai/claude-json"
 import {
   getFinanceAccounts,
   getFinanceCategories,
@@ -57,6 +58,7 @@ export default async function MoneyTransactionsPage({
       queue={queue}
       uncategorized={indexResult.data.uncategorized}
       initialCategory={categoriesResult.data.some(c => c.id === params.category) ? params.category! : ""}
+      aiEnabled={aiConfigured()}
     />
   )
 }
