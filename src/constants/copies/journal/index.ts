@@ -34,6 +34,28 @@ export const JOURNAL = {
     { v: 5, color: "#22c55e", label: "Sharp" },
   ],
 
+  WEEK: {
+    TITLE:        "WEEK",
+    OPEN:         "Open week recap",
+    EMPTY:        "No trades or journal entries this week.",
+    NET:          "NET P&L",
+    VS_PREV:      "{amount} vs last week",
+    TRADES:       "TRADES",
+    WIN_RATE:     "WIN RATE",
+    LIMITS:       "{n} trades opened after a daily limit",
+    LIMIT_TRADES: "{n} over max trades",
+    LIMIT_LOSS:   "{n} after max loss",
+    LIMIT_STREAK: "{n} after a losing streak",
+    BE_1R:        "{n} break-even trades reached +1R before coming back",
+    REVIEWED:     "{done} of {total} trades reviewed",
+    DAYS:         "DAYS",
+    PLAN_YES:     "Plan",
+    PLAN_NO:      "Off plan",
+    MISTAKES:     "MISTAKES",
+    PLAYBOOKS:    "PLAYBOOKS",
+    NO_PLAYBOOK:  "No playbook",
+  },
+
   TOAST: {
     SAVE_SUCCESS: "Journal entry saved.",
     SAVE_ERROR:   "Failed to save journal entry.",

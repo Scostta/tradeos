@@ -67,6 +67,22 @@ export const REPORTS = {
     },
   },
 
+  BE: {
+    TITLE:        "Break-even trades · how far they went",
+    COVERAGE:     "{measured} of {total} BE trades with MFE and risk",
+    NOT_MEASURED: "None of your break-even trades has both an MFE and a stop (or a risk per trade on its account), so they can't be measured in R.",
+    REACHED:      "Reached +{r}R",
+    AVG_MFE:      "Avg MFE",
+    MISSED:       "Given back at 1R",
+    MISSED_HINT:  "MFE = the most a trade was in your favour before closing. \"Given back at 1R\" = what the trades that reached +1R would have made closing at 1R, minus what they made.",
+    COL_DATE:       "Date",
+    COL_INSTRUMENT: "Instrument",
+    COL_MFE:        "MFE",
+    COL_MFE_R:      "MFE (R)",
+    COL_NET:        "Net",
+    MORE:         "+{n} more",
+  },
+
   REPORT_MENU: {
     DAY_TIME:    "Day & Time",
     SYMBOLS:     "Symbols",

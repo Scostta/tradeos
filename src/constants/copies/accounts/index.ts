@@ -15,6 +15,14 @@ export const ACCOUNTS = {
     TAB_GENERAL:     "General",
     TAB_PROP:        "Prop firm",
     TAB_COMMISSIONS: "Commissions",
+    TAB_LIMITS:      "Limits",
+    LIMITS: {
+      HINT:       "Your own daily rules for this account. Review flags every trade opened after a limit was reached. Leave empty for no limit.",
+      MAX_TRADES: "Max trades a day",
+      MAX_LOSS:   "Max daily loss ($)",
+      MAX_STREAK: "Stop after N losses in a row",
+      FOOTNOTE:   "Daily loss is net P&L of the trades closed before the next entry. Break-even trades don't count as losses. The prop firm's daily loss limit stays in Prop firm.",
+    },
     COMMISSIONS: {
       HINT:            "Round-turn commission per contract. Used when a trade arrives without one (NinjaTrader sends 0 if the account has no commission template). Saving recalculates this account's trades without a broker commission.",
       EMPTY:           "No instruments traded yet in this account.",

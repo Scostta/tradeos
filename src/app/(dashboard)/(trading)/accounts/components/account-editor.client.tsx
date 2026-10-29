@@ -31,6 +31,8 @@ const DRAWDOWN_TYPES: DrawdownType[] = ["trailing_intraday", "trailing_eod", "st
 
 const numOrNull = (v: string): number | null => (v.trim() !== "" ? parseFloat(v) : null);
 const intOrNull = (v: string): number | null => (v.trim() !== "" ? parseInt(v, 10) : null);
+// Límites: 0 o vacío = sin límite (la BD exige > 0).
+const positiveOrNull = (n: number | null): number | null => (n != null && Number.isFinite(n) && n > 0 ? n : null);
 
 type ToastState = { message: string; variant: ToastVariant };
 
@@ -50,7 +52,7 @@ function initialRates(c: AccountCommissions | undefined): Record<string, string>
 
 export function AccountEditor({ account, commissions, renderTrigger }: Props): ReactElement {
   const [isOpen, setIsOpen]               = useState(false);
-  const [editorTab, setEditorTab]         = useState<"general" | "prop" | "commissions">("general");
+  const [editorTab, setEditorTab]         = useState<"general" | "prop" | "limits" | "commissions">("general");
   const [rates, setRates]                 = useState<Record<string, string>>(() => initialRates(commissions));
   const [broker, setBroker]               = useState(account.broker ?? "");
   const [accountType, setAccountType]     = useState<AccountType>(account.accountType);
@@ -67,6 +69,9 @@ export function AccountEditor({ account, commissions, renderTrigger }: Props): R
   const [profitTarget, setProfitTarget]   = useState<string>(account.profitTarget != null ? String(account.profitTarget) : "");
   const [minTradingDays, setMinTradingDays] = useState<string>(account.minTradingDays != null ? String(account.minTradingDays) : "");
   const [riskPerTrade, setRiskPerTrade]   = useState<string>(account.riskPerTrade != null ? String(account.riskPerTrade) : "");
+  const [maxTradesPerDay, setMaxTradesPerDay] = useState<string>(account.maxTradesPerDay != null ? String(account.maxTradesPerDay) : "");
+  const [maxDailyLoss, setMaxDailyLoss]   = useState<string>(account.maxDailyLoss != null ? String(account.maxDailyLoss) : "");
+  const [maxConsecLosses, setMaxConsecLosses] = useState<string>(account.maxConsecutiveLosses != null ? String(account.maxConsecutiveLosses) : "");
   const [presetId, setPresetId]           = useState<string>("");
   const [archiveArmed, setArchiveArmed]   = useState(false);
   const [toast, setToast]                 = useState<ToastState | null>(null);
@@ -91,6 +96,9 @@ export function AccountEditor({ account, commissions, renderTrigger }: Props): R
     setProfitTarget(account.profitTarget != null ? String(account.profitTarget) : "");
     setMinTradingDays(account.minTradingDays != null ? String(account.minTradingDays) : "");
     setRiskPerTrade(account.riskPerTrade != null ? String(account.riskPerTrade) : "");
+    setMaxTradesPerDay(account.maxTradesPerDay != null ? String(account.maxTradesPerDay) : "");
+    setMaxDailyLoss(account.maxDailyLoss != null ? String(account.maxDailyLoss) : "");
+    setMaxConsecLosses(account.maxConsecutiveLosses != null ? String(account.maxConsecutiveLosses) : "");
     setPresetId("");
     setArchiveArmed(false);
     setEditorTab("general");
@@ -133,6 +141,9 @@ export function AccountEditor({ account, commissions, renderTrigger }: Props): R
         profitTarget:   numOrNull(profitTarget),
         minTradingDays: intOrNull(minTradingDays),
         riskPerTrade:   numOrNull(riskPerTrade),
+        maxTradesPerDay:      positiveOrNull(intOrNull(maxTradesPerDay)),
+        maxDailyLoss:         positiveOrNull(numOrNull(maxDailyLoss)),
+        maxConsecutiveLosses: positiveOrNull(intOrNull(maxConsecLosses)),
       });
 
       if (!result.success) {
@@ -225,7 +236,7 @@ export function AccountEditor({ account, commissions, renderTrigger }: Props): R
 
             {/* Tabs */}
             <div className="flex gap-1 p-0.5 rounded-sm bg-surface-2 border border-border">
-              {(["general", "prop", "commissions"] as const).map((t) => (
+              {(["general", "prop", "limits", "commissions"] as const).map((t) => (
                 <button
                   key={t}
                   type="button"
@@ -235,7 +246,7 @@ export function AccountEditor({ account, commissions, renderTrigger }: Props): R
                     editorTab === t ? "bg-surface text-text" : "text-text-mute hover:text-text-dim"
                   )}
                 >
-                  {t === "general" ? ACCOUNTS.EDITOR.TAB_GENERAL : t === "prop" ? ACCOUNTS.EDITOR.TAB_PROP : ACCOUNTS.EDITOR.TAB_COMMISSIONS}
+                  {t === "general" ? ACCOUNTS.EDITOR.TAB_GENERAL : t === "prop" ? ACCOUNTS.EDITOR.TAB_PROP : t === "limits" ? ACCOUNTS.EDITOR.TAB_LIMITS : ACCOUNTS.EDITOR.TAB_COMMISSIONS}
                 </button>
               ))}
             </div>
@@ -466,6 +477,31 @@ export function AccountEditor({ account, commissions, renderTrigger }: Props): R
               </div>
               <p className="text-xxs text-text-mute -mt-1.5">{PROP_FIRM.RISK_HINT}</p>
             </div>
+            )}
+
+            {editorTab === "limits" && (
+              <div className="flex flex-col gap-3">
+                <p className="text-xs text-text-dim">{ACCOUNTS.EDITOR.LIMITS.HINT}</p>
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                  {([
+                    { label: ACCOUNTS.EDITOR.LIMITS.MAX_TRADES, value: maxTradesPerDay, set: setMaxTradesPerDay, step: "1" },
+                    { label: ACCOUNTS.EDITOR.LIMITS.MAX_LOSS,   value: maxDailyLoss,    set: setMaxDailyLoss,    step: "0.01" },
+                    { label: ACCOUNTS.EDITOR.LIMITS.MAX_STREAK, value: maxConsecLosses, set: setMaxConsecLosses, step: "1" },
+                  ]).map(f => (
+                    <div key={f.label} className="flex flex-col gap-1.5">
+                      <label className="label-caps">{f.label}</label>
+                      <input
+                        type="number" min="0" step={f.step}
+                        value={f.value}
+                        onChange={(e) => f.set(e.target.value)}
+                        placeholder="—"
+                        className="bg-surface-2 border border-border rounded-sm px-2.5 py-2 text-base text-text w-full outline-none focus:border-border-hi"
+                      />
+                    </div>
+                  ))}
+                </div>
+                <p className="text-xxs text-text-mute">{ACCOUNTS.EDITOR.LIMITS.FOOTNOTE}</p>
+              </div>
             )}
 
             {editorTab === "commissions" && <CommissionRatesFields rates={rates} onChange={setRates} />}

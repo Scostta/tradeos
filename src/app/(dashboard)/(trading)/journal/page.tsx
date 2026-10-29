@@ -1,6 +1,6 @@
 import type { ReactElement } from "react"
 import { JOURNAL } from "~/constants/copies/journal"
-import { getJournalData } from "~/services/queries/journal"
+import { getJournalData, getWeekRecaps } from "~/services/queries/journal"
 import { getAccounts } from "~/services/queries/accounts"
 import { JournalCalendar } from "./components/journal-calendar.client"
 
@@ -15,9 +15,10 @@ export default async function JournalPage({
   const month     = params.month ? parseInt(params.month, 10) : now.getMonth() + 1
   const accountId = params.account ?? null
 
-  const [result, accountsResult] = await Promise.all([
+  const [result, accountsResult, recapsResult] = await Promise.all([
     getJournalData(year, month, accountId),
     getAccounts(),
+    getWeekRecaps(year, month, accountId),
   ])
   const accounts = accountsResult.success ? accountsResult.data : []
 
@@ -48,6 +49,7 @@ export default async function JournalPage({
         month={month}
         accountId={accountId}
         accounts={accounts}
+        recaps={recapsResult.success ? recapsResult.data : {}}
       />
     </div>
   )

@@ -10,6 +10,8 @@ import { formatCurrency } from "~/helpers/format"
 import { cn } from "~/utils/cn"
 import { AccountSelector } from "~/components/account-selector.client"
 import { DayDrawer } from "./day-drawer.client"
+import { WeekDrawer } from "./week-drawer.client"
+import type { WeekRecap } from "~/lib/calculations/week-recap"
 
 const DOW_HEADERS = ["SUN", "MON", "TUE", "WED", "THU", "FRI", "SAT"] as const
 
@@ -29,6 +31,7 @@ type Props = {
   month:     number
   accountId: string | null
   accounts:  Account[]
+  recaps:    Record<string, WeekRecap>   // por domingo de cada fila
 }
 
 export function JournalCalendar({
@@ -38,9 +41,13 @@ export function JournalCalendar({
   month,
   accountId,
   accounts,
+  recaps,
 }: Props): ReactElement {
   const router = useRouter()
   const [selectedDate, setSelectedDate] = useState<string | null>(null)
+  const [selectedWeek, setSelectedWeek] = useState<string | null>(null)
+  // Domingo de cada fila, en orden (las claves de `recaps`).
+  const weekStarts = Object.keys(recaps).sort()
 
   const selectedDay = selectedDate
     ? (weeks.flat().find((d): d is JournalDay => d?.date === selectedDate) ?? null)
@@ -61,6 +68,7 @@ export function JournalCalendar({
       if (accountId) params.set("account", accountId)
       router.push(`/journal?${params.toString()}`)
       setSelectedDate(null)
+      setSelectedWeek(null)
     },
     [accountId, router]
   )
@@ -272,8 +280,17 @@ export function JournalCalendar({
                   )
                 })}
 
-                {/* Week total */}
-                <div className="bg-bg border border-border rounded-sm p-2 flex flex-col justify-between jcal-week-col">
+                {/* Week total: abre el resumen de la semana */}
+                <button
+                  type="button"
+                  onClick={() => weekStarts[wi] && setSelectedWeek(weekStarts[wi]!)}
+                  disabled={!weekStarts[wi]}
+                  title={JOURNAL.WEEK.OPEN}
+                  className={cn(
+                    "bg-bg border rounded-sm p-2 flex flex-col justify-between text-left jcal-week-col transition-colors cursor-pointer",
+                    selectedWeek != null && selectedWeek === weekStarts[wi] ? "border-accent" : "border-border hover:border-border-hi",
+                  )}
+                >
                   <div className="mono text-xxs text-text-mute tracking-widest">
                     W{wi + 1}
                   </div>
@@ -303,7 +320,7 @@ export function JournalCalendar({
                       </div>
                     )}
                   </div>
-                </div>
+                </button>
               </div>
             )
           })}
@@ -318,6 +335,10 @@ export function JournalCalendar({
           accounts={accounts}
           onClose={() => setSelectedDate(null)}
         />
+      )}
+
+      {selectedWeek && recaps[selectedWeek] && (
+        <WeekDrawer key={selectedWeek} recap={recaps[selectedWeek]!} onClose={() => setSelectedWeek(null)} />
       )}
     </>
   )

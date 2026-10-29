@@ -233,7 +233,7 @@ export function ReportsShell({ data, accountId }: Props): ReactElement {
         )}
 
         {tab === "rmultiples" && (
-          <RMultiplesTab rStats={data.rStats} />
+          <RMultiplesTab rStats={data.rStats} beStats={data.beStats} />
         )}
 
         {tab === "mistakes" && (

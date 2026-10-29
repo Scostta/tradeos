@@ -15,6 +15,8 @@ import { parsePlaybookRules } from "~/helpers/playbook-rules"
 import { zonedParts } from "~/helpers/tz"
 import { useTimezone } from "~/hooks/use-timezone"
 import { gradeForRules } from "~/lib/calculations/trade-grade"
+import { limitBreaches, limitsByAccount } from "~/lib/calculations/daily-limits"
+import type { LimitBreach } from "~/lib/calculations/daily-limits"
 import { Spinner } from "~/lib/ui/spinner"
 import { Toast } from "~/lib/ui/toast"
 import type { ToastVariant } from "~/lib/ui/toast"
@@ -35,6 +37,13 @@ function pnlClass(t: Trade): string {
   return t.netPnl > 0 ? "text-profit" : t.netPnl < 0 ? "text-loss" : "text-text-dim"
 }
 
+// Texto de cada límite incumplido, con el valor de la cuenta.
+function breachLabel(b: LimitBreach, account: Account | undefined): string {
+  if (b === "trades") return REVIEW.LIMIT_TRADES.replace("{n}", String(account?.maxTradesPerDay ?? ""))
+  if (b === "loss") return REVIEW.LIMIT_LOSS.replace("{amount}", formatCurrency(account?.maxDailyLoss ?? 0, { sign: false, decimals: 0 }))
+  return REVIEW.LIMIT_STREAK.replace("{n}", String(account?.maxConsecutiveLosses ?? ""))
+}
+
 function isTyping(target: EventTarget | null): boolean {
   return target instanceof HTMLElement && ["INPUT", "TEXTAREA", "SELECT"].includes(target.tagName)
 }
@@ -50,6 +59,8 @@ export function ReviewView({ trades, playbooks, accounts }: {
   const active = useMemo(() => playbooks.filter(p => p.active), [playbooks])
   const rulesById = useMemo(() => new Map(playbooks.map(p => [p.id, parsePlaybookRules(p.rules)])), [playbooks])
   const accountsById = useMemo(() => new Map(accounts.map(a => [a.id, a])), [accounts])
+  // Trades abiertos después de llegar a un límite diario de su cuenta.
+  const breaches = useMemo(() => limitBreaches(trades, limitsByAccount(accounts), tz), [trades, accounts, tz])
 
   const [drafts, setDrafts] = useState<Record<string, Draft>>(() => Object.fromEntries(trades.map(t => [t.id, draftOf(t)])))
   const [saved, setSaved] = useState<Record<string, boolean>>(() => Object.fromEntries(trades.map(t => [t.id, isReviewed(t)])))
@@ -125,6 +136,12 @@ export function ReviewView({ trades, playbooks, accounts }: {
     <div className="flex flex-wrap items-start gap-3">
       {toast && <div className="fixed top-4 right-4 z-50"><Toast variant={toast.variant} message={toast.message} /></div>}
 
+      {breaches.size > 0 && (
+        <div className="w-full card px-4 py-2.5 text-sm text-loss border-loss/40 bg-loss/5">
+          {(breaches.size === 1 ? REVIEW.LIMITS_BANNER_ONE : REVIEW.LIMITS_BANNER).replace("{n}", String(breaches.size))}
+        </div>
+      )}
+
       <div className="card p-0 min-w-0" style={{ flex: "1 1 320px", maxWidth: 440 }}>
         {trades.map(t => {
           const account = accountsById.get(t.accountId)
@@ -142,6 +159,9 @@ export function ReviewView({ trades, playbooks, accounts }: {
               <span className="mono text-xs text-text-dim">{time(t.entryTime)}</span>
               <span className="mono text-xs text-text truncate">
                 {t.instrument} <span className={t.direction === "long" ? "text-long" : "text-short"}>{t.direction === "long" ? "L" : "S"}</span> ×{t.contracts}
+                {breaches.has(t.id) && (
+                  <span className="ml-1.5 text-xxs font-semibold text-loss" title={breaches.get(t.id)!.map(b => breachLabel(b, account)).join(" · ")}>{REVIEW.LIMIT_MARK}</span>
+                )}
               </span>
               <span className={cn("mono text-xs text-right", pnlClass(t))}>
                 {t.breakEven && <span className="text-text-mute mr-1">{REVIEW.BE_MARK}</span>}{formatCurrency(t.netPnl)}
@@ -166,6 +186,16 @@ export function ReviewView({ trades, playbooks, accounts }: {
             <GradeBadge grade={rules ? gradeForRules(rules, draft.followedRules) : null} showUngraded className="ml-auto" />
             <Link href={`/trades/${selected.id}`} className="text-xs text-text-mute hover:text-text">{REVIEW.OPEN_TRADE}</Link>
           </div>
+
+          {breaches.has(selected.id) && (
+            <div className="flex flex-wrap gap-1.5 px-4 py-2.5 border-b border-border">
+              {breaches.get(selected.id)!.map(b => (
+                <span key={b} className="mono text-xs font-semibold px-2 py-0.5 rounded-sm bg-loss/10 text-loss">
+                  {breachLabel(b, accountsById.get(selected.accountId))}
+                </span>
+              ))}
+            </div>
+          )}
 
           <div className="flex flex-col gap-4 px-4 py-4">
             <div className="flex flex-col gap-2">

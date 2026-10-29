@@ -9,6 +9,8 @@
 //   - totalFees     — NinjaTrader exports a single "Commission" field, no separate fees
 //   - totalSwap     — irrelevant for futures; no source
 
+import type { BeStats } from "~/lib/calculations/be-analysis"
+
 // ── Row & insight types (shared by all 4 sub-reports) ─────────────────────────
 
 /**
@@ -336,6 +338,7 @@ export type ReportsData = {
   overview:           OverviewData        // Overview tab (all-time snapshot)
   compare:            CompareData         // Compare tab default (this vs last month)
   rStats:             RStats              // R-multiples tab (expectancy, SQN, distribution)
+  beStats:            BeStats             // R-multiples tab: how far break-even trades went (MFE in R)
   grades:             GradeReport         // portfolio-wide setup grades (Playbooks sub-report)
   mistakes:           MistakeRow[]        // Mistakes tab (per-tag cost)
 }

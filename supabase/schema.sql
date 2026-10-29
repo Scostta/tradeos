@@ -26,6 +26,10 @@ create table if not exists accounts (
   profit_target     numeric(12,2),
   min_trading_days  integer,
   risk_per_trade    numeric(12,2),   -- $ arriesgado por trade (fallback de R cuando no hay stop)
+  -- Límites diarios personales (migración 20261105150000); null = sin límite
+  max_trades_per_day     integer check (max_trades_per_day > 0),
+  max_daily_loss         numeric(12,2) check (max_daily_loss > 0),
+  max_consecutive_losses integer check (max_consecutive_losses > 0),
   created_at      timestamptz default now(),
   unique(user_id, name)
 );
