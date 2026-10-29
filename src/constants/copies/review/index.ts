@@ -3,6 +3,7 @@ export const REVIEW = {
   SUBTITLE:       "{n} trades to review",
   SUBTITLE_DONE:  "All trades reviewed",
   NO_TRADES:      "No trades in the last 120 days.",
+  ALL_DONE:       "All caught up. Every trade from the last 120 days is reviewed.",
   DAY_CHIP:       "{date} · {n}",
   DAY_DONE:       "{date} · done",
   REVIEWED:       "Reviewed",

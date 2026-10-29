@@ -1,5 +1,6 @@
 import type { ReactElement } from "react"
 import Link from "next/link"
+import { redirect } from "next/navigation"
 import { APP_URLS } from "~/constants/app-urls"
 import { REVIEW } from "~/constants/copies/review"
 import { getAccounts } from "~/services/queries/accounts"
@@ -19,6 +20,10 @@ export default async function ReviewPage({ searchParams }: { searchParams: Promi
   const params = await searchParams
   const [reviewRes, accountsRes, playbooksRes] = await Promise.all([getReviewData(params.date ?? null), getAccounts(), getPlaybooksWithStats()])
   const data = reviewRes.success ? reviewRes.data : null
+  // El día queda fijado en la URL: al guardar trades no salta al siguiente
+  // pendiente hasta que se cierra el día (DayClose vuelve a /review).
+  if (!params.date && data?.date) redirect(`${APP_URLS.REVIEW}?date=${data.date}`)
+  const dayPending = data?.days.find(d => d.date === data.date)?.pending ?? 0
 
   return (
     <div className="flex flex-col h-full">
@@ -52,7 +57,7 @@ export default async function ReviewPage({ searchParams }: { searchParams: Promi
         {!data ? (
           <div className="card p-4 text-sm text-loss">{REVIEW.ERROR}</div>
         ) : !data.date || data.trades.length === 0 ? (
-          <div className="card px-4 py-16 text-center text-sm text-text-mute">{REVIEW.NO_TRADES}</div>
+          <div className="card px-4 py-16 text-center text-sm text-text-mute">{data.hasTrades ? REVIEW.ALL_DONE : REVIEW.NO_TRADES}</div>
         ) : (
           <>
             <ReviewView
@@ -61,7 +66,7 @@ export default async function ReviewPage({ searchParams }: { searchParams: Promi
               playbooks={playbooksRes.success ? playbooksRes.data : []}
               accounts={accountsRes.success ? accountsRes.data : []}
             />
-            <DayClose key={`close-${data.date}`} date={data.date} entry={data.journal} />
+            <DayClose key={`close-${data.date}`} date={data.date} entry={data.journal} dayDone={dayPending === 0} />
           </>
         )}
       </div>

@@ -23,6 +23,7 @@ export type ReviewData = {
   trades:   Trade[]              // trades de ese día, por hora de entrada
   journal:  JournalEntry | null
   pending:  number               // pendientes en total
+  hasTrades: boolean             // hay trades en la ventana (para distinguir "nada que revisar" de "sin trades")
 }
 
 export async function getReviewData(requested: string | null): Promise<ResultType<ReviewData, string>> {
@@ -54,12 +55,13 @@ export async function getReviewData(requested: string | null): Promise<ResultTyp
   const pendingDays = all.filter(d => d.pending > 0)
   const date = requested && /^\d{4}-\d{2}-\d{2}$/.test(requested)
     ? requested
-    : pendingDays[0]?.date ?? all[0]?.date ?? null
+    : pendingDays[0]?.date ?? null   // sin ?date: el día pendiente más reciente; un día terminado solo se abre por URL
   const days = date && !pendingDays.some(d => d.date === date)
     ? [...pendingDays, byDay.get(date) ?? { date, pending: 0, total: 0 }].sort((a, b) => b.date.localeCompare(a.date))
     : pendingDays
   const pending = pendingDays.reduce((a, d) => a + d.pending, 0)
-  if (!date) return createDataResult({ days, date: null, trades: [], journal: null, pending })
+  const hasTrades = all.length > 0
+  if (!date) return createDataResult({ days, date: null, trades: [], journal: null, pending, hasTrades })
 
   // El día local puede empezar el día UTC anterior: se amplía y se filtra aquí.
   const from = new Date(new Date(`${date}T00:00:00Z`).getTime() - DAY_MS).toISOString()
@@ -75,7 +77,7 @@ export async function getReviewData(requested: string | null): Promise<ResultTyp
   }
   const trades = (tradesRes.data ?? []).map(mapTradeFromDb).filter(t => zonedDateKey(t.entryTime, timeZone) === date)
   return createDataResult({
-    days, date, trades, pending,
+    days, date, trades, pending, hasTrades,
     journal: journalRes.data ? mapJournalEntryFromDb(journalRes.data) : null,
   })
 }

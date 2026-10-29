@@ -2,7 +2,9 @@
 
 import { useState, useTransition } from "react"
 import type { ReactElement } from "react"
+import { useRouter } from "next/navigation"
 import { upsertJournalEntry } from "~/actions/journal"
+import { APP_URLS } from "~/constants/app-urls"
 import { REVIEW } from "~/constants/copies/review"
 import { Spinner } from "~/lib/ui/spinner"
 import { Toast } from "~/lib/ui/toast"
@@ -11,8 +13,10 @@ import type { JournalEntry } from "~/types/journal"
 import { cn } from "~/utils/cn"
 
 // Cierre del día del repaso: ánimo, si se siguió el plan y notas post-mercado,
-// en la entrada del Journal de ese día (conserva las notas pre-mercado).
-export function DayClose({ date, entry }: { date: string; entry: JournalEntry | null }): ReactElement {
+// en la entrada del Journal de ese día (conserva las notas pre-mercado). Si el
+// día ya no tiene trades pendientes, guardar pasa al siguiente día pendiente.
+export function DayClose({ date, entry, dayDone }: { date: string; entry: JournalEntry | null; dayDone: boolean }): ReactElement {
+  const router = useRouter()
   const [mood, setMood] = useState<number | null>(entry?.mood ?? null)
   const [followedPlan, setFollowedPlan] = useState<boolean | null>(entry?.followedPlan ?? null)
   const [notes, setNotes] = useState(entry?.postMarketNotes ?? "")
@@ -24,6 +28,7 @@ export function DayClose({ date, entry }: { date: string; entry: JournalEntry | 
       const res = await upsertJournalEntry({
         date, preMarketNotes: entry?.preMarketNotes ?? null, postMarketNotes: notes.trim() || null, mood, followedPlan,
       })
+      if (res.success && dayDone) { router.push(APP_URLS.REVIEW); return }
       setToast(res.success ? { message: REVIEW.DAY_SAVED, variant: "success" } : { message: REVIEW.ERROR, variant: "error" })
       setTimeout(() => setToast(null), 2500)
     })
