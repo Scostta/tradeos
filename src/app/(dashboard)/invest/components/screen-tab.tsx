@@ -12,6 +12,7 @@ import { loadOpenContext, openActionFor } from "./open-action"
 import type { OpenAction } from "./open-action"
 import { MarkReviewed } from "./mark-reviewed.client"
 import { AiPicksCard } from "./ai-picks-card.client"
+import { ScreenGlance } from "./screen-glance"
 
 type Props = {
   query:    string | null
@@ -43,21 +44,29 @@ export async function ScreenTab({ query, settings }: Props): Promise<ReactElemen
     actions[r.ticker] = openActionFor(openCtx, r, drafts.data[r.ticker] ?? null)
   }
 
+  // Sectores de los que pasan, de más a menos (colores estables en la página).
+  const sectorCount = new Map<string, number>()
+  for (const r of passing.data) if (r.sector) sectorCount.set(r.sector, (sectorCount.get(r.sector) ?? 0) + 1)
+  const sectorOrder = [...sectorCount.entries()].sort((a, b) => b[1] - a[1]).map(([name]) => name)
+
   // §4.8: comentario de la IA guardado; "stale" si el run o las posiciones cambiaron.
   let aiCard: ReactElement | null = null
+  let aiTickers: string[] = []
   if (aiConfigured() && passing.data.length > 0) {
     const [note, positions] = await Promise.all([getInvestAiNote("picks", run.id, null), getPositions()])
     const content = note.success && note.data ? picksContentSchema.safeParse(note.data.content) : null
     const initial = content?.success && note.success && note.data ? { content: content.data, createdAt: note.data.createdAt } : null
     const stale = initial != null && positions.success
       && note.success && note.data?.inputHash !== await inputHash(picksInput(run, passing.data, positions.data, settings))
-    aiCard = <AiPicksCard runId={run.id} initial={initial} stale={stale} />
+    aiTickers = initial?.content.highlights.map(h => h.ticker) ?? []
+    aiCard = <AiPicksCard runId={run.id} initial={initial} stale={stale} results={passing.data} sectorOrder={sectorOrder} />
   }
 
   return (
     <>
       {openCtx.isCurrent && <MarkReviewed runId={run.id} />}
       <RunSummary run={run} isCurrent={openCtx.isCurrent} />
+      <ScreenGlance passers={passing.data} open={openCtx.openPositions} maxPositions={settings.maxPositions} sectorOrder={sectorOrder} />
       {aiCard}
       <TickerSearch
         query={query}
@@ -65,7 +74,7 @@ export async function ScreenTab({ query, settings }: Props): Promise<ReactElemen
         benchmark={run.benchmark}
         result={searched?.success ? searched.data : null}
       />
-      <PassingTable rows={passing.data} actions={actions} />
+      <PassingTable rows={passing.data} actions={actions} aiTickers={aiTickers} />
     </>
   )
 }
