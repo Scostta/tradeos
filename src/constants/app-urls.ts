@@ -6,6 +6,7 @@ export const APP_URLS = {
   REPORTS:    "/reports",
   PLAYBOOKS: "/playbooks",
   JOURNAL:    "/journal",
+  REVIEW:     "/review",
   ACCOUNTS:   "/accounts",
   GOALS:      "/goals",
   INVEST:             "/invest",

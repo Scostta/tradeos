@@ -21,6 +21,7 @@ export const COMMON = {
     REPORTS:    "Reports",
     PLAYBOOKS: "Playbooks",
     JOURNAL:    "Journal",
+    REVIEW:     "Review",
     ACCOUNTS:   "Accounts",
     GOALS:      "Goals",
     INSIGHTS:   "AI Insights",

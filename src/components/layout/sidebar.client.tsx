@@ -10,6 +10,7 @@ import { APP_URLS } from "~/constants/app-urls";
 import { cn } from "~/utils/cn";
 import { BarIcon } from "~/lib/ui/icons/bar-icon";
 import { CalendarIcon } from "~/lib/ui/icons/calendar-icon";
+import { CircleCheckIcon } from "~/lib/ui/icons/circle-check-icon";
 import { GridIcon } from "~/lib/ui/icons/grid-icon";
 import { LayersIcon } from "~/lib/ui/icons/layers-icon";
 import { ListIcon } from "~/lib/ui/icons/list-icon";
@@ -44,6 +45,7 @@ const NAV_BY_MODULE: Record<AppModule, NavItem[]> = {
     { id: "reports", label: COMMON.NAV_LABELS.REPORTS, path: APP_URLS.REPORTS, Icon: BarIcon },
     { id: "insights", label: COMMON.NAV_LABELS.INSIGHTS, path: APP_URLS.INSIGHTS, Icon: SparklesIcon },
     { id: "playbooks", label: COMMON.NAV_LABELS.PLAYBOOKS, path: APP_URLS.PLAYBOOKS, Icon: LayersIcon },
+    { id: "review",     label: COMMON.NAV_LABELS.REVIEW,     path: APP_URLS.REVIEW,     Icon: CircleCheckIcon },
     { id: "journal",    label: COMMON.NAV_LABELS.JOURNAL,    path: APP_URLS.JOURNAL,    Icon: CalendarIcon },
     { id: "goals",     label: COMMON.NAV_LABELS.GOALS,      path: APP_URLS.GOALS,      Icon: TargetIcon },
     { id: "accounts",  label: COMMON.NAV_LABELS.ACCOUNTS,   path: APP_URLS.ACCOUNTS,   Icon: WalletIcon },

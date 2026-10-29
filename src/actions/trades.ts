@@ -504,3 +504,49 @@ export async function updateTradeStopPrice(
   revalidatePath(`/trades/${id}`)
   return createDataResult({ id })
 }
+
+const reviewTradeSchema = z.object({
+  id:            z.string().uuid(),
+  playbookId:    z.string().uuid().nullable(),
+  followedRules: z.array(z.string().max(200)).max(50).nullable(),
+  mistakes:      z.array(z.string().min(1).max(60)).max(20).nullable(),
+  notes:         z.string().max(5000).nullable(),
+})
+
+/**
+ * Repaso de sesión (/review): guarda de una vez playbook, checklist, errores
+ * y nota de un trade. Si no hay playbook, el checklist se guarda como null.
+ */
+export async function reviewTrade(
+  input: unknown,
+): Promise<ResultType<{ id: string }, string>> {
+  const parsed = reviewTradeSchema.safeParse(input)
+  if (!parsed.success) return createErrorResult("INVALID_INPUT")
+
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return createErrorResult("UNAUTHENTICATED")
+
+  const { id, playbookId, followedRules, mistakes, notes } = parsed.data
+  const { error } = await supabase
+    .from("trades")
+    .update({
+      playbook_id:    playbookId,
+      followed_rules: playbookId ? followedRules : null,
+      mistakes:       mistakes && mistakes.length > 0 ? mistakes : null,
+      notes:          notes?.trim() ? notes.trim() : null,
+    })
+    .eq("id", id)
+    .eq("user_id", user.id)
+  if (error) {
+    console.error(error)
+    return createErrorResult(error.message)
+  }
+
+  revalidatePath("/review")
+  revalidatePath("/trades")
+  revalidatePath(`/trades/${id}`)
+  revalidatePath("/playbooks")
+  revalidatePath("/reports")
+  return createDataResult({ id })
+}
