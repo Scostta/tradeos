@@ -255,8 +255,6 @@ export const saveBudgetsInputSchema = z.object({
   })).min(1).max(200),
 })
 
-export const copyBudgetsInputSchema = z.object({ from: monthKey, to: monthKey })
-
 export const aiSummaryInputSchema = z.object({
   month:   z.string().regex(/^\d{4}-(0[1-9]|1[0-2])$/),
   refresh: z.boolean().default(false),

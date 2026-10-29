@@ -17,7 +17,8 @@ import { MoneyOnboarding } from "../components/money-onboarding.client"
 import { BudgetsView } from "./components/budgets-view.client"
 
 // §5.9 (artboard 04). ?month=YYYY-MM; por defecto el mes en curso. Se puede
-// presupuestar el mes siguiente antes de que empiece.
+// presupuestar el mes siguiente antes de que empiece. El presupuesto se
+// arrastra: sin el suyo, un mes usa el del último que lo tenga.
 export default async function MoneyBudgetsPage({
   searchParams,
 }: {
@@ -40,9 +41,8 @@ export default async function MoneyBudgetsPage({
 
   const months = [...new Set([shiftMonth(current, 1), current, ...txResult.data.map(t => monthOf(t.bookedAt, startDay))])].sort().reverse()
   const month = params.month && months.includes(params.month) ? params.month : current
-  const previous = shiftMonth(month, -1)
-  const [budgetsResult, prevBudgetsResult] = await Promise.all([getBudgets(month), getBudgets(previous)])
-  if (!budgetsResult.success || !prevBudgetsResult.success) {
+  const budgetsResult = await getBudgets(month)
+  if (!budgetsResult.success) {
     return <div className="page-pad"><div className="card p-4 text-sm text-loss">{MONEY.ERRORS.UNKNOWN}</div></div>
   }
 
@@ -53,7 +53,7 @@ export default async function MoneyBudgetsPage({
   const subsMonthly = subsResult.data.filter(s => s.status === "confirmed").reduce((a, s) => a + monthlyCost(s), 0)
   const { rows, totals } = budgetRows({
     summary, transactions: txResult.data, categories: categoriesResult.data,
-    budgets: new Map(Object.entries(budgetsResult.data)),
+    budgets: new Map(Object.entries(budgetsResult.data.amounts)),
     auto: subsCategory ? { categoryId: subsCategory.id, amount: Math.round(subsMonthly * 100) / 100 } : null,
     startDay, today: isCurrent ? today : undefined,
   })
@@ -62,8 +62,7 @@ export default async function MoneyBudgetsPage({
     <BudgetsView
       key={`${month}|${JSON.stringify(budgetsResult.data)}`}
       month={month}
-      previous={previous}
-      canCopy={Object.keys(prevBudgetsResult.data).length > 0}
+      budgetFrom={budgetsResult.data.from}
       phase={month < current ? "past" : month > current ? "next" : "current"}
       rows={rows}
       totals={totals}

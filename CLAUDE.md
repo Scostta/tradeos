@@ -395,7 +395,7 @@ Finanzas personales a partir del export de movimientos del banco (imagin / Caixa
 | `finance_goals` | objetivos de ahorro: no mueven dinero, reparten el ahorro real del mes cerrado |
 | `finance_settings` | `month_start_day` (1–28), `default_account`, `closed_through` (último mes repartido a objetivos) |
 | `finance_ai_summaries` | resumen del mes con IA por usuario y mes, con el hash de las cifras enviadas |
-| `finance_budgets` | presupuesto por mes y categoría de gasto; Subscriptions no se guarda (automática = suscripciones confirmadas) |
+| `finance_budgets` | presupuesto por mes y categoría de gasto, **arrastrado**: un mes sin filas usa el último anterior que las tenga (`getBudgets`); guardar escribe la foto completa del mes. Subscriptions no se guarda (automática = suscripciones confirmadas) |
 
 Todas con RLS `auth.uid() = user_id`. Sin `finance_settings`, cada página de Money muestra el alta (cuenta + seed).
 

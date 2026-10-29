@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from "react"
 import type { ReactElement, ReactNode } from "react"
-import { copyBudgets, saveBudgets } from "~/actions/finance"
+import { saveBudgets } from "~/actions/finance"
 import { MONEY } from "~/constants/copies/money"
 import type { BudgetRow, BudgetTotals } from "~/lib/finance/budgets"
 import type { Projection } from "~/lib/finance/summary"
@@ -49,13 +49,13 @@ function SpentBar({ spent, budget }: { spent: number; budget: number | null }): 
   )
 }
 
-// §5.9 (artboard 04): presupuesto por categoría del mes. Las celdas se editan
-// en local y "Save changes" las guarda de una vez; la página se monta de nuevo
-// (key) cuando cambian los presupuestos guardados.
+// §5.9 (artboard 04): presupuesto por categoría del mes. Se arrastra: sin el
+// suyo, el mes usa el del último que lo tenga (budgetFrom). Las celdas se
+// editan en local y "Save changes" guarda la foto completa del mes, que vale
+// desde él en adelante; la página se monta de nuevo (key) al cambiar.
 export function BudgetsView(props: {
   month:       string
-  previous:    string
-  canCopy:     boolean
+  budgetFrom:  string | null          // mes del que viene el presupuesto vigente
   phase:       "past" | "current" | "next"
   rows:        BudgetRow[]
   totals:      BudgetTotals
@@ -65,7 +65,7 @@ export function BudgetsView(props: {
   categories:  FinanceCategory[]
   monthSelect: ReactNode
 }): ReactElement {
-  const { month, previous, canCopy, phase, rows, totals, income, projection, history, categories, monthSelect } = props
+  const { month, budgetFrom, phase, rows, totals, income, projection, history, categories, monthSelect } = props
   const names = new Map(categories.map(c => [c.id, c.name]))
   const [draft, setDraft] = useState<Record<string, string>>(
     Object.fromEntries(rows.filter(r => r.categoryId && !r.auto).map(r => [r.categoryId!, r.budget == null ? "" : String(r.budget)])),
@@ -93,21 +93,14 @@ export function BudgetsView(props: {
   const projectedOver = live.filter(r => !r.over && r.projectedOver).length
   const suggestable = live.filter(r => r.categoryId && !r.auto && r.budget == null && r.suggested != null)
 
+  // Foto completa del mes: también las categorías no tocadas (vienen arrastradas).
   function save() {
     if (!changed.length || invalid) return
+    const editable = rows.filter(r => r.categoryId && !r.auto)
     startTransition(async () => {
-      const res = await saveBudgets({ month, amounts: changed.map(r => ({ categoryId: r.categoryId!, amount: parseAmount(draft[r.categoryId!] ?? "") ?? null })) })
-      if (res.success) showToast(B.SAVED)
+      const res = await saveBudgets({ month, amounts: editable.map(r => ({ categoryId: r.categoryId!, amount: parseAmount(draft[r.categoryId!] ?? "") ?? null })) })
+      if (res.success) showToast(B.SAVED.replace("{month}", fmtMonth(month)))
       else showToast(moneyErrorMessage(res.error), "error")
-    })
-  }
-
-  function copy() {
-    startTransition(async () => {
-      const res = await copyBudgets({ from: previous, to: month })
-      if (!res.success) showToast(moneyErrorMessage(res.error), "error")
-      else if (res.data.copied === 0) showToast(B.NOTHING_TO_COPY.replace("{month}", fmtMonth(previous)), "error")
-      else showToast(B.COPIED.replace("{n}", String(res.data.copied)))
     })
   }
 
@@ -148,7 +141,6 @@ export function BudgetsView(props: {
           <div className="mono text-sm text-text-mute mt-0.5 truncate">{subtitle}</div>
         </div>
         <div className="ml-auto flex flex-wrap items-center gap-2.5">
-          {canCopy && <button type="button" onClick={copy} disabled={pending} className="btn-ghost disabled:opacity-60">{B.COPY_FROM.replace("{month}", fmtMonth(previous))}</button>}
           <button type="button" onClick={save} disabled={pending || !changed.length || invalid} className="btn-accent inline-flex items-center gap-2 disabled:opacity-60">
             {pending && <Spinner />}{B.SAVE}
           </button>
@@ -158,7 +150,10 @@ export function BudgetsView(props: {
       <div className="flex flex-wrap items-center gap-2 px-4 md:px-7 py-2.5 border-b border-border bg-bg shrink-0">
         {over > 0 && <span className="mono text-xs font-semibold uppercase px-2 py-0.5 rounded-sm bg-loss/10 text-loss">{B.CHIP_OVER.replace("{n}", String(over))}</span>}
         {projectedOver > 0 && <span className="mono text-xs font-semibold uppercase px-2 py-0.5 rounded-sm bg-short/10 text-short">{B.CHIP_PROJECTED.replace("{n}", String(projectedOver))}</span>}
-        {changed.length > 0 && <span className="text-xs text-text-mute">{B.UNSAVED}</span>}
+        <span className="text-xs text-text-mute">
+          {budgetFrom == null ? B.FROM_NONE : budgetFrom === month ? B.FROM_THIS : B.FROM_EARLIER.replace("{month}", fmtMonth(budgetFrom))}
+        </span>
+        {changed.length > 0 && <span className="text-xs text-short">{B.UNSAVED.replace("{month}", fmtMonth(month))}</span>}
         {suggestable.length > 0 && (
           <button type="button" onClick={applySuggestions} className="btn-ghost px-2.5 py-1 text-xs">{B.APPLY_SUGGESTIONS}</button>
         )}

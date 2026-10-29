@@ -216,19 +216,32 @@ export const getMoneySummary = cache(async (month: MonthKey): Promise<ResultType
 
 export type StoredMoneySummary = { content: SummaryContent; inputHash: string; createdAt: string }
 
-/** Presupuestos de un mes (§5.9): categoryId → importe. */
-export const getBudgets = cache(async (month: MonthKey): Promise<ResultType<Record<string, number>, string>> => {
+/**
+ * Presupuesto vigente de un mes (§5.9): se arrastra. Es el del último mes ≤
+ * `month` que tenga presupuestos (`from`); null si no hay ninguno anterior.
+ */
+export const getBudgets = cache(async (month: MonthKey): Promise<ResultType<{ from: MonthKey | null; amounts: Record<string, number> }, string>> => {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return createErrorResult("UNAUTHENTICATED")
 
+  const { data: latest, error: latestError } = await supabase
+    .from("finance_budgets").select("month").eq("user_id", user.id).lte("month", month)
+    .order("month", { ascending: false }).limit(1).maybeSingle()
+  if (latestError) {
+    console.error(latestError)
+    return createErrorResult(latestError.message)
+  }
+  if (!latest) return createDataResult({ from: null, amounts: {} })
+  const from = latest.month as MonthKey
+
   const { data, error } = await supabase
-    .from("finance_budgets").select("category_id, amount").eq("user_id", user.id).eq("month", month)
+    .from("finance_budgets").select("category_id, amount").eq("user_id", user.id).eq("month", from)
   if (error) {
     console.error(error)
     return createErrorResult(error.message)
   }
-  return createDataResult(Object.fromEntries((data ?? []).map(r => [r.category_id as string, Number(r.amount)])))
+  return createDataResult({ from, amounts: Object.fromEntries((data ?? []).map(r => [r.category_id as string, Number(r.amount)])) })
 })
 
 export const getSubscriptions = cache(async (): Promise<ResultType<FinanceSubscription[], string>> => {

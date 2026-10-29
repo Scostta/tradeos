@@ -185,8 +185,8 @@ export default async function MoneyPage({
   // §5.9: presupuestos del mes (con Subscriptions automática) como marca de las barras.
   const budgetRes = await getBudgets(month)
   const subsCategory = categoriesResult.data.find(c => c.name === "Subscriptions" && c.kind === "expense" && !c.archived)
-  const budgets = budgetRes.success && Object.keys(budgetRes.data).length > 0
-    ? { ...budgetRes.data, ...(subsCategory ? { [subsCategory.id]: d.subs.monthly } : {}) }
+  const budgets = budgetRes.success && Object.keys(budgetRes.data.amounts).length > 0
+    ? { ...budgetRes.data.amounts, ...(subsCategory ? { [subsCategory.id]: d.subs.monthly } : {}) }
     : null
 
   // §5.8: resumen con IA guardado; "stale" si las cifras cambiaron desde que se generó.
