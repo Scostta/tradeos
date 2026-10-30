@@ -7,6 +7,7 @@ import { upsertJournalEntry } from "~/actions/journal"
 import { APP_URLS } from "~/constants/app-urls"
 import { REVIEW } from "~/constants/copies/review"
 import { Spinner } from "~/lib/ui/spinner"
+import { MoodPicker } from "~/components/journal/mood-picker.client"
 import { Toast } from "~/lib/ui/toast"
 import type { ToastVariant } from "~/lib/ui/toast"
 import type { JournalEntry } from "~/types/journal"
@@ -39,18 +40,9 @@ export function DayClose({ date, entry, dayDone }: { date: string; entry: Journa
       {toast && <div className="fixed top-4 right-4 z-50"><Toast variant={toast.variant} message={toast.message} /></div>}
       <div className="px-4 py-3 border-b border-border"><span className="label-caps">{REVIEW.DAY_CLOSE}</span></div>
       <div className="flex flex-wrap items-start gap-x-8 gap-y-4 px-4 py-4">
-        <div className="flex flex-col gap-1.5">
+        <div className="flex flex-col gap-1.5 w-full sm:w-90">
           <span className="label-caps">{REVIEW.MOOD}</span>
-          <div className="flex gap-1">
-            {[1, 2, 3, 4, 5].map(n => (
-              <button
-                key={n} type="button" onClick={() => setMood(mood === n ? null : n)} aria-pressed={mood === n}
-                className={cn("size-9 rounded-sm border mono text-sm cursor-pointer", mood === n ? "border-accent bg-accent/10 text-text" : "border-border text-text-dim hover:border-border-hi")}
-              >
-                {n}
-              </button>
-            ))}
-          </div>
+          <MoodPicker value={mood} onChange={setMood} className="w-full" />
         </div>
         <div className="flex flex-col gap-1.5">
           <span className="label-caps">{REVIEW.FOLLOWED_PLAN}</span>

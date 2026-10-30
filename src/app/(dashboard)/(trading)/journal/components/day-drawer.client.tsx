@@ -11,12 +11,10 @@ import { JOURNAL } from "~/constants/copies/journal"
 import { formatCurrency, formatPct } from "~/helpers/format"
 import { useTimezone } from "~/hooks/use-timezone"
 import { Button } from "~/lib/ui/button"
+import { MoodPicker } from "~/components/journal/mood-picker.client"
 import { Toast } from "~/lib/ui/toast"
 import type { ToastVariant } from "~/lib/ui/toast"
 import { XIcon } from "~/lib/ui/icons/x-icon"
-import { cn } from "~/utils/cn"
-
-const MOODS = JOURNAL.MOODS
 
 type Draft = {
   preMarketNotes: string
@@ -155,34 +153,7 @@ export function DayDrawer({ day, accounts, onClose }: Props): ReactElement {
         <div className="flex-1 overflow-auto p-4 flex flex-col gap-4">
           {/* Mood */}
           <DrawerField label={JOURNAL.DRAWER.MOOD_LABEL}>
-            <div className="grid grid-cols-5 gap-1.5">
-              {MOODS.map((m) => (
-                <button
-                  key={m.v}
-                  type="button"
-                  onClick={() =>
-                    setDraft((d) => ({ ...d, mood: d.mood === m.v ? null : m.v }))
-                  }
-                  className={cn(
-                    "flex flex-col items-center gap-1.5 py-2.5 px-1 rounded-sm border transition-colors cursor-pointer",
-                    draft.mood === m.v
-                      ? "border-accent bg-surface-2"
-                      : "border-border hover:border-border-hi"
-                  )}
-                >
-                  <span
-                    className="rounded-full block"
-                    style={{
-                      width: 10,
-                      height: 10,
-                      background: draft.mood === m.v ? m.color : "var(--color-border-hi)",
-                      transition: "background 0.15s",
-                    }}
-                  />
-                  <span className="label-caps">{m.label}</span>
-                </button>
-              ))}
-            </div>
+            <MoodPicker value={draft.mood} onChange={mood => setDraft(d => ({ ...d, mood }))} />
           </DrawerField>
 
           {/* Discipline */}
