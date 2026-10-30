@@ -33,11 +33,13 @@ function moodColor(mood: number): string {
 // días con su diario, errores, playbooks, límites y BE. Solo lectura.
 export function WeekDrawer({ recap, onClose }: { recap: WeekRecap; onClose: () => void }): ReactElement {
   const delta = recap.prevNetPnl != null ? recap.netPnl - recap.prevNetPnl : null
-  const breachTotal = recap.breaches.trades
+  const breachTotal = recap.breaches.total
   const limitParts = [
     recap.breaches.trades > 0 && W.LIMIT_TRADES.replace("{n}", String(recap.breaches.trades)),
     recap.breaches.loss > 0 && W.LIMIT_LOSS.replace("{n}", String(recap.breaches.loss)),
     recap.breaches.streak > 0 && W.LIMIT_STREAK.replace("{n}", String(recap.breaches.streak)),
+    recap.breaches.revenge > 0 && W.LIMIT_REVENGE.replace("{n}", String(recap.breaches.revenge)),
+    recap.breaches.sizeUp > 0 && W.LIMIT_SIZE_UP.replace("{n}", String(recap.breaches.sizeUp)),
   ].filter(Boolean)
 
   return (

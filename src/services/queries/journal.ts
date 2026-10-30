@@ -107,7 +107,7 @@ export async function getWeekRecaps(
     tradesQuery,
     supabase.from("daily_journal").select("*").eq("user_id", user.id).gte("date", firstSunday).lte("date", lastSaturday),
     supabase.from("playbooks").select("id, name").eq("user_id", user.id),
-    supabase.from("accounts").select("id, risk_per_trade, max_trades_per_day, max_daily_loss, max_consecutive_losses").eq("user_id", user.id),
+    supabase.from("accounts").select("id, risk_per_trade, max_trades_per_day, max_daily_loss, max_consecutive_losses, revenge_minutes").eq("user_id", user.id),
   ])
   const error = tradesRes.error ?? entriesRes.error ?? playbooksRes.error ?? accountsRes.error
   if (error) {
@@ -123,6 +123,7 @@ export async function getWeekRecaps(
     maxTradesPerDay:      (a.max_trades_per_day as number | null) ?? null,
     maxDailyLoss:         a.max_daily_loss != null ? Number(a.max_daily_loss) : null,
     maxConsecutiveLosses: (a.max_consecutive_losses as number | null) ?? null,
+    revengeMinutes:       (a.revenge_minutes as number | null) ?? null,
   }))
   const limits = limitsByAccount(accounts)
   const riskByAccount = new Map((accountsRes.data ?? []).map(a => [a.id as string, a.risk_per_trade != null ? Number(a.risk_per_trade) : null]))

@@ -10,6 +10,7 @@
 //   - totalSwap     — irrelevant for futures; no source
 
 import type { BeReport } from "~/lib/calculations/be-analysis"
+import type { TiltReport } from "~/lib/calculations/tilt"
 
 // ── Row & insight types (shared by all 4 sub-reports) ─────────────────────────
 
@@ -339,6 +340,7 @@ export type ReportsData = {
   compare:            CompareData         // Compare tab default (this vs last month)
   rStats:             RStats              // R-multiples tab (expectancy, SQN, distribution)
   beReport:           BeReport            // Break-even tab (and the BE line in R-multiples)
+  tilt:               TiltReport          // Tilt tab: results by what just happened (previous trade, streak, gap, size)
   grades:             GradeReport         // portfolio-wide setup grades (Playbooks sub-report)
   mistakes:           MistakeRow[]        // Mistakes tab (per-tag cost)
 }

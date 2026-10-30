@@ -38,7 +38,7 @@ const recap = buildWeekRecap({
   trades,
   entries: [entry("2026-10-26", { mood: 2, followedPlan: false, postMarketNotes: "Chased after the loss" }), entry("2026-10-29", { mood: 4 })],
   playbookNames: new Map([["pb1", "ES.1 Reversión"]]),
-  limits: new Map([["a", { maxTrades: 2, maxLoss: null, maxStreak: null }]]),
+  limits: new Map([["a", { maxTrades: 2, maxLoss: null, maxStreak: null, revengeMinutes: null }]]),
   riskByAccount: new Map(),
   timeZone: "UTC",
 })
@@ -79,7 +79,7 @@ describe("buildWeekRecap", () => {
   })
 
   it("límites, BE a +1R y revisión", () => {
-    expect(recap.breaches).toEqual({ trades: 1, loss: 0, streak: 0 })   // el tercer trade del lunes
+    expect(recap.breaches).toEqual({ trades: 1, loss: 0, streak: 0, revenge: 0, sizeUp: 0, total: 1 })   // el tercer trade del lunes
     expect(recap.beReached1R).toBe(1)
     expect(recap.reviewed).toEqual({ done: 1, total: 5 })
   })

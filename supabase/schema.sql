@@ -30,6 +30,7 @@ create table if not exists accounts (
   max_trades_per_day     integer check (max_trades_per_day > 0),
   max_daily_loss         numeric(12,2) check (max_daily_loss > 0),
   max_consecutive_losses integer check (max_consecutive_losses > 0),
+  revenge_minutes integer default 5 check (revenge_minutes > 0),        -- marca entrar < N min tras una pérdida o subir contratos; null = sin marca
   created_at      timestamptz default now(),
   unique(user_id, name)
 );

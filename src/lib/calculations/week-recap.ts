@@ -38,7 +38,7 @@ export type WeekRecap = {
   days:         WeekRecapDay[]     // días con trades o con entrada en el diario
   mistakes:     { label: string; trades: number; netPnl: number }[]   // los 3 más caros primero
   playbooks:    { name: string | null; trades: number; netPnl: number }[]   // null = sin playbook
-  breaches:     Record<LimitBreach, number> & { trades: number }        // trades con algún límite incumplido
+  breaches:     Record<LimitBreach, number> & { total: number }         // total = trades con algún límite incumplido
   beReached1R:  number             // BE que llegaron a +1R antes de volver
   reviewed:     { done: number; total: number }
 }
@@ -91,7 +91,7 @@ export function buildWeekRecap(args: {
   for (const t of trades) byPlaybook.set(t.playbookId, [...(byPlaybook.get(t.playbookId) ?? []), t])
 
   const breaches = limitBreaches(trades, limits, timeZone)
-  const breachCount = { trades: 0, loss: 0, streak: 0 }
+  const breachCount = { trades: 0, loss: 0, streak: 0, revenge: 0, sizeUp: 0 }
   for (const list of breaches.values()) for (const b of list) breachCount[b]++
 
   return {
@@ -122,7 +122,7 @@ export function buildWeekRecap(args: {
     playbooks: [...byPlaybook.entries()]
       .map(([id, ts]) => ({ name: id ? playbookNames.get(id) ?? null : null, trades: ts.length, netPnl: round2(totalNetPnl(ts)) }))
       .sort((a, b) => b.netPnl - a.netPnl),
-    breaches:     { ...breachCount, trades: breaches.size },
+    breaches:     { ...breachCount, total: breaches.size },
     beReached1R:  computeBeStats(trades, riskByAccount).reached.find(r => r.level === 1)?.count ?? 0,
     reviewed:     { done: trades.filter(isReviewed).length, total: trades.length },
   }

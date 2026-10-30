@@ -41,7 +41,9 @@ function pnlClass(t: Trade): string {
 function breachLabel(b: LimitBreach, account: Account | undefined): string {
   if (b === "trades") return REVIEW.LIMIT_TRADES.replace("{n}", String(account?.maxTradesPerDay ?? ""))
   if (b === "loss") return REVIEW.LIMIT_LOSS.replace("{amount}", formatCurrency(account?.maxDailyLoss ?? 0, { sign: false, decimals: 0 }))
-  return REVIEW.LIMIT_STREAK.replace("{n}", String(account?.maxConsecutiveLosses ?? ""))
+  if (b === "streak") return REVIEW.LIMIT_STREAK.replace("{n}", String(account?.maxConsecutiveLosses ?? ""))
+  if (b === "revenge") return REVIEW.LIMIT_REVENGE.replace("{n}", String(account?.revengeMinutes ?? ""))
+  return REVIEW.LIMIT_SIZE_UP
 }
 
 function isTyping(target: EventTarget | null): boolean {

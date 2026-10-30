@@ -22,7 +22,64 @@ export const REPORTS = {
     COMPARE:     "Compare",
     R_MULTIPLES: "R-Multiples",
     BREAK_EVEN:  "Break-even",
+    TILT:        "Tilt",
     MISTAKES:    "Mistakes",
+  },
+
+  TILT: {
+    HEAD: {
+      ALL:        "All trades",
+      AFTER_LOSS: "After a loss",
+      FAST:       "Re-entry {window} after a loss",
+      SIZE_UP:    "Sized up after a loss",
+    },
+    PER_TRADE:      "/ trade",
+    HEAD_SUB:       "{n} trades · {win} win",
+    WINDOW_MIN:     "< {n} min",
+    WINDOW_ACCOUNT: "within your window",
+
+    PREVIOUS: {
+      TITLE: "By the trade before (same account, same day)",
+      first: "First trade of the day",
+      win:   "After a win",
+      loss:  "After a loss",
+      be:    "After a break-even",
+    },
+
+    AFTER_LOSS_TITLE: "After a loss",
+    FAST:      "Re-entered {window}",
+    SLOW:      "Waited longer",
+    SIZE_UP:   "More contracts than the loss",
+    SAME_SIZE: "Same or fewer contracts",
+
+    GAP: {
+      TITLE:          "Minutes since the last exit",
+      COL_GAP:        "Gap",
+      COL_AFTER_LOSS: "After a loss · avg · trades",
+      COL_OTHER:      "After a win or BE · avg · trades",
+      BUCKETS: {
+        lt2:    "< 2 min",
+        "2to5": "2–5 min",
+        "5to15": "5–15 min",
+        "15to60": "15–60 min",
+        gt60:   "> 60 min",
+      },
+      HINT: "Time from the exit of the last closed trade to this entry. The first trade of each day isn't here.",
+    },
+
+    STREAK_TITLE: "By losses in a row before",
+    STREAK:       "{n} in a row",
+    NUMBER_TITLE: "By trade number of the day",
+    NUMBER:       "Trade #{n}",
+
+    COL_GROUP:  "Group",
+    COL_TRADES: "Trades",
+    COL_WIN:    "Win %",
+    COL_AVG:    "Avg net",
+    COL_AVG_R:  "Avg R",
+    COL_NET:    "Net",
+
+    FOOTNOTE: "Each account and day on its own. Win % leaves break-even trades out; break-evens don't break or extend a losing streak. Faded: fewer than {n} trades, too few to read much into. The re-entry window is set per account in Accounts → Limits.",
   },
 
   TIME: {

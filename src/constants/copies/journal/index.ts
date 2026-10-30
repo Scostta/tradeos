@@ -47,6 +47,8 @@ export const JOURNAL = {
     LIMIT_TRADES: "{n} over max trades",
     LIMIT_LOSS:   "{n} after max loss",
     LIMIT_STREAK: "{n} after a losing streak",
+    LIMIT_REVENGE: "{n} right after a loss",
+    LIMIT_SIZE_UP: "{n} sized up after a loss",
     BE_1R:        "{n} break-even trades reached +1R before coming back",
     REVIEWED:     "{done} of {total} trades reviewed",
     DAYS:         "DAYS",

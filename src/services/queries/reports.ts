@@ -41,6 +41,7 @@ import {
 } from "~/lib/calculations/time-of-day"
 import { computeRStats } from "~/lib/calculations/r-multiples"
 import { computeBeReport } from "~/lib/calculations/be-analysis"
+import { computeTiltReport } from "~/lib/calculations/tilt"
 import { computeGradeReport } from "~/lib/calculations/grade-report"
 import { computeMistakeStats } from "~/lib/calculations/mistakes"
 import { parsePlaybookRules } from "~/helpers/playbook-rules"
@@ -148,7 +149,7 @@ export const getReportsData = cache(async function getReportsData(
   // ── Fetch accounts' risk_per_trade (R-multiple fallback when a trade has no stop) ─
   const { data: accountsData, error: accountsError } = await supabase
     .from("accounts")
-    .select("id, risk_per_trade")
+    .select("id, risk_per_trade, revenge_minutes")
     .eq("user_id", user.id)
 
   if (accountsError) {
@@ -156,6 +157,9 @@ export const getReportsData = cache(async function getReportsData(
     return createErrorResult(accountsError.message)
   }
 
+  const revengeByAccount = new Map<string, number | null>(
+    (accountsData ?? []).map(a => [a.id, a.revenge_minutes])
+  )
   const riskByAccount = new Map<string, number | null>(
     (accountsData ?? []).map(a => [a.id, a.risk_per_trade])
   )
@@ -199,6 +203,7 @@ export const getReportsData = cache(async function getReportsData(
       compare:            { a: emptyComparePeriod("this-month"), b: emptyComparePeriod("last-month") },
       rStats:             computeRStats([]),
       beReport:           computeBeReport({ trades: [], thresholdPoints }),
+      tilt:               computeTiltReport({ trades: [] }),
       grades:             computeGradeReport(new Map(), []),
       mistakes:           [],
     })
@@ -239,6 +244,7 @@ export const getReportsData = cache(async function getReportsData(
     compare:            { a: compareA.data, b: compareB.data },
     rStats:             computeRStats(trades, riskByAccount),
     beReport:           computeBeReport({ trades, riskByAccount, playbookName: byPlaybookName, thresholdPoints, timeZone }),
+    tilt:               computeTiltReport({ trades, riskByAccount, revengeMinutes: revengeByAccount, timeZone }),
     grades:             computeGradeReport(rulesById, trades, riskByAccount, timeZone),
     mistakes:           computeMistakeStats(trades),
   }

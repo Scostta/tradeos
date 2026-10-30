@@ -72,6 +72,7 @@ export function AccountEditor({ account, commissions, renderTrigger }: Props): R
   const [maxTradesPerDay, setMaxTradesPerDay] = useState<string>(account.maxTradesPerDay != null ? String(account.maxTradesPerDay) : "");
   const [maxDailyLoss, setMaxDailyLoss]   = useState<string>(account.maxDailyLoss != null ? String(account.maxDailyLoss) : "");
   const [maxConsecLosses, setMaxConsecLosses] = useState<string>(account.maxConsecutiveLosses != null ? String(account.maxConsecutiveLosses) : "");
+  const [revengeMinutes, setRevengeMinutes] = useState<string>(account.revengeMinutes != null ? String(account.revengeMinutes) : "");
   const [presetId, setPresetId]           = useState<string>("");
   const [archiveArmed, setArchiveArmed]   = useState(false);
   const [toast, setToast]                 = useState<ToastState | null>(null);
@@ -99,6 +100,7 @@ export function AccountEditor({ account, commissions, renderTrigger }: Props): R
     setMaxTradesPerDay(account.maxTradesPerDay != null ? String(account.maxTradesPerDay) : "");
     setMaxDailyLoss(account.maxDailyLoss != null ? String(account.maxDailyLoss) : "");
     setMaxConsecLosses(account.maxConsecutiveLosses != null ? String(account.maxConsecutiveLosses) : "");
+    setRevengeMinutes(account.revengeMinutes != null ? String(account.revengeMinutes) : "");
     setPresetId("");
     setArchiveArmed(false);
     setEditorTab("general");
@@ -144,6 +146,7 @@ export function AccountEditor({ account, commissions, renderTrigger }: Props): R
         maxTradesPerDay:      positiveOrNull(intOrNull(maxTradesPerDay)),
         maxDailyLoss:         positiveOrNull(numOrNull(maxDailyLoss)),
         maxConsecutiveLosses: positiveOrNull(intOrNull(maxConsecLosses)),
+        revengeMinutes:       positiveOrNull(intOrNull(revengeMinutes)),
       });
 
       if (!result.success) {
@@ -482,11 +485,12 @@ export function AccountEditor({ account, commissions, renderTrigger }: Props): R
             {editorTab === "limits" && (
               <div className="flex flex-col gap-3">
                 <p className="text-xs text-text-dim">{ACCOUNTS.EDITOR.LIMITS.HINT}</p>
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   {([
                     { label: ACCOUNTS.EDITOR.LIMITS.MAX_TRADES, value: maxTradesPerDay, set: setMaxTradesPerDay, step: "1" },
                     { label: ACCOUNTS.EDITOR.LIMITS.MAX_LOSS,   value: maxDailyLoss,    set: setMaxDailyLoss,    step: "0.01" },
                     { label: ACCOUNTS.EDITOR.LIMITS.MAX_STREAK, value: maxConsecLosses, set: setMaxConsecLosses, step: "1" },
+                    { label: ACCOUNTS.EDITOR.LIMITS.REVENGE,    value: revengeMinutes,  set: setRevengeMinutes,  step: "1" },
                   ]).map(f => (
                     <div key={f.label} className="flex flex-col gap-1.5">
                       <label className="label-caps">{f.label}</label>

@@ -32,6 +32,7 @@ export const accountSchema = z.object({
   maxTradesPerDay:      z.number().int().nullable(),
   maxDailyLoss:         z.number().nullable(),
   maxConsecutiveLosses: z.number().int().nullable(),
+  revengeMinutes:       z.number().int().nullable(),   // revenge: minutos tras una pérdida; null = sin marca
   createdAt:      z.string().datetime({ offset: true }),
 })
 
@@ -75,6 +76,7 @@ export const updateAccountInputSchema = z.object({
   maxTradesPerDay:      z.number().int().positive().nullable(),
   maxDailyLoss:         z.number().positive().nullable(),
   maxConsecutiveLosses: z.number().int().positive().nullable(),
+  revengeMinutes:       z.number().int().positive().nullable(),
 })
 
 export type UpdateAccountInput = z.infer<typeof updateAccountInputSchema>

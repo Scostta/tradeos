@@ -22,6 +22,8 @@ export const REVIEW = {
   LIMIT_TRADES:   "Over your {n} trades a day",
   LIMIT_LOSS:     "After your {amount} daily loss limit",
   LIMIT_STREAK:   "After {n} losses in a row",
+  LIMIT_REVENGE:  "Opened within {n} min of closing a loss",
+  LIMIT_SIZE_UP:  "More contracts than the loss before",
   LIMITS_BANNER:  "{n} trades this day were opened after one of your daily limits (Accounts → Limits).",
   LIMITS_BANNER_ONE: "1 trade this day was opened after one of your daily limits (Accounts → Limits).",
   NOTES:          "Note",

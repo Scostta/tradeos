@@ -11,11 +11,12 @@ import { TimeTab } from "./time-tab"
 import { CompareTab } from "./compare-tab.client"
 import { RMultiplesTab } from "./r-multiples-tab"
 import { BeTab } from "./be-tab"
+import { TiltTab } from "./tilt-tab"
 import { MistakesTab } from "./mistakes-tab"
 import { ReportDetail } from "./report-detail.client"
 import type { ReportKey } from "./report-detail.client"
 
-type ActiveTab = "performance" | "overview" | "reports" | "time" | "compare" | "rmultiples" | "breakeven" | "mistakes"
+type ActiveTab = "performance" | "overview" | "reports" | "time" | "compare" | "rmultiples" | "breakeven" | "tilt" | "mistakes"
 
 type ReportMenuItem = {
   key:   ReportKey
@@ -204,6 +205,15 @@ export function ReportsShell({ data, accountId }: Props): ReactElement {
           badge
         />
 
+        {/* Tilt tab */}
+        <TabButton
+          id="tilt"
+          label={REPORTS.TABS.TILT}
+          active={tab === "tilt"}
+          onClick={() => setTab("tilt")}
+          badge
+        />
+
         {/* Mistakes tab */}
         <TabButton
           id="mistakes"
@@ -248,6 +258,10 @@ export function ReportsShell({ data, accountId }: Props): ReactElement {
 
         {tab === "breakeven" && (
           <BeTab report={data.beReport} />
+        )}
+
+        {tab === "tilt" && (
+          <TiltTab report={data.tilt} />
         )}
 
         {tab === "mistakes" && (
