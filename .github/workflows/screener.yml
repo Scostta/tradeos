@@ -46,8 +46,23 @@ jobs:
           JOB_VERSION: ${{ github.sha }}
           EVENT_NAME: ${{ github.event_name }}
           RUN_DATE: ${{ inputs.run_date }}
+          # Avisos push (§4.10): sin el secret, el job no avisa.
+          INVEST_NOTIFY_URL: https://tradeos-gold.vercel.app/api/invest/notify
+          INVEST_NOTIFY_SECRET: ${{ secrets.INVEST_NOTIFY_SECRET }}
         run: |
           args=()
           if [ "$EVENT_NAME" = "workflow_dispatch" ]; then args+=(--force); fi
           if [ -n "$RUN_DATE" ]; then args+=(--run-date "$RUN_DATE"); fi
           python -m screener "${args[@]}"
+
+      # Si el run aborta (no_data > 5 %) o falla, aviso push con el enlace a este run.
+      - name: Notify failure
+        if: failure()
+        env:
+          INVEST_NOTIFY_SECRET: ${{ secrets.INVEST_NOTIFY_SECRET }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          if [ -z "$INVEST_NOTIFY_SECRET" ]; then echo "sin INVEST_NOTIFY_SECRET: sin aviso"; exit 0; fi
+          curl -sS --max-time 30 -X POST https://tradeos-gold.vercel.app/api/invest/notify \
+            -H "Authorization: Bearer $INVEST_NOTIFY_SECRET" -H "Content-Type: application/json" \
+            -d "{\"event\":\"failure\",\"runUrl\":\"$RUN_URL\"}" || true

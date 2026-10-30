@@ -376,6 +376,7 @@ Las cuatro primeras son compartidas: `select` para `authenticated`, sin polític
 - **Performance** (§5.1): TWR con caja + posiciones (abrir/cerrar son movimientos internos), **total return implícito** `acciones × close(apertura) × adj(m) / adj(apertura)`; dividendos cobrados no se registran. **Positions** muestra el P&L latente con el último `close` real ("si vendiera hoy"), por eso puede diferir.
 - **IA** (§4.8, `src/actions/invest-ai.ts`, `src/lib/invest/ai/`): borrador de tesis en `/invest/[ticker]`, comentario de los que pasan el run en Screen y revisión de falsadores en `/invest/positions/[id]`. Solo ayuda a escribir y a mirar: **nunca menciona tickers que no pasan** (el esquema JSON lo fuerza), no abre ni cierra nada y no toca `evaluate()` ni `sma_exit`.
 - **Impuesto estimado** (§5.2): IRPF del ahorro 19–28 % por año, pérdidas del año compensan, sin arrastre; cada cierre se lleva lo que añade al impuesto de su año. Siempre etiquetado como estimación.
+- **Avisos push** (§4.10): al terminar el run, el job llama a `POST /api/invest/notify` (pública en el proxy, Bearer `INVEST_NOTIFY_SECRET`) y la app manda por Web Push el run nuevo (a todos los suscritos) y las señales de venta (al dueño de la posición); el workflow avisa también si el job falla. El envío vive en `src/lib/push/send.ts` (compartido, `web-push` + VAPID) y las suscripciones en `push_subscriptions` (compartida, una por dispositivo, alta en Settings → Notifications). `public/sw.js` pinta la notificación y abre la URL al tocarla. Push solo funciona en el build de producción (en dev no se registra el service worker).
 
 ## Money
 
@@ -436,6 +437,10 @@ Todas con RLS `auth.uid() = user_id`. Sin `finance_settings`, cada página de Mo
 NEXT_PUBLIC_SUPABASE_URL=
 NEXT_PUBLIC_SUPABASE_ANON_KEY=
 SUPABASE_SERVICE_ROLE_KEY=   # solo para API routes
+NEXT_PUBLIC_VAPID_PUBLIC_KEY= # Web Push (avisos); generar con web-push generate-vapid-keys
+VAPID_PRIVATE_KEY=
+VAPID_SUBJECT=               # https://tradeos-gold.vercel.app
+INVEST_NOTIFY_SECRET=        # también como secret de GitHub (job del screener)
 ```
 
 ---

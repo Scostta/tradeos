@@ -34,6 +34,8 @@ export const APP_URLS = {
 
   // Add-on de NinjaTrader: auth por Bearer token (api_tokens), sin sesión.
   INGEST_PREFIX:   "/api/ingest/",
+  // Aviso del job del screener (Bearer INVEST_NOTIFY_SECRET), sin sesión.
+  INVEST_NOTIFY:   "/api/invest/notify",
   ADDON_DOWNLOAD:  "/downloads/TradeOSSync.cs",
 
   LOGIN:           "/login",

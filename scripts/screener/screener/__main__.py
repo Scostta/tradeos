@@ -18,6 +18,7 @@ from datetime import date, datetime, timezone
 
 from .job import TooManyNoData, render_summary, run
 from .market_calendar import first_business_day, last_business_day, previous_month_run_date
+from .notify import notify_run
 from .supabase_rest import SupabaseRest
 
 
@@ -70,6 +71,8 @@ def main(argv: list[str] | None = None) -> int:
         return 1
 
     write_summary(render_summary(outcome))
+    if client is not None:
+        notify_run(run_date)
     return 0
 
 

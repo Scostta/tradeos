@@ -14,6 +14,27 @@ export const SETTINGS = {
     SAVED:            "Preferences saved.",
   },
 
+  NOTIFICATIONS: {
+    TITLE:          "Notifications",
+    DESCRIPTION:    "Push notifications on this device: a new Invest screen, a sell signal on an open position, or a failed screener run.",
+    ENABLE:         "Enable on this device",
+    DISABLE:        "Turn off on this device",
+    TEST:           "Send test",
+    ON:             "On for this device",
+    OFF:            "Off for this device",
+    DENIED:         "Notifications are blocked for this site. Allow them in the browser or phone settings, then come back.",
+    UNSUPPORTED:    "This browser can't receive push notifications here. On iPhone, add TradeOS to the Home Screen first (Share → Add to Home Screen) and open it from there.",
+    NOT_CONFIGURED: "Push isn't configured on the server yet (VAPID keys missing).",
+    DEV_ONLY:       "Push needs the production build (the service worker isn't registered in development).",
+    ENABLED:        "Notifications on for this device.",
+    DISABLED:       "Notifications off for this device.",
+    TEST_TITLE:     "TradeOS",
+    TEST_BODY:      "Test notification — this device will get Invest alerts.",
+    TEST_SENT:      "Test sent to {n} device(s).",
+    TEST_NONE:      "No device received it. Turn notifications on first.",
+    ERROR:          "Couldn't change notifications. Try again.",
+  },
+
   BREAK_EVEN: {
     TITLE:       "Break-even",
     DESCRIPTION: "A trade is break-even when it exits within this many points of its entry. Break-even trades still count in your P&L and commissions, but not as winners or losers (win rate, profit factor, averages, streaks). You can override any trade by hand in Review or on the trade page.",

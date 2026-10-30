@@ -40,7 +40,8 @@ export async function proxy(request: NextRequest) {
     pathname === APP_URLS.RESET_PASSWORD ||
     pathname.startsWith(APP_URLS.AUTH_PREFIX) ||
     pathname.startsWith(APP_URLS.SHARE_PREFIX) ||
-    pathname.startsWith(APP_URLS.INGEST_PREFIX);
+    pathname.startsWith(APP_URLS.INGEST_PREFIX) ||
+    pathname === APP_URLS.INVEST_NOTIFY;
 
   if (!user && !isPublic) {
     const url = request.nextUrl.clone();

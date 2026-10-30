@@ -292,6 +292,13 @@ Banner arriba en toda la app (`InvestSellBanner`, cargado en `src/app/(dashboard
 
 **Run nuevo sin abrir** (29/10/2026): si hay ajustes de Invest y el run del mes en curso (`isCurrentMonthRun`) no está en `invest_reviews`, el sidebar marca "New" junto a Screen y un punto en Invest en el conmutador de módulos (`getInvestNewRun()`, leído en el mismo layout). Desaparece al abrir Screen: `markRunReviewed` revalida el layout cuando inserta la revisión.
 
+### 4.10 Avisos push (30/10/2026)
+Web Push de la PWA (desplegada en https://tradeos-gold.vercel.app). El usuario lo activa por dispositivo en Settings → Notifications (`push_subscriptions`, tabla compartida; en iPhone solo con la app instalada en la pantalla de inicio). Al terminar un run, el job llama a `POST /api/invest/notify` (`scripts/screener/screener/notify.py`, Bearer `INVEST_NOTIFY_SECRET`) y la app envía:
+- **Run nuevo** a todos los suscritos: cuántos pasan y hasta 5 tickers → `/invest`.
+- **Señal de venta** al dueño de cada posición abierta con check `sell` en ese run ("paper" si lo es) → `/invest/positions/[id]`.
+- **Fallo del job**: paso `if: failure()` del workflow (aborto por `no_data` o error) → enlace al run de GitHub.
+Solo avisa: no abre ni cierra nada. Avisar falla en silencio (log) y nunca tumba el job.
+
 ### 4.6 Pestaña Performance
 - "Month N of 36" desde `started_at`. Sin posiciones reales, la curva es la de las posiciones de papel (desde la primera apertura de papel) con la etiqueta **"Paper"** bien visible; con reales, solo las reales y un bloque plegado **"Paper positions"** al final.
 - Gráfico de dos líneas (cierres mensuales): satélite (TWR, §5.1) vs. benchmark, ambos base 100 en `started_at`. Reutilizar el wrapper de charts existente (`src/components/charts/`); si no encaja, `lightweight-charts` que ya está en dependencias.
@@ -396,3 +403,4 @@ Nada pendiente por ahora.
 | 2026-10-29 | 4.9 | Aviso de run nuevo a petición del usuario: "New" en Screen y punto en el conmutador mientras el run del mes no se haya abierto (sin fila en `invest_reviews`). Misma lectura de solo lectura desde el layout compartido que el aviso de venta; no cambia qué cuenta como revisión (§4.6). |
 | 2026-10-29 | 4.8 | IA en Invest a petición del usuario: borrador de tesis, comentario del run y revisión mensual de falsadores (§4.8). Las recomendaciones se limitan a **los tickers que pasan** el run: recomendar fuera del screener contaminaría el forward test (la hipótesis es que las reglas fijas baten al benchmark). La IA no decide aperturas ni salidas. |
 | 2026-10-28 | 4.3 | Página por posición `/invest/positions/[id]` (sustituye a `/invest/positions/[ticker]`): gráfico diario de 18 meses (`/api/invest/bars`, Yahoo, caché 24 h) con entrada, SMA 10 mensual escalonada y nivel de salida del próximo cierre (media de los 9 cierres anteriores), o el precio de salida en el color del P&L realizado en las cerradas; tesis y falsadores con estado manual (`invest_positions.falsifier_status`, migración `20261028120000_invest_falsifier_status.sql`); checks mensuales; cierre. Velas ajustadas por dividendos para compararlas con la SMA sobre `adj_close`. Calendario NYSE copiado a TS (`invest-calendar.ts`), con un test que lo compara con el del job. |
+| 2026-10-30 | 4.10 | Avisos push en el móvil a petición del usuario (run nuevo, señal de venta, fallo del job). Los envía la app, no el job: un solo emisor (Node, `web-push`) y los textos en Invest; el job solo llama a `/api/invest/notify` con un secreto. Un rerun vuelve a avisar. |

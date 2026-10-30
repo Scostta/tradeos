@@ -25,6 +25,11 @@ export function RegisterSW(): null {
         console.error("SW registration failed:", err)
       })
     }
+    // Si React hidrata después del evento load, el listener ya no saltaría.
+    if (document.readyState === "complete") {
+      onLoad()
+      return
+    }
     window.addEventListener("load", onLoad)
     return () => window.removeEventListener("load", onLoad)
   }, [])

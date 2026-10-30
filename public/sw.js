@@ -4,7 +4,7 @@
 //   - static assets    → stale-while-revalidate (build files, generated icons)
 //   - everything else  → default network (Supabase / API pass straight through)
 
-const VERSION = "v3";
+const VERSION = "v4";
 const STATIC_CACHE = `tradeos-static-${VERSION}`;
 const OFFLINE_URL = "/offline.html";
 
@@ -56,4 +56,38 @@ self.addEventListener("fetch", (event) => {
       })
     );
   }
+});
+
+// ── Web Push ──────────────────────────────────────────────────────────────────
+// Payload: { title, body, url, tag } (src/types/push.ts). Al tocar la
+// notificación se enfoca una ventana abierta de la app o se abre una nueva.
+self.addEventListener("push", (event) => {
+  let data = {};
+  try {
+    data = event.data ? event.data.json() : {};
+  } catch {
+    data = { body: event.data ? event.data.text() : "" };
+  }
+  event.waitUntil(
+    self.registration.showNotification(data.title || "TradeOS", {
+      body: data.body || "",
+      icon: "/icons/192",
+      badge: "/icons/192",
+      tag: data.tag,
+      data: { url: data.url || "/" },
+    })
+  );
+});
+
+self.addEventListener("notificationclick", (event) => {
+  event.notification.close();
+  const target = new URL(event.notification.data?.url || "/", self.location.origin).href;
+  event.waitUntil(
+    self.clients.matchAll({ type: "window", includeUncontrolled: true }).then((wins) => {
+      const sameOrigin = target.startsWith(self.location.origin);
+      const win = sameOrigin ? wins.find((w) => w.url.startsWith(self.location.origin)) : null;
+      if (win) return win.navigate(target).then((w) => (w || win).focus());
+      return self.clients.openWindow(target);
+    })
+  );
 });
