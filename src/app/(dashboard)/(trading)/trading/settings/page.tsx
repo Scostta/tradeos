@@ -58,7 +58,7 @@ export default async function TradingSettingsPage({
           ? <NinjaTraderSyncCard tokens={tokensResult.data} timeZone={timeZone} />
           : <div className="card p-4 text-sm text-loss">{S.ERRORS.DEFAULT}</div>)}
         {tab === "break-even" && (profileResult.success
-          ? <div style={{ maxWidth: 640 }}><BreakEvenCard points={profileResult.data.beThresholdPoints} /></div>
+          ? <BreakEvenCard points={profileResult.data.beThresholdPoints} />
           : <div className="card p-4 text-sm text-loss">{S.ERRORS.DEFAULT}</div>)}
       </div>
     </div>

@@ -29,7 +29,7 @@ export default async function InvestSettingsPage(): Promise<ReactElement> {
         <InvestOnboarding />
       ) : (
         <div className="flex-1 min-h-0 overflow-auto page-pad">
-          <section className="card p-5" style={{ maxWidth: 640 }}>
+          <section className="card p-5">
             <SettingsForm settings={settings} />
           </section>
         </div>
