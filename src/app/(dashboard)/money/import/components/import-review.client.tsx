@@ -27,14 +27,29 @@ function range(rows: ImportPreviewRow[]): string {
   return from === to ? fmtDay(from) : `${fmtDay(from)} – ${fmtDay(to)}`
 }
 
-function Row({ row, category }: { row: ImportPreviewRow; category: FinanceCategory | null }): ReactNode {
+function Row({ row, byId, linked, onToggle }: {
+  row:      ImportPreviewRow
+  byId:     Map<string, FinanceCategory>
+  linked:   boolean              // con pareja manual y sin desmarcar
+  onToggle: () => void
+}): ReactNode {
   const dup = row.status === "duplicate"
+  const categoryId = linked ? row.manual?.categoryId ?? null : row.categoryId
+  const category = categoryId ? byId.get(categoryId) ?? null : null
   return (
     <tr className={cn("border-b border-border last:border-0", dup ? "text-text-mute" : "hover:bg-surface-2")}>
       <td className="px-3 py-2 mono text-sm whitespace-nowrap text-text-dim">{fmtDay(row.bookedAt)}</td>
       <td className="px-3 py-2 min-w-0">
         <div className={cn("text-sm font-medium truncate", dup ? "text-text-mute" : "text-text")}>{displayName(row.counterparty)}</div>
         <div className="mono text-xs text-text-mute truncate">{row.conceptRaw}</div>
+        {row.manual && (
+          <label className="flex items-center gap-1.5 mt-1 text-xs text-text-dim cursor-pointer" title={I.MATCH_TITLE}>
+            <input type="checkbox" checked={linked} onChange={onToggle} className="accent-accent" />
+            <span className={cn("truncate", !linked && "line-through text-text-mute")}>
+              {I.MATCH_LINE.replace("{concept}", row.manual.conceptRaw).replace("{date}", fmtDay(row.manual.bookedAt))}
+            </span>
+          </label>
+        )}
       </td>
       <td className={cn("px-3 py-2 mono text-sm text-right whitespace-nowrap", !dup && row.amount > 0 && "text-profit")}>
         {fmtEur(row.amount, { sign: true })}
@@ -42,14 +57,14 @@ function Row({ row, category }: { row: ImportPreviewRow; category: FinanceCatego
       <td className="px-3 py-2 mono text-sm text-right whitespace-nowrap text-text-mute">{fmtEur(row.balanceAfter)}</td>
       <td className="px-3 py-2 whitespace-nowrap">
         <CategoryPill category={category} muted={dup} />
-        {row.byRule && <span className="mono text-xs text-text-mute ml-1.5">{I.RULE_TAG}</span>}
+        {row.byRule && !linked && <span className="mono text-xs text-text-mute ml-1.5">{I.RULE_TAG}</span>}
       </td>
       <td className="px-3 py-2">
         <span className={cn(
           "mono text-xs font-semibold tracking-wider uppercase px-1.5 py-0.5 rounded-sm",
-          dup ? "bg-surface-2 text-text-mute" : "bg-profit/10 text-profit",
+          dup ? "bg-surface-2 text-text-mute" : linked ? "bg-accent/10 text-accent" : "bg-profit/10 text-profit",
         )}>
-          {dup ? I.STATUS_DUP : I.STATUS_NEW}
+          {dup ? I.STATUS_DUP : linked ? I.STATUS_MATCH : I.STATUS_NEW}
         </span>
       </td>
     </tr>
@@ -57,24 +72,39 @@ function Row({ row, category }: { row: ImportPreviewRow; category: FinanceCatego
 }
 
 // §3.2.3 (artboard 06): recuentos, tabla con la categoría que pondrá cada
-// regla y el estado Nuevo/Duplicado, y los duplicados plegados.
-export function ImportReview({ preview, categories, errorCount }: {
-  preview:    ImportPreview
-  categories: FinanceCategory[]
-  errorCount: number
+// regla y el estado Nuevo/Duplicado, y los duplicados plegados. Las filas
+// emparejadas con un manual (§3.2.5) llevan su casilla para deshacer la pareja.
+export function ImportReview({ preview, categories, errorCount, unlinked, onToggleMatch }: {
+  preview:       ImportPreview
+  categories:    FinanceCategory[]
+  errorCount:    number
+  unlinked:      Set<string>           // importKeys con la pareja desmarcada
+  onToggleMatch: (importKey: string) => void
 }): ReactElement {
   const [showDups, setShowDups] = useState(false)
   const byId = new Map(categories.map(c => [c.id, c]))
   const fresh = preview.rows.filter(r => r.status === "new")
   const dups = preview.rows.filter(r => r.status === "duplicate")
+  const linkedCount = fresh.filter(r => r.manual && !unlinked.has(r.importKey)).length
+  // El servidor no cuenta las emparejadas; una desmarcada sin regla vuelve a contar.
+  const noRule = preview.noRule + fresh.filter(r => r.manual && unlinked.has(r.importKey) && !r.categoryId).length
+  const row = (r: ImportPreviewRow) => (
+    <Row
+      key={r.importKey} row={r} byId={byId}
+      linked={r.manual != null && !unlinked.has(r.importKey)} onToggle={() => onToggleMatch(r.importKey)}
+    />
+  )
 
   return (
     <div className="flex flex-col gap-3">
       <div className="grid grid-cols-2 xl:grid-cols-4 gap-3">
         <Metric label={I.METRIC_READ} value={preview.rows.length} sub={range(preview.rows)} />
-        <Metric label={I.METRIC_NEW} value={preview.newCount} tone="text-profit" sub={`${range(fresh)} · ${I.METRIC_NEW_SUB}`} />
+        <Metric
+          label={I.METRIC_NEW} value={preview.newCount} tone="text-profit"
+          sub={linkedCount > 0 ? I.METRIC_NEW_MATCHED.replace("{n}", String(linkedCount)) : `${range(fresh)} · ${I.METRIC_NEW_SUB}`}
+        />
         <Metric label={I.METRIC_DUP} value={preview.duplicates} tone="text-text-mute" sub={I.METRIC_DUP_SUB} />
-        <Metric label={I.METRIC_NORULE} value={preview.noRule} tone="text-short" sub={I.METRIC_NORULE_SUB} />
+        <Metric label={I.METRIC_NORULE} value={noRule} tone="text-short" sub={I.METRIC_NORULE_SUB} />
       </div>
 
       {errorCount > 0 && (
@@ -94,8 +124,8 @@ export function ImportReview({ preview, categories, errorCount }: {
             </tr>
           </thead>
           <tbody>
-            {fresh.map(r => <Row key={r.importKey} row={r} category={r.categoryId ? byId.get(r.categoryId) ?? null : null} />)}
-            {showDups && dups.map(r => <Row key={r.importKey} row={r} category={r.categoryId ? byId.get(r.categoryId) ?? null : null} />)}
+            {fresh.map(row)}
+            {showDups && dups.map(row)}
             {dups.length > 0 && (
               <tr>
                 <td colSpan={6} className="px-3 py-2.5 text-center text-sm text-text-mute">

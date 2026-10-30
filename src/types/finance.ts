@@ -180,6 +180,10 @@ export type ImportRow = z.infer<typeof importRowSchema>
 export const importTransactionsInputSchema = z.object({
   accountId: z.string().uuid(),
   rows:      z.array(importRowSchema).min(1).max(MAX_IMPORT_ROWS),
+  // Filas del extracto que sustituyen a un movimiento manual (§3.2.5); el
+  // servidor vuelve a comprobar cada pareja.
+  replace:   z.array(z.object({ importKey: z.string().min(1).max(1000), manualId: z.string().uuid() }))
+    .max(MAX_IMPORT_ROWS).default([]),
 })
 export type ImportTransactionsInput = z.infer<typeof importTransactionsInputSchema>
 
@@ -193,17 +197,27 @@ export type ImportPreviewRow = {
   status:       "new" | "duplicate"
   categoryId:   string | null   // nuevo: la que pondría una regla; duplicado: la que ya tiene
   byRule:       boolean
+  manual:       ImportManualMatch | null   // movimiento manual al que sustituiría (solo nuevos)
+}
+
+export type ImportManualMatch = {
+  id:         string
+  bookedAt:   string
+  conceptRaw: string
+  categoryId: string | null
 }
 
 export type ImportPreview = {
   rows:       ImportPreviewRow[]   // en el orden del fichero
   newCount:   number
   duplicates: number
-  noRule:     number               // nuevos sin regla que los categorice
+  noRule:     number               // nuevos sin regla que los categorice (ni manual que sustituyan)
+  matched:    number               // nuevos que sustituyen a un movimiento manual
 }
 
 export type ImportResult = {
   imported:    number
+  replaced:    number              // de los importados, cuántos sustituyeron a un manual
   duplicates:  number
   categorized: number
 }
@@ -235,6 +249,9 @@ export const splitTransactionInputSchema = z.object({
 export type SplitTransactionInput = z.infer<typeof splitTransactionInputSchema>
 
 export const unsplitTransactionInputSchema = z.object({ transactionId: z.string().uuid() })
+
+/** Borrar solo se puede lo apuntado a mano; lo importado se excluye. */
+export const deleteManualTransactionInputSchema = z.object({ transactionId: z.string().uuid() })
 
 // ── IA (§5.8) ───────────────────────────────────────────────────────────────
 
@@ -333,10 +350,12 @@ export const archiveGoalInputSchema = z.object({ goalId: z.string().uuid() })
 
 // ── Efectivo (§5.7 M2) ──────────────────────────────────────────────────────
 
-export const addCashExpenseInputSchema = z.object({
-  amount:     z.number().finite().positive().max(1_000_000),   // lo que salió, en positivo
+export const addManualTransactionInputSchema = z.object({
+  direction:  z.enum(["expense", "income"]),
+  amount:     z.number().finite().positive().max(1_000_000),   // en positivo; el signo lo pone direction
   categoryId: z.string().uuid(),
+  accountId:  z.string().uuid().nullable(),                    // null = Cash (se crea si falta)
   concept:    z.string().trim().min(1).max(100).nullable(),
   date:       isoDate,
 })
-export type AddCashExpenseInput = z.infer<typeof addCashExpenseInputSchema>
+export type AddManualTransactionInput = z.infer<typeof addManualTransactionInputSchema>

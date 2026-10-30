@@ -157,6 +157,15 @@ export function TransactionsView(props: Props): ReactElement {
     }
   }
 
+  function onDeleted() {
+    showToast(T.DELETED)
+    if (selected) {
+      const i = flat.findIndex(t => t.id === selected.id)
+      setSelectedId(flat[i + 1]?.id ?? flat[i - 1]?.id ?? null)
+      setFallbackIndex(i)
+    }
+  }
+
   // §5.8: sugerencias para los movimientos sin categorizar de la página.
   async function suggest() {
     const ids = flat.filter(t => !t.parentId && t.categoryId == null && !t.excluded).map(t => t.id)
@@ -421,6 +430,7 @@ export function TransactionsView(props: Props): ReactElement {
                 onError={message => showToast(message, "error")}
                 onEscape={() => (document.activeElement as HTMLElement | null)?.blur()}
                 onSplit={() => setSplitFor(selected)}
+                onDeleted={onDeleted}
               />
             ) : (
               <div className="px-4 py-10 text-center text-sm text-text-mute">{T.PANEL_EMPTY}</div>

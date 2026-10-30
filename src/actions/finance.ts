@@ -9,6 +9,7 @@ import type { MonthKey } from "~/lib/finance/dates"
 import { CASH_ACCOUNT_NAME, DEFAULT_CATEGORIES } from "~/lib/finance/default-categories"
 import { manualImportKey, withFinanceImportKeys } from "~/lib/finance/fingerprint"
 import { applyRules, transactionsByRule } from "~/lib/finance/match-rule"
+import { isManualMatch, MANUAL_MATCH_DAYS, matchManualTransactions } from "~/lib/finance/manual-match"
 import type { RuleAssignment } from "~/lib/finance/match-rule"
 import { suggestCategories } from "~/lib/finance/ai/categorize"
 import type { CategorySuggestion } from "~/lib/finance/ai/categorize"
@@ -30,7 +31,7 @@ import { detectRecurring } from "~/lib/finance/recurring"
 import { monthlySummary } from "~/lib/finance/summary"
 import { mapFinanceCategoryFromDb, mapFinanceGoalFromDb, mapFinanceTransactionFromDb } from "~/services/mappers/finance"
 import {
-  addCashExpenseInputSchema,
+  addManualTransactionInputSchema,
   archiveGoalInputSchema,
   categorizeTransactionInputSchema,
   createFinanceAccountInputSchema,
@@ -38,6 +39,7 @@ import {
   accountIdInputSchema,
   createCategoryInputSchema,
   createRuleInputSchema,
+  deleteManualTransactionInputSchema,
   deleteRuleInputSchema,
   importTransactionsInputSchema,
   monthStartDayInputSchema,
@@ -55,7 +57,8 @@ import {
   updateGoalInputSchema,
   updateRuleInputSchema,
 } from "~/types/finance"
-import type { CategorizeResult, ImportPreview, ImportPreviewRow, ImportResult, ImportRow } from "~/types/finance"
+import { MAX_IMPORT_ROWS } from "~/types/finance"
+import type { CategorizeResult, ImportManualMatch, ImportPreview, ImportPreviewRow, ImportResult, ImportRow } from "~/types/finance"
 import { createDataResult, createErrorResult } from "~/helpers/result"
 import type { ResultType } from "~/helpers/result"
 
@@ -300,6 +303,48 @@ async function existingKeys(supabase: Supabase, accountId: string, keys: string[
   return found
 }
 
+type ManualCandidate = ImportManualMatch & {
+  amount:         number
+  categorySource: string | null
+  excluded:       boolean
+  notes:          string | null
+}
+
+/**
+ * Movimientos manuales de la cuenta (sin las partes de un split) en las
+ * fechas del fichero ± la ventana de emparejamiento (§3.2.5).
+ */
+async function manualCandidates(supabase: Supabase, userId: string, accountId: string, rows: { bookedAt: string }[]): Promise<ManualCandidate[] | null> {
+  if (rows.length === 0) return []
+  const dates = rows.map(r => r.bookedAt).sort()
+  const shift = (d: string, days: number) => new Date(Date.parse(`${d}T00:00:00Z`) + days * 86_400_000).toISOString().slice(0, 10)
+  const { data, error } = await supabase
+    .from("finance_transactions")
+    .select("id, booked_at, amount, concept_raw, category_id, category_source, excluded, notes")
+    .eq("user_id", userId)
+    .eq("account_id", accountId)
+    .eq("source", "manual")
+    .is("parent_id", null)
+    .gte("booked_at", shift(dates[0]!, -MANUAL_MATCH_DAYS))
+    .lte("booked_at", shift(dates[dates.length - 1]!, MANUAL_MATCH_DAYS))
+    .order("booked_at", { ascending: true })
+    .range(0, MAX_IMPORT_ROWS - 1)
+  if (error) {
+    console.error(error)
+    return null
+  }
+  return (data ?? []).map(r => ({
+    id:             r.id as string,
+    bookedAt:       r.booked_at as string,
+    amount:         Number(r.amount),
+    conceptRaw:     r.concept_raw as string,
+    categoryId:     (r.category_id as string | null) ?? null,
+    categorySource: (r.category_source as string | null) ?? null,
+    excluded:       r.excluded as boolean,
+    notes:          (r.notes as string | null) ?? null,
+  }))
+}
+
 async function loadRules(supabase: Supabase, userId: string) {
   const { data, error } = await supabase
     .from("finance_category_rules").select("id, pattern, amount, category_id, priority").eq("user_id", userId)
@@ -324,13 +369,16 @@ export async function previewFinanceImport(input: unknown): Promise<ResultType<I
   if (!(await ownAccount(supabase, user.id, parsed.data.accountId))) return createErrorResult("INVALID_INPUT")
 
   const rows = keyRows(parsed.data.rows)
-  const [existing, rules] = await Promise.all([
+  const [existing, rules, manuals] = await Promise.all([
     existingKeys(supabase, parsed.data.accountId, rows.map(r => r.importKey)),
     loadRules(supabase, user.id),
+    manualCandidates(supabase, user.id, parsed.data.accountId, rows),
   ])
-  if (!existing || !rules) return createErrorResult("UNKNOWN")
+  if (!existing || !rules || !manuals) return createErrorResult("UNKNOWN")
 
   const fresh = rows.filter(r => !existing.has(r.importKey))
+  const manualById = new Map(manuals.map(m => [m.id, m]))
+  const matches = matchManualTransactions(fresh, manuals)
   const assigned = new Map(
     applyRules(
       fresh.map(r => ({ id: r.importKey, counterparty: r.counterparty, amount: r.amount, categoryId: null, categorySource: null, parentId: null, excluded: false })),
@@ -340,6 +388,21 @@ export async function previewFinanceImport(input: unknown): Promise<ResultType<I
 
   const out: ImportPreviewRow[] = rows.map(r => {
     const duplicate = existing.has(r.importKey)
+    const manual = duplicate ? null : manualById.get(matches.get(r.importKey) ?? "") ?? null
+    if (manual) {
+      return {
+        importKey:    r.importKey,
+        bookedAt:     r.bookedAt,
+        conceptRaw:   r.conceptRaw,
+        counterparty: r.counterparty,
+        amount:       r.amount,
+        balanceAfter: r.balanceAfter,
+        status:       "new",
+        categoryId:   assigned.get(r.importKey) ?? null,   // si el usuario deshace la pareja
+        byRule:       assigned.has(r.importKey),
+        manual:      { id: manual.id, bookedAt: manual.bookedAt, conceptRaw: manual.conceptRaw, categoryId: manual.categoryId },
+      }
+    }
     return {
       importKey:    r.importKey,
       bookedAt:     r.bookedAt,
@@ -350,19 +413,22 @@ export async function previewFinanceImport(input: unknown): Promise<ResultType<I
       status:       duplicate ? "duplicate" : "new",
       categoryId:   duplicate ? existing.get(r.importKey) ?? null : assigned.get(r.importKey) ?? null,
       byRule:       !duplicate && assigned.has(r.importKey),
+      manual:       null,
     }
   })
   return createDataResult({
     rows:       out,
     newCount:   fresh.length,
     duplicates: rows.length - fresh.length,
-    noRule:     fresh.length - assigned.size,
+    noRule:     fresh.filter(r => !assigned.has(r.importKey) && !matches.has(r.importKey)).length,
+    matched:    matches.size,
   })
 }
 
 /**
  * Paso "Confirm" (§3.2.4): upsert por (account_id, import_key) ignorando
- * duplicados, reglas sobre los nuevos y recálculo de suscripciones.
+ * duplicados, sustitución de los manuales emparejados (§3.2.5), reglas sobre
+ * los nuevos y recálculo de suscripciones.
  */
 export async function importFinanceTransactions(input: unknown): Promise<ResultType<ImportResult, FinanceActionError>> {
   const parsed = importTransactionsInputSchema.safeParse(input)
@@ -375,7 +441,7 @@ export async function importFinanceTransactions(input: unknown): Promise<ResultT
   if (!(await ownAccount(supabase, user.id, accountId))) return createErrorResult("INVALID_INPUT")
 
   const rows = keyRows(parsed.data.rows)
-  const inserted: { id: string; counterparty: string | null; amount: number }[] = []
+  const inserted: { id: string; importKey: string; counterparty: string | null; amount: number }[] = []
   for (let i = 0; i < rows.length; i += READ_PAGE) {
     const { data, error } = await supabase
       .from("finance_transactions")
@@ -393,27 +459,94 @@ export async function importFinanceTransactions(input: unknown): Promise<ResultT
         })),
         { onConflict: "account_id,import_key", ignoreDuplicates: true },
       )
-      .select("id, counterparty, amount")
+      .select("id, import_key, counterparty, amount")
     if (error) {
       console.error(error)
       return createErrorResult("UNKNOWN")
     }
     for (const row of data ?? []) {
-      inserted.push({ id: row.id as string, counterparty: (row.counterparty as string | null) ?? null, amount: Number(row.amount) })
+      inserted.push({
+        id: row.id as string, importKey: row.import_key as string,
+        counterparty: (row.counterparty as string | null) ?? null, amount: Number(row.amount),
+      })
     }
   }
+
+  const replaced = await replaceManuals(supabase, user.id, accountId, rows, inserted, parsed.data.replace)
+  if (!replaced) return createErrorResult("UNKNOWN")
 
   const rules = await loadRules(supabase, user.id)
   if (!rules) return createErrorResult("UNKNOWN")
   const assignments = applyRules(
-    inserted.map(t => ({ id: t.id, counterparty: t.counterparty, amount: t.amount, categoryId: null, categorySource: null, parentId: null, excluded: false })),
+    inserted
+      .filter(t => !replaced.has(t.id))
+      .map(t => ({ id: t.id, counterparty: t.counterparty, amount: t.amount, categoryId: null, categorySource: null, parentId: null, excluded: false })),
     rules,
   )
   if (!(await writeRuleAssignments(supabase, user.id, assignments))) return createErrorResult("UNKNOWN")
   await recomputeSubscriptions(supabase, user.id)
 
   revalidatePath(APP_URLS.MONEY, "layout")
-  return createDataResult({ imported: inserted.length, duplicates: rows.length - inserted.length, categorized: assignments.length })
+  return createDataResult({
+    imported: inserted.length, replaced: replaced.size, duplicates: rows.length - inserted.length, categorized: assignments.length,
+  })
+}
+
+/**
+ * §3.2.5: cada fila recién importada que el usuario dejó emparejada se queda
+ * con la categoría, la nota, el excluido y las partes del manual, y el manual
+ * se borra. Las parejas se vuelven a validar (misma cuenta, importe y
+ * ventana); una que no valga se ignora y los dos movimientos se quedan.
+ * Devuelve los ids importados que sustituyeron a un manual, o null si falla.
+ */
+async function replaceManuals(
+  supabase:  Supabase,
+  userId:    string,
+  accountId: string,
+  rows:      KeyedRow[],
+  inserted:  { id: string; importKey: string }[],
+  replace:   { importKey: string; manualId: string }[],
+): Promise<Set<string> | null> {
+  const done = new Set<string>()
+  if (replace.length === 0 || inserted.length === 0) return done
+
+  const manuals = await manualCandidates(supabase, userId, accountId, rows)
+  if (!manuals) return null
+  const manualById = new Map(manuals.map(m => [m.id, m]))
+  const rowByKey = new Map(rows.map(r => [r.importKey, r]))
+  const insertedByKey = new Map(inserted.map(t => [t.importKey, t.id]))
+  const usedManuals = new Set<string>()
+
+  for (const { importKey, manualId } of replace) {
+    const newId = insertedByKey.get(importKey)
+    const row = rowByKey.get(importKey)
+    const manual = manualById.get(manualId)
+    if (!newId || !row || !manual || usedManuals.has(manualId) || !isManualMatch(row, manual)) continue
+    usedManuals.add(manualId)
+
+    const { error: updateError } = await supabase
+      .from("finance_transactions")
+      .update({ category_id: manual.categoryId, category_source: manual.categorySource, excluded: manual.excluded, notes: manual.notes })
+      .eq("id", newId).eq("user_id", userId)
+    if (updateError) {
+      console.error(updateError)
+      return null
+    }
+    const { error: partsError } = await supabase
+      .from("finance_transactions").update({ parent_id: newId }).eq("parent_id", manualId).eq("user_id", userId)
+    if (partsError) {
+      console.error(partsError)
+      return null
+    }
+    const { error: deleteError } = await supabase
+      .from("finance_transactions").delete().eq("id", manualId).eq("user_id", userId).eq("source", "manual")
+    if (deleteError) {
+      console.error(deleteError)
+      return null
+    }
+    done.add(newId)
+  }
+  return done
 }
 
 /** Escribe lo que categorizan las reglas y suma sus hits (display, §4.2). */
@@ -782,6 +915,34 @@ export async function unsplitTransaction(input: unknown): Promise<ResultType<{ o
     return createErrorResult("UNKNOWN")
   }
 
+  revalidatePath(APP_URLS.MONEY, "layout")
+  return createDataResult({ ok: true })
+}
+
+/**
+ * Borra un movimiento apuntado a mano (con sus partes si estaba dividido).
+ * Lo importado no se borra: se excluye, para que el siguiente import no lo
+ * vuelva a traer. Las partes de un split se quitan con "Undo split".
+ */
+export async function deleteManualTransaction(input: unknown): Promise<ResultType<{ ok: true }, FinanceActionError>> {
+  const parsed = deleteManualTransactionInputSchema.safeParse(input)
+  if (!parsed.success) return createErrorResult("INVALID_INPUT")
+
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return createErrorResult("UNAUTHENTICATED")
+
+  const { data, error } = await supabase
+    .from("finance_transactions").delete()
+    .eq("id", parsed.data.transactionId).eq("user_id", user.id).eq("source", "manual").is("parent_id", null)
+    .select("id")
+  if (error) {
+    console.error(error)
+    return createErrorResult("UNKNOWN")
+  }
+  if (!data || data.length === 0) return createErrorResult("NOT_FOUND")
+
+  await recomputeSubscriptions(supabase, user.id)
   revalidatePath(APP_URLS.MONEY, "layout")
   return createDataResult({ ok: true })
 }
@@ -1439,48 +1600,62 @@ export async function saveBudgets(input: unknown): Promise<ResultType<{ saved: n
   return createDataResult({ saved: rows.length })
 }
 
-// ── Efectivo (§5.7 M2) ──────────────────────────────────────────────────────
+// ── Alta manual (§5.7 M2) ──────────────────────────────────────────────────────
 
 /**
- * Gasto en efectivo: movimiento manual (negativo) en la cuenta Cash, ya
- * categorizado. Si el usuario no tiene la cuenta Cash del alta, se crea.
+ * Movimiento manual ya categorizado: un gasto (negativo) o un ingreso
+ * (positivo) en la cuenta elegida, con una categoría de su tipo. Sin cuenta va
+ * a Cash, que se crea si el usuario no la tiene.
  */
-export async function addCashExpense(input: unknown): Promise<ResultType<{ id: string }, FinanceActionError>> {
-  const parsed = addCashExpenseInputSchema.safeParse(input)
+export async function addManualTransaction(input: unknown): Promise<ResultType<{ id: string }, FinanceActionError>> {
+  const parsed = addManualTransactionInputSchema.safeParse(input)
   if (!parsed.success) return createErrorResult("INVALID_INPUT")
 
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return createErrorResult("UNAUTHENTICATED")
 
-  const { amount, categoryId, concept, date } = parsed.data
+  const { direction, amount, categoryId, accountId, concept, date } = parsed.data
   const { data: category, error: categoryError } = await supabase
-    .from("finance_categories").select("id, name").eq("id", categoryId).eq("user_id", user.id).maybeSingle()
+    .from("finance_categories").select("id, name, kind").eq("id", categoryId).eq("user_id", user.id).maybeSingle()
   if (categoryError) {
     console.error(categoryError)
     return createErrorResult("UNKNOWN")
   }
-  if (!category) return createErrorResult("INVALID_INPUT")
+  if (!category || category.kind !== direction) return createErrorResult("INVALID_INPUT")
 
-  const { error: upsertError } = await supabase.from("finance_accounts").upsert(
-    { user_id: user.id, name: CASH_ACCOUNT_NAME, kind: "cash" },
-    { onConflict: "user_id,name", ignoreDuplicates: true },
-  )
-  const { data: cash, error: cashError } = await supabase
-    .from("finance_accounts").select("id").eq("user_id", user.id).eq("kind", "cash")
-    .order("created_at", { ascending: true }).limit(1).maybeSingle()
-  if (upsertError || cashError || !cash) {
-    console.error(upsertError ?? cashError)
-    return createErrorResult("UNKNOWN")
+  let targetId: string
+  if (accountId) {
+    const { data: account, error: accountError } = await supabase
+      .from("finance_accounts").select("id").eq("id", accountId).eq("user_id", user.id).eq("active", true).maybeSingle()
+    if (accountError) {
+      console.error(accountError)
+      return createErrorResult("UNKNOWN")
+    }
+    if (!account) return createErrorResult("INVALID_INPUT")
+    targetId = account.id as string
+  } else {
+    const { error: upsertError } = await supabase.from("finance_accounts").upsert(
+      { user_id: user.id, name: CASH_ACCOUNT_NAME, kind: "cash" },
+      { onConflict: "user_id,name", ignoreDuplicates: true },
+    )
+    const { data: cash, error: cashError } = await supabase
+      .from("finance_accounts").select("id").eq("user_id", user.id).eq("kind", "cash")
+      .order("created_at", { ascending: true }).limit(1).maybeSingle()
+    if (upsertError || cashError || !cash) {
+      console.error(upsertError ?? cashError)
+      return createErrorResult("UNKNOWN")
+    }
+    targetId = cash.id as string
   }
 
   const { data, error } = await supabase
     .from("finance_transactions")
     .insert({
       user_id:         user.id,
-      account_id:      cash.id as string,
+      account_id:      targetId,
       booked_at:       date,
-      amount:          -amount,
+      amount:          direction === "expense" ? -amount : amount,
       concept_raw:     concept ?? (category.name as string),
       counterparty:    concept ? normalizeConcept(concept) : null,
       category_id:     categoryId,

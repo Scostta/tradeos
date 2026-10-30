@@ -405,6 +405,7 @@ Todas con RLS `auth.uid() = user_id`. Sin `finance_settings`, cada página de Mo
 
 - Parsers en `src/lib/finance/parsers/` con autodetección por cabecera (`registry.ts`): `imagin.ts` (CSV `;` con bloque IBAN/Saldo/Periodo y `Concepto;Fecha;Importe;Saldo disponible`) y `generic.ts` con mapeo de columnas. Cabeceras no reconocidas → aviso, no se adivina.
 - Huella (`fingerprint.ts`): `booked_at|importe|normalizeConcept(concepto)|saldo#n`. Re-importar o solapar meses no duplica.
+- **Emparejar con lo manual** (§3.2.5, `manual-match.ts`): una fila nueva del extracto con el mismo importe y fecha a ±3 días que un movimiento manual de la misma cuenta lo sustituye (hereda categoría, nota y partes; el manual se borra). La preview lo marca y se puede desmarcar. Lo manual se puede borrar desde su panel (`deleteManualTransaction`); lo importado solo se excluye.
 - Tras insertar: reglas sobre los nuevos y **recálculo de suscripciones sobre todos los cargos** del usuario (`recomputeSubscriptions`).
 
 ### Categorización (§4.2)
@@ -425,7 +426,7 @@ Todas con RLS `auth.uid() = user_id`. Sin `finance_settings`, cada página de Mo
 - Rutas: `/money` (Overview), `/money/year` (resumen del año, §5.10), `/money/transactions`, `/money/subscriptions`, `/money/budgets` (§5.9), `/money/goals`, `/money/import`, `/money/cash` y `/money/settings?tab=accounts|categories|rules|month`.
 - `src/types/finance.ts` (Zod), `src/services/mappers/finance.ts`, `src/services/queries/finance.ts`, `src/actions/finance.ts`, lógica pura con vitest en `src/lib/finance/`, copies en `src/constants/copies/money/`. Regla ESLint `no-restricted-imports`: Money no importa de Trading ni de Invest.
 - **IA** (§5.8, `src/lib/finance/ai/`): "Suggest with AI" en la cola (propone categoría, confianza y regla; solo escribe lo que el usuario acepta) y "AI summary" en el Overview (3–5 observaciones con la cifra que las respalda).
-- **Móvil** (§5.7): barra inferior solo en Money (Overview / Transactions / **+** / Subscriptions / Goals); tablas con filas compactas por debajo de `md`. El alta de efectivo es un único `CashSheetProvider` en `money/layout.tsx`: hoja desde el "+" en móvil y modal desde el botón "Cash expense" de las cabeceras en escritorio.
+- **Móvil** (§5.7): barra inferior solo en Money (Overview / Transactions / **+** / Subscriptions / Goals); tablas con filas compactas por debajo de `md`. El alta manual (gasto **o ingreso**, `addManualTransaction`) es un único `CashSheetProvider` en `money/layout.tsx`: hoja desde el "+" en móvil y modal desde el botón "Add" de las cabeceras en escritorio. Gasto → Cash por defecto, ingreso → la cuenta por defecto (`defaultManualAccount`); con más de una cuenta se puede elegir.
 
 ## IA (compartido)
 

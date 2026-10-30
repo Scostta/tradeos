@@ -86,6 +86,7 @@ export function ImportFlow({ accounts, categories, defaultAccountId }: Props): R
   const [parsed, setParsed] = useState<ParseResult | null>(null)
   const [preview, setPreview] = useState<ImportPreview | null>(null)
   const [result, setResult] = useState<ImportResult | null>(null)
+  const [unlinked, setUnlinked] = useState<Set<string>>(new Set())   // parejas manuales desmarcadas (§3.2.5)
   const [problem, setProblem] = useState<string | null>(null)
   const [toast, setToast] = useState<string | null>(null)
   const [dragging, setDragging] = useState(false)
@@ -102,7 +103,7 @@ export function ImportFlow({ accounts, categories, defaultAccountId }: Props): R
 
   function reset() {
     setPhase("upload"); setFileName(null); setText(null); setInspection(null)
-    setMapping({}); setParsed(null); setPreview(null); setResult(null); setProblem(null)
+    setMapping({}); setParsed(null); setPreview(null); setResult(null); setProblem(null); setUnlinked(new Set())
     if (inputRef.current) inputRef.current.value = ""
   }
 
@@ -125,7 +126,7 @@ export function ImportFlow({ accounts, categories, defaultAccountId }: Props): R
     setParsed(result)
     startTransition(async () => {
       const res = await previewFinanceImport({ accountId: target, rows: toImportRows(result) })
-      if (res.success) { setPreview(res.data); setPhase("review") }
+      if (res.success) { setPreview(res.data); setUnlinked(new Set()); setPhase("review") }
       else fail(moneyErrorMessage(res.error))
     })
   }
@@ -171,13 +172,25 @@ export function ImportFlow({ accounts, categories, defaultAccountId }: Props): R
   function confirmImport() {
     if (!parsed || !preview || preview.newCount === 0) return
     startTransition(async () => {
-      const res = await importFinanceTransactions({ accountId, rows: toImportRows(parsed) })
+      const replace = preview.rows
+        .filter(r => r.manual && !unlinked.has(r.importKey))
+        .map(r => ({ importKey: r.importKey, manualId: r.manual!.id }))
+      const res = await importFinanceTransactions({ accountId, rows: toImportRows(parsed), replace })
       if (res.success) { setResult(res.data); setPhase("done"); router.refresh() }
       else fail(moneyErrorMessage(res.error))
     })
   }
 
   const account = accounts.find(a => a.id === accountId)
+
+  function toggleMatch(importKey: string) {
+    setUnlinked(prev => {
+      const next = new Set(prev)
+      if (next.has(importKey)) next.delete(importKey)
+      else next.add(importKey)
+      return next
+    })
+  }
 
   return (
     <div className="flex flex-col gap-4">
@@ -265,7 +278,10 @@ export function ImportFlow({ accounts, categories, defaultAccountId }: Props): R
 
       {phase === "review" && preview && parsed && (
         <>
-          <ImportReview preview={preview} categories={categories} errorCount={parsed.errors.length} />
+          <ImportReview
+            preview={preview} categories={categories} errorCount={parsed.errors.length}
+            unlinked={unlinked} onToggleMatch={toggleMatch}
+          />
           <div className="grid grid-cols-1 md:grid-cols-3 gap-3 items-start">
             <div className="card md:col-span-2 p-0">
               <div className="px-4 py-3 border-b border-border label-caps">{I.DEDUPE_TITLE}</div>
@@ -291,11 +307,12 @@ export function ImportFlow({ accounts, categories, defaultAccountId }: Props): R
           <div className="text-lg font-semibold text-text">{I.DONE_TITLE.replace("{n}", String(result.imported))}</div>
           <p className="text-md text-text-dim">
             {I.DONE_BODY.replace("{dups}", String(result.duplicates)).replace("{rules}", String(result.categorized))}
+            {result.replaced > 0 && I.DONE_REPLACED.replace("{n}", String(result.replaced))}
           </p>
           <div className="flex flex-wrap gap-2">
-            {result.imported - result.categorized > 0 && (
+            {result.imported - result.categorized - result.replaced > 0 && (
               <Link href={`${APP_URLS.MONEY_TRANSACTIONS}?queue=1`} className="btn-accent">
-                {I.DONE_QUEUE.replace("{n}", String(result.imported - result.categorized))}
+                {I.DONE_QUEUE.replace("{n}", String(result.imported - result.categorized - result.replaced))}
               </Link>
             )}
             <button type="button" onClick={reset} className="btn-ghost">{I.DONE_ANOTHER}</button>

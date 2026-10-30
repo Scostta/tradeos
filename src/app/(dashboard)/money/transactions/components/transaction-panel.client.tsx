@@ -2,7 +2,7 @@
 
 import { forwardRef, useState, useTransition } from "react"
 import type { KeyboardEvent, ReactElement, ReactNode } from "react"
-import { categorizeTransaction, unsplitTransaction } from "~/actions/finance"
+import { categorizeTransaction, deleteManualTransaction, unsplitTransaction } from "~/actions/finance"
 import { MONEY } from "~/constants/copies/money"
 import { matchRule } from "~/lib/finance/match-rule"
 import { INPUT_CLS } from "~/lib/ui/form"
@@ -33,12 +33,13 @@ type Props = {
   onError:     (message: string) => void
   onEscape:    () => void
   onSplit:     () => void
+  onDeleted:   () => void
 }
 
 // §5.2 panel lateral (artboard 02). Se monta con key = id del movimiento, así
 // que su estado se reinicia al cambiar de selección (sin efectos).
 export const TransactionPanel = forwardRef<HTMLSelectElement, Props>(function TransactionPanel(
-  { transaction: t, parts, categories, rules, accountName, onSaved, onError, onEscape, onSplit },
+  { transaction: t, parts, categories, rules, accountName, onSaved, onError, onEscape, onSplit, onDeleted },
   selectRef,
 ) {
   const isPart = t.parentId != null
@@ -48,7 +49,9 @@ export const TransactionPanel = forwardRef<HTMLSelectElement, Props>(function Tr
   const [excluded, setExcluded] = useState(t.excluded)
   const [pattern, setPattern] = useState(t.counterparty ?? "")
   const [createRule, setCreateRule] = useState(!isPart && !!t.counterparty && t.categorySource !== "rule")
+  const [confirmDelete, setConfirmDelete] = useState(false)
   const [pending, startTransition] = useTransition()
+  const canDelete = t.source === "manual" && !isPart
 
   const byId = new Map(categories.map(c => [c.id, c]))
   const appliedRule = !isSplitParent && t.categorySource === "rule" && categoryId === t.categoryId
@@ -76,6 +79,15 @@ export const TransactionPanel = forwardRef<HTMLSelectElement, Props>(function Tr
     startTransition(async () => {
       const res = await unsplitTransaction({ transactionId: t.id })
       if (!res.success) onError(moneyErrorMessage(res.error))
+    })
+  }
+
+  function remove() {
+    if (!confirmDelete) { setConfirmDelete(true); return }
+    startTransition(async () => {
+      const res = await deleteManualTransaction({ transactionId: t.id })
+      if (res.success) onDeleted()
+      else { setConfirmDelete(false); onError(moneyErrorMessage(res.error)) }
     })
   }
 
@@ -163,6 +175,23 @@ export const TransactionPanel = forwardRef<HTMLSelectElement, Props>(function Tr
           <button type="button" onClick={onSplit} disabled={pending} className="btn-ghost">{T.SPLIT}</button>
         )}
       </div>
+
+      {canDelete && (
+        <div className="flex items-center gap-2 border-t border-border pt-3">
+          <span className="text-xs text-text-mute flex-1">{confirmDelete ? T.DELETE_CONFIRM_HINT : T.DELETE_HINT}</span>
+          {confirmDelete && (
+            <button type="button" onClick={() => setConfirmDelete(false)} disabled={pending} className="text-xs text-text-mute hover:text-text">
+              {T.DELETE_CANCEL}
+            </button>
+          )}
+          <button
+            type="button" onClick={remove} disabled={pending}
+            className={confirmDelete ? "btn-ghost text-loss border-loss/40 hover:border-loss" : "text-xs text-text-mute hover:text-loss underline"}
+          >
+            {confirmDelete ? T.DELETE_CONFIRM : T.DELETE}
+          </button>
+        </div>
+      )}
     </div>
   )
 })

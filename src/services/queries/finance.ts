@@ -280,10 +280,10 @@ export const getGoals = cache(async (): Promise<ResultType<FinanceGoal[], string
 })
 
 /**
- * Categorías de gasto ordenadas por uso en los últimos 90 días (las más
- * usadas primero): chips del alta de efectivo (§5.7 M2).
+ * Categorías ordenadas por uso en los últimos 90 días (las más usadas
+ * primero): chips del alta manual (§5.7 M2), que filtra gasto o ingreso.
  */
-export const getExpenseCategoryUsage = cache(async (today: string): Promise<ResultType<string[], string>> => {
+export const getCategoryUsage = cache(async (today: string): Promise<ResultType<string[], string>> => {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return createErrorResult("UNAUTHENTICATED")
@@ -293,7 +293,6 @@ export const getExpenseCategoryUsage = cache(async (today: string): Promise<Resu
     .from("finance_transactions")
     .select("category_id")
     .eq("user_id", user.id)
-    .lt("amount", 0)
     .not("category_id", "is", null)
     .gte("booked_at", since)
     .range(0, 4999)

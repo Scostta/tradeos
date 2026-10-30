@@ -5,7 +5,7 @@ import { MONEY } from "~/constants/copies/money"
 import { PlusIcon } from "~/lib/ui/icons/plus-icon"
 import { useOpenCashSheet } from "./cash-sheet.client"
 
-// Alta de efectivo en escritorio (en móvil la abre el "+" de la barra inferior).
+// Alta manual (gasto o ingreso) en escritorio (en móvil la abre el "+" de la barra inferior).
 export function AddCashButton(): ReactElement | null {
   const openCash = useOpenCashSheet()
   if (!openCash) return null

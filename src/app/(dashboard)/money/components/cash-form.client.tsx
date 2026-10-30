@@ -2,12 +2,13 @@
 
 import { useState, useTransition } from "react"
 import type { ReactElement } from "react"
-import { addCashExpense } from "~/actions/finance"
+import { addManualTransaction } from "~/actions/finance"
 import { MONEY } from "~/constants/copies/money"
-import { quickCategories } from "~/lib/finance/cash"
+import { defaultManualAccount, quickCategories } from "~/lib/finance/cash"
+import type { ManualDirection } from "~/lib/finance/cash"
 import { INPUT_CLS } from "~/lib/ui/form"
 import { Spinner } from "~/lib/ui/spinner"
-import type { FinanceCategory } from "~/types/finance"
+import type { FinanceAccount, FinanceCategory } from "~/types/finance"
 import { cn } from "~/utils/cn"
 import { CategorySelect } from "./category-select.client"
 import { fmtEur } from "./money-format"
@@ -21,18 +22,24 @@ function parseCash(s: string): number | null {
   return Number.isFinite(n) && n > 0 ? Math.round(n * 100) / 100 : null
 }
 
-// §5.7 M2: importe, categoría (chips de las más usadas + "More…"), concepto
-// opcional y fecha (hoy). Crea un movimiento manual en la cuenta Cash.
-export function CashForm({ categories, usage, today, onClose, onSaved }: {
-  categories: FinanceCategory[]
-  usage:      string[]          // categorías de gasto por uso, las más usadas primero
-  today:      string
-  onClose:    () => void
-  onSaved:    (message: string) => void
+// §5.7 M2: gasto o ingreso, importe, categoría (chips de las más usadas +
+// "More…"), cuenta (gasto → Cash, ingreso → la cuenta por defecto), concepto
+// opcional y fecha (hoy). Crea un movimiento manual ya categorizado.
+export function CashForm({ categories, usage, accounts, defaultAccountId, today, onClose, onSaved }: {
+  categories:       FinanceCategory[]
+  usage:            string[]          // categorías por uso, las más usadas primero
+  accounts:         FinanceAccount[]
+  defaultAccountId: string | null
+  today:            string
+  onClose:          () => void
+  onSaved:          (message: string) => void
 }): ReactElement {
-  const chips = quickCategories(categories, usage, 5)
+  const activeAccounts = accounts.filter(a => a.active)
+  const [direction, setDirection] = useState<ManualDirection>("expense")
+  const chips = quickCategories(categories, usage, 5, direction)
   const [amount, setAmount] = useState("")
   const [categoryId, setCategoryId] = useState<string | null>(chips[0]?.id ?? null)
+  const [accountId, setAccountId] = useState<string | null>(defaultManualAccount(accounts, "expense", defaultAccountId)?.id ?? null)
   const [more, setMore] = useState(false)
   const [concept, setConcept] = useState("")
   const [date, setDate] = useState(today)
@@ -43,10 +50,19 @@ export function CashForm({ categories, usage, today, onClose, onSaved }: {
   const valid = value != null && categoryId != null && /^\d{4}-\d{2}-\d{2}$/.test(date)
   const inChips = chips.some(c => c.id === categoryId)
 
+  function switchTo(next: ManualDirection) {
+    if (next === direction) return
+    setDirection(next)
+    setCategoryId(quickCategories(categories, usage, 1, next)[0]?.id ?? null)
+    setAccountId(defaultManualAccount(accounts, next, defaultAccountId)?.id ?? null)
+    setMore(false)
+    setError(null)
+  }
+
   function save() {
     if (!valid || pending) return
     startTransition(async () => {
-      const res = await addCashExpense({ amount: value, categoryId, concept: concept.trim() || null, date })
+      const res = await addManualTransaction({ direction, amount: value, categoryId, accountId, concept: concept.trim() || null, date })
       if (res.success) {
         const name = categories.find(c => c.id === categoryId)?.name ?? ""
         onSaved(C.SAVED.replace("{amount}", fmtEur(value)).replace("{category}", name))
@@ -69,6 +85,22 @@ export function CashForm({ categories, usage, today, onClose, onSaved }: {
         </button>
       </div>
 
+      <div className="grid grid-cols-2 gap-1.5" role="radiogroup">
+        {(["expense", "income"] as const).map(d => (
+          <button
+            key={d} type="button" role="radio" aria-checked={direction === d} onClick={() => switchTo(d)}
+            className={cn(
+              "py-2 rounded-sm border text-sm",
+              direction === d
+                ? d === "expense" ? "bg-loss/10 border-loss text-loss font-semibold" : "bg-profit/10 border-profit text-profit font-semibold"
+                : "bg-surface-2 border-border text-text-dim",
+            )}
+          >
+            {d === "expense" ? C.EXPENSE : C.INCOME}
+          </button>
+        ))}
+      </div>
+
       <label className="flex flex-col gap-1.5">
         <span className="label-caps">{C.AMOUNT}</span>
         <input
@@ -79,6 +111,9 @@ export function CashForm({ categories, usage, today, onClose, onSaved }: {
 
       <div className="flex flex-col gap-1.5">
         <span className="label-caps">{C.CATEGORY}</span>
+        {chips.length === 0 && (
+          <div className="text-xs text-text-mute">{C.NO_CATEGORIES.replace("{kind}", direction === "expense" ? C.EXPENSE.toLowerCase() : C.INCOME.toLowerCase())}</div>
+        )}
         <div className="grid grid-cols-3 gap-1.5">
           {chips.map(c => (
             <button
@@ -103,11 +138,22 @@ export function CashForm({ categories, usage, today, onClose, onSaved }: {
         </div>
         {(more || (categoryId != null && !inChips)) && (
           <CategorySelect
-            categories={categories.filter(c => c.kind === "expense")} value={categoryId}
+            categories={categories.filter(c => c.kind === direction)} value={categoryId}
             onChange={setCategoryId} allowEmpty={false}
           />
         )}
       </div>
+
+      {activeAccounts.length > 1 && (
+        <label className="flex flex-col gap-1.5">
+          <span className="label-caps">{C.ACCOUNT}</span>
+          <select value={accountId ?? ""} onChange={e => setAccountId(e.target.value || null)} className={INPUT_CLS}>
+            {activeAccounts.map(a => (
+              <option key={a.id} value={a.id}>{a.name}{a.ibanLast4 ? ` ••${a.ibanLast4}` : ""}</option>
+            ))}
+          </select>
+        </label>
+      )}
 
       <div className="grid gap-2.5" style={{ gridTemplateColumns: "1fr 140px" }}>
         <label className="flex flex-col gap-1.5 min-w-0">
