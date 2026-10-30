@@ -21,6 +21,7 @@ export const REPORTS = {
     TIME:        "Time",
     COMPARE:     "Compare",
     R_MULTIPLES: "R-Multiples",
+    BREAK_EVEN:  "Break-even",
     MISTAKES:    "Mistakes",
   },
 
@@ -68,7 +69,7 @@ export const REPORTS = {
   },
 
   BE: {
-    TITLE:        "Break-even trades · how far they went",
+    TITLE:        "How far they went",
     COVERAGE:     "{measured} of {total} BE trades with MFE and risk",
     NOT_MEASURED: "None of your break-even trades has both an MFE and a stop (or a risk per trade on its account), so they can't be measured in R.",
     REACHED:      "Reached +{r}R",
@@ -81,6 +82,68 @@ export const REPORTS = {
     COL_MFE_R:      "MFE (R)",
     COL_NET:        "Net",
     MORE:         "+{n} more",
+
+    SUMMARY:      "Break-even: {total} trades · {reached} reached +1R · {missed} given back at 1R",
+    SUMMARY_LINK: "Open Break-even",
+
+    HEAD: {
+      TRADES:     "BE trades",
+      RATE:       "BE rate",
+      NET:        "Net on BE",
+      COMMISSION: "Commissions on BE",
+    },
+    NONE:         "No break-even trades in this range.",
+
+    WHERE: {
+      TITLE:   "Where they happen",
+      OVERALL: "Overall {rate}",
+      DIMS: {
+        hour:       "Hour",
+        weekday:    "Weekday",
+        instrument: "Instrument",
+        playbook:   "Playbook",
+        direction:  "Direction",
+      },
+      NO_PLAYBOOK: "No playbook",
+      LONG:        "Long",
+      SHORT:       "Short",
+      COL_GROUP:   "Group",
+      COL_RATE:    "BE rate",
+      COL_COUNT:   "BE / trades",
+      HINT:        "Highlighted: above your overall BE rate. Faded: fewer than {n} trades, too few to read much into.",
+    },
+
+    MAE: {
+      TITLE:        "How far against they went",
+      COVERAGE:     "{measured} of {total} BE trades with MAE and risk",
+      AVG:          "Avg MAE",
+      NEAR_STOP:    "Near the stop (≥ {r}R)",
+      NO_RISK:      "Barely against (≤ {r}R)",
+      AXIS_X:       "MAE (R) →",
+      AXIS_Y:       "MFE (R) ↑",
+      NOT_MEASURED: "None of your break-even trades has both an MAE and a stop (or a risk per trade on its account). MAE comes from the NinjaTrader add-on or the CSV.",
+      HINT:         "MAE = the most a trade went against you before closing. Each dot is a BE trade: right = close to the stop, up = went far in your favour.",
+    },
+
+    EVOLUTION: {
+      TITLE_WEEK:  "BE rate by week",
+      TITLE_MONTH: "BE rate by month",
+      CUM_MISSED:  "Given back at 1R · cumulative",
+    },
+
+    SOURCE: {
+      TITLE:         "Threshold or by hand",
+      AUTO:          "By threshold (≤ {pts} pts)",
+      FORCED_BE:     "Marked BE by hand",
+      FORCED_NOT_BE: "Marked not BE by hand",
+      WHAT_IF:       "BE trades with another threshold",
+      COL_POINTS:    "Threshold",
+      COL_BE:        "BE trades",
+      COL_DIFF:      "vs now",
+      CURRENT:       "current",
+      HINT:          "Your corrections by hand are kept at every threshold. Change the threshold in",
+      SETTINGS:      "Settings",
+    },
   },
 
   REPORT_MENU: {

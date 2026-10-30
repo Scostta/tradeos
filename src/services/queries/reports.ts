@@ -15,7 +15,7 @@ import { mapTradeFromDb } from "~/services/mappers/trades"
 import { mapPlaybookFromDb } from "~/services/mappers/playbooks"
 import { resolveDateRange } from "~/helpers/date-range"
 import { resolveComparePeriod } from "~/helpers/compare-period"
-import { getUserTimezone } from "~/services/queries/profile"
+import { getProfile } from "~/services/queries/profile"
 import { createDataResult, createErrorResult } from "~/helpers/result"
 import {
   computePerformanceSummary,
@@ -40,7 +40,7 @@ import {
   computeHourWeekdayMatrix,
 } from "~/lib/calculations/time-of-day"
 import { computeRStats } from "~/lib/calculations/r-multiples"
-import { computeBeStats } from "~/lib/calculations/be-analysis"
+import { computeBeReport } from "~/lib/calculations/be-analysis"
 import { computeGradeReport } from "~/lib/calculations/grade-report"
 import { computeMistakeStats } from "~/lib/calculations/mistakes"
 import { parsePlaybookRules } from "~/helpers/playbook-rules"
@@ -111,7 +111,9 @@ export const getReportsData = cache(async function getReportsData(
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return createErrorResult("UNAUTHENTICATED")
 
-  const timeZone = await getUserTimezone()
+  const profile  = await getProfile()
+  const timeZone = profile.success ? profile.data.timezone : "UTC"
+  const thresholdPoints = profile.success ? profile.data.beThresholdPoints : 1.5
   const dateRange = range !== "all" ? resolveDateRange(range, timeZone) : null
 
   // ── Fetch trades ────────────────────────────────────────────────────────────
@@ -196,7 +198,7 @@ export const getReportsData = cache(async function getReportsData(
       overview:           computeOverview([], timeZone),
       compare:            { a: emptyComparePeriod("this-month"), b: emptyComparePeriod("last-month") },
       rStats:             computeRStats([]),
-      beStats:            computeBeStats([]),
+      beReport:           computeBeReport({ trades: [], thresholdPoints }),
       grades:             computeGradeReport(new Map(), []),
       mistakes:           [],
     })
@@ -236,7 +238,7 @@ export const getReportsData = cache(async function getReportsData(
     overview:           computeOverview(trades, timeZone),
     compare:            { a: compareA.data, b: compareB.data },
     rStats:             computeRStats(trades, riskByAccount),
-    beStats:            computeBeStats(trades, riskByAccount),
+    beReport:           computeBeReport({ trades, riskByAccount, playbookName: byPlaybookName, thresholdPoints, timeZone }),
     grades:             computeGradeReport(rulesById, trades, riskByAccount, timeZone),
     mistakes:           computeMistakeStats(trades),
   }

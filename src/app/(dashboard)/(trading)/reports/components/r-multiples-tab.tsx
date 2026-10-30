@@ -1,7 +1,7 @@
 import type { ReactElement } from "react"
 import type { RStats } from "~/types/reports"
 import type { BeStats } from "~/lib/calculations/be-analysis"
-import { BeCard } from "./be-card"
+import { BeSummary } from "./be-summary"
 import { REPORTS } from "~/constants/copies/reports"
 import { formatPct } from "~/helpers/format"
 import { RDistribution } from "~/components/charts/r-distribution"
@@ -31,7 +31,11 @@ function buildGrid(s: RStats): StatCell[] {
   ]
 }
 
-export function RMultiplesTab({ rStats, beStats }: { rStats: RStats; beStats: BeStats }): ReactElement {
+export function RMultiplesTab({ rStats, beStats, onOpenBe }: {
+  rStats:   RStats
+  beStats:  BeStats
+  onOpenBe: () => void
+}): ReactElement {
   const { coverage } = rStats
 
   if (coverage.withR === 0) {
@@ -92,7 +96,7 @@ export function RMultiplesTab({ rStats, beStats }: { rStats: RStats; beStats: Be
         </div>
       </div>
 
-      <BeCard stats={beStats} />
+      <BeSummary stats={beStats} onOpen={onOpenBe} />
     </div>
   )
 }

@@ -10,11 +10,12 @@ import { OverviewTab } from "./overview-tab"
 import { TimeTab } from "./time-tab"
 import { CompareTab } from "./compare-tab.client"
 import { RMultiplesTab } from "./r-multiples-tab"
+import { BeTab } from "./be-tab"
 import { MistakesTab } from "./mistakes-tab"
 import { ReportDetail } from "./report-detail.client"
 import type { ReportKey } from "./report-detail.client"
 
-type ActiveTab = "performance" | "overview" | "reports" | "time" | "compare" | "rmultiples" | "mistakes"
+type ActiveTab = "performance" | "overview" | "reports" | "time" | "compare" | "rmultiples" | "breakeven" | "mistakes"
 
 type ReportMenuItem = {
   key:   ReportKey
@@ -194,6 +195,15 @@ export function ReportsShell({ data, accountId }: Props): ReactElement {
           badge
         />
 
+        {/* Break-even tab */}
+        <TabButton
+          id="breakeven"
+          label={REPORTS.TABS.BREAK_EVEN}
+          active={tab === "breakeven"}
+          onClick={() => setTab("breakeven")}
+          badge
+        />
+
         {/* Mistakes tab */}
         <TabButton
           id="mistakes"
@@ -233,7 +243,11 @@ export function ReportsShell({ data, accountId }: Props): ReactElement {
         )}
 
         {tab === "rmultiples" && (
-          <RMultiplesTab rStats={data.rStats} beStats={data.beStats} />
+          <RMultiplesTab rStats={data.rStats} beStats={data.beReport.stats} onOpenBe={() => setTab("breakeven")} />
+        )}
+
+        {tab === "breakeven" && (
+          <BeTab report={data.beReport} />
         )}
 
         {tab === "mistakes" && (
