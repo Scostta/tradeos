@@ -61,7 +61,7 @@ export function BeSourceCard({ source }: { source: BeSource }): ReactElement {
       </table>
       <div className="px-4 py-2.5 text-xs text-text-mute border-t border-border">
         {C.HINT}{" "}
-        <Link href={APP_URLS.SETTINGS} className="underline hover:text-text">{C.SETTINGS}</Link>.
+        <Link href={`${APP_URLS.TRADING_SETTINGS}?tab=break-even`} className="underline hover:text-text">{C.SETTINGS}</Link>.
       </div>
     </div>
   )

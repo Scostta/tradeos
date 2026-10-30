@@ -79,7 +79,7 @@ export async function POST(req: NextRequest): Promise<NextResponse<IngestRespons
     if (screenshot.size > MAX_SCREENSHOT_BYTES)   return fail("SCREENSHOT_TOO_LARGE", 413)
   }
 
-  // Non-fatal: solo informativo en /settings.
+  // Non-fatal: solo informativo en /trading/settings.
   const { error: touchError } = await service
     .from("api_tokens")
     .update({ last_used_at: new Date().toISOString() })

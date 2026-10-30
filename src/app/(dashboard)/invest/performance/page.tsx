@@ -21,7 +21,6 @@ import {
 } from "~/lib/calculations/invest-performance"
 import type { InvestPositionWithMeta, InvestSettings } from "~/types/invest"
 import { InvestOnboarding } from "../components/invest-onboarding"
-import { SettingsButton } from "../components/settings-button.client"
 import { PerformanceView } from "./components/performance-view"
 import { PaperPositionsBlock } from "./components/paper-positions-block"
 
@@ -91,11 +90,6 @@ export default async function InvestPerformancePage(): Promise<ReactElement> {
           <div className="mono text-sm text-text-mute mt-0.5">{P.SUBTITLE}</div>
           <div className="text-sm text-text-mute mt-1">{P.HEADER_NOTE}</div>
         </div>
-        {settings && (
-          <div className="ml-auto">
-            <SettingsButton settings={settings} />
-          </div>
-        )}
       </header>
 
       {!settingsResult.success || !positionsResult.success ? (

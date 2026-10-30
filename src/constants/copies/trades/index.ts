@@ -172,7 +172,7 @@ export const TRADES = {
     AUTO:      "Auto",
     YES:       "BE",
     NO:        "Not BE",
-    AUTO_IS:   "Auto · {state} by your threshold (Settings)",
+    AUTO_IS:   "Auto · {state} by your threshold (Trading → Settings)",
     STATE_BE:  "break-even",
     STATE_NOT: "not break-even",
     MANUAL:    "Set by hand",

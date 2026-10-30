@@ -3,7 +3,7 @@
 import { useState, useTransition } from "react"
 import type { ReactElement } from "react"
 import { createApiToken, revokeApiToken } from "~/actions/api-tokens"
-import { SETTINGS } from "~/constants/copies/settings"
+import { TRADING_SETTINGS } from "~/constants/copies/trading-settings"
 import { APP_URLS } from "~/constants/app-urls"
 import { formatDateTime } from "~/helpers/format"
 import { Button } from "~/lib/ui/button"
@@ -11,7 +11,7 @@ import { Toast } from "~/lib/ui/toast"
 import type { ToastVariant } from "~/lib/ui/toast"
 import type { ApiToken } from "~/types/api-token"
 
-const S = SETTINGS.SYNC
+const S = TRADING_SETTINGS.SYNC
 
 const INPUT_CLASS =
   "bg-surface-2 border border-border rounded-sm px-2.5 py-2 text-base text-text w-full outline-none focus:border-border-hi"
@@ -76,7 +76,7 @@ export function NinjaTraderSyncCard({
       await navigator.clipboard.writeText(token)
       showToast(S.COPIED, "success")
     } catch {
-      showToast(SETTINGS.ERRORS.DEFAULT, "error")
+      showToast(TRADING_SETTINGS.ERRORS.DEFAULT, "error")
     }
   }
 

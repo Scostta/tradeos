@@ -3,7 +3,7 @@
 import { useState, useTransition } from "react"
 import type { ReactElement } from "react"
 import { updateBeThreshold } from "~/actions/profile"
-import { SETTINGS } from "~/constants/copies/settings"
+import { TRADING_SETTINGS } from "~/constants/copies/trading-settings"
 import { Button } from "~/lib/ui/button"
 import { Toast } from "~/lib/ui/toast"
 import type { ToastVariant } from "~/lib/ui/toast"
@@ -25,12 +25,12 @@ export function BreakEvenCard({ points }: { points: number }): ReactElement {
   function handleSave() {
     const n = Number(value.replace(",", "."))
     if (value.trim() === "" || !Number.isFinite(n) || n < 0 || n > 100) {
-      showToast(SETTINGS.BREAK_EVEN.INVALID, "error")
+      showToast(TRADING_SETTINGS.BREAK_EVEN.INVALID, "error")
       return
     }
     startTransition(async () => {
       const result = await updateBeThreshold({ points: n })
-      if (result.success) showToast(SETTINGS.BREAK_EVEN.SAVED, "success")
+      if (result.success) showToast(TRADING_SETTINGS.BREAK_EVEN.SAVED, "success")
       else showToast(result.error, "error")
     })
   }
@@ -44,12 +44,12 @@ export function BreakEvenCard({ points }: { points: number }): ReactElement {
       )}
 
       <div className="flex flex-col gap-1">
-        <h2 className="text-md font-semibold text-text">{SETTINGS.BREAK_EVEN.TITLE}</h2>
-        <p className="text-sm text-text-dim">{SETTINGS.BREAK_EVEN.DESCRIPTION}</p>
+        <h2 className="text-md font-semibold text-text">{TRADING_SETTINGS.BREAK_EVEN.TITLE}</h2>
+        <p className="text-sm text-text-dim">{TRADING_SETTINGS.BREAK_EVEN.DESCRIPTION}</p>
       </div>
 
       <div className="flex flex-col gap-1.5">
-        <label className="label-caps" htmlFor="be-threshold">{SETTINGS.BREAK_EVEN.THRESHOLD}</label>
+        <label className="label-caps" htmlFor="be-threshold">{TRADING_SETTINGS.BREAK_EVEN.THRESHOLD}</label>
         <div style={{ width: 140 }}>
           <input
             id="be-threshold" type="text" inputMode="decimal" value={value}
@@ -57,12 +57,12 @@ export function BreakEvenCard({ points }: { points: number }): ReactElement {
             className={INPUT_CLASS}
           />
         </div>
-        <p className="text-xxs text-text-mute">{SETTINGS.BREAK_EVEN.HINT}</p>
+        <p className="text-xxs text-text-mute">{TRADING_SETTINGS.BREAK_EVEN.HINT}</p>
       </div>
 
       <div className="flex justify-end pt-1 border-t border-border">
         <Button variant="accent" onClick={handleSave} disabled={isPending} loading={isPending}>
-          {SETTINGS.BREAK_EVEN.SAVE}
+          {TRADING_SETTINGS.BREAK_EVEN.SAVE}
         </Button>
       </div>
     </section>

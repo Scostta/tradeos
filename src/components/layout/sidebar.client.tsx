@@ -51,11 +51,13 @@ const NAV_BY_MODULE: Record<AppModule, NavItem[]> = {
     { id: "journal",    label: COMMON.NAV_LABELS.JOURNAL,    path: APP_URLS.JOURNAL,    Icon: CalendarIcon },
     { id: "goals",     label: COMMON.NAV_LABELS.GOALS,      path: APP_URLS.GOALS,      Icon: TargetIcon },
     { id: "accounts",  label: COMMON.NAV_LABELS.ACCOUNTS,   path: APP_URLS.ACCOUNTS,   Icon: WalletIcon },
+    { id: "trading-settings", label: COMMON.NAV_LABELS.SETTINGS, path: APP_URLS.TRADING_SETTINGS, Icon: SettingsIcon },
   ],
   invest: [
     { id: "screen",      label: COMMON.NAV_LABELS.SCREEN,      path: APP_URLS.INVEST,             Icon: TrendIcon, exact: true },
     { id: "positions",   label: COMMON.NAV_LABELS.POSITIONS,   path: APP_URLS.INVEST_POSITIONS,   Icon: WalletIcon },
     { id: "performance", label: COMMON.NAV_LABELS.PERFORMANCE, path: APP_URLS.INVEST_PERFORMANCE, Icon: BarIcon },
+    { id: "invest-settings", label: COMMON.NAV_LABELS.SETTINGS, path: APP_URLS.INVEST_SETTINGS, Icon: SettingsIcon },
   ],
   money: [
     { id: "overview", label: COMMON.NAV_LABELS.OVERVIEW, path: APP_URLS.MONEY, Icon: CoinsIcon, exact: true },

@@ -2,7 +2,6 @@ import type { ReactElement } from "react"
 import { INVEST } from "~/constants/copies/invest"
 import { getInvestSettings } from "~/services/queries/invest"
 import { ScreenTab } from "./components/screen-tab"
-import { SettingsButton } from "./components/settings-button.client"
 import { InvestOnboarding } from "./components/invest-onboarding"
 
 export default async function InvestPage({
@@ -23,11 +22,6 @@ export default async function InvestPage({
           <h1 className="text-xl font-semibold tracking-tight text-text">{INVEST.TITLE}</h1>
           <div className="mono text-sm text-text-mute mt-0.5">{INVEST.SUBTITLE}</div>
         </div>
-        {settings && (
-          <div className="ml-auto">
-            <SettingsButton settings={settings} />
-          </div>
-        )}
       </header>
 
       {!settingsResult.success ? (

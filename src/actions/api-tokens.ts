@@ -42,7 +42,7 @@ export async function createApiToken(
     return createErrorResult(error.message)
   }
 
-  revalidatePath(APP_URLS.SETTINGS)
+  revalidatePath(APP_URLS.TRADING_SETTINGS)
   return createDataResult({ token, apiToken: mapApiTokenFromDb(data) })
 }
 
@@ -67,6 +67,6 @@ export async function revokeApiToken(
     return createErrorResult(error.message)
   }
 
-  revalidatePath(APP_URLS.SETTINGS)
+  revalidatePath(APP_URLS.TRADING_SETTINGS)
   return createDataResult({ id: parsed.data.id })
 }

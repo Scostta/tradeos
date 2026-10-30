@@ -377,8 +377,8 @@ export const INVEST = {
   },
 
   SETTINGS: {
-    OPEN_CTA:        "Settings",
-    TITLE:           "Invest settings",
+    TITLE:           "Settings",
+    SUBTITLE:        "Invest · portfolio, benchmark and test start",
     ONBOARDING_TITLE: "Set up the Invest module",
     ONBOARDING_BODY:
       "Enter your total portfolio value (core + satellite) and your benchmark. " +

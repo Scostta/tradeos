@@ -58,7 +58,7 @@ export async function saveInvestSettings(input: unknown): Promise<ResultType<{ o
     return createErrorResult("UNKNOWN")
   }
 
-  revalidatePath(APP_URLS.INVEST)
+  revalidatePath(APP_URLS.INVEST, "layout")   // Screen, Performance y /invest/settings
   return createDataResult({ ok: true })
 }
 
