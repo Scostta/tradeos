@@ -15,6 +15,10 @@ import { isLoss } from "~/lib/calculations/outcome"
 import { computeReportBreakdown, byDayOfWeek } from "~/lib/calculations/reports"
 import { computeMistakeStats } from "~/lib/calculations/mistakes"
 import { zonedDateKey, zonedHour } from "~/helpers/tz"
+import { computeTiltReport } from "~/lib/calculations/tilt"
+import type { TiltReport, TiltRow, TiltStats } from "~/lib/calculations/tilt"
+import type { BeGroupKey, BeReport } from "~/lib/calculations/be-analysis"
+import type { LimitBreach } from "~/lib/calculations/daily-limits"
 import type { Trade } from "~/types/trade"
 import type { RStats } from "~/types/reports"
 import type { PlaybookAdherence } from "~/types/playbook"
@@ -25,7 +29,10 @@ import type {
   DowSignal,
   SessionBucket,
   SessionKey,
-  StreakSignal,
+  TiltBucket,
+  TiltSignal,
+  BreakEvenSignal,
+  LimitsSignal,
   VolumeSignal,
   AdherenceSignal,
   RSignal,
@@ -128,38 +135,103 @@ function maxConsecutiveLosses(sorted: Trade[]): number {
   return max
 }
 
+function bucket(s: TiltStats): TiltBucket {
+  return { trades: s.trades, winRate: s.winRate, avgNetPnl: s.avgNet, avgR: s.avgR }
+}
+
+function rowsToRecord<K extends string>(rows: TiltRow[]): Record<K, TiltBucket> {
+  return Object.fromEntries(rows.map(r => [r.key, bucket(r.stats)])) as Record<K, TiltBucket>
+}
+
 /**
- * Trades that immediately follow a losing trade in the same account (sorted by
- * entryTime), compared with the baseline of every trade. The gap exposes tilt.
+ * Same numbers as Reports → Tilt (computeTiltReport), plus the longest losing
+ * streak per account across the whole history.
  */
-export function buildStreakSignal(trades: Trade[]): StreakSignal {
+export function buildTiltSignal(tilt: TiltReport, trades: Trade[]): TiltSignal {
+  const prev = new Map(tilt.previous.map(r => [r.key, bucket(r.stats)]))
   const byAccount = new Map<string, Trade[]>()
-  for (const t of trades) {
-    const bucket = byAccount.get(t.accountId) ?? []
-    bucket.push(t)
-    byAccount.set(t.accountId, bucket)
-  }
-
-  const afterLoss: Trade[] = []
-  let maxStreak = 0
-  for (const bucket of byAccount.values()) {
-    const sorted = [...bucket].sort(byEntryTime)
-    maxStreak = Math.max(maxStreak, maxConsecutiveLosses(sorted))
-    for (let i = 1; i < sorted.length; i++) {
-      if (isLoss(sorted[i - 1]!)) afterLoss.push(sorted[i]!)
-    }
-  }
-
-  const stats = (ts: Trade[]): { trades: number; winRate: number; avgNetPnl: number } => ({
-    trades:    ts.length,
-    winRate:   round4(winRate(ts)),
-    avgNetPnl: round2(ts.length ? totalNetPnl(ts) / ts.length : 0),
-  })
+  for (const t of trades) byAccount.set(t.accountId, [...(byAccount.get(t.accountId) ?? []), t])
+  const maxStreak = Math.max(0, ...[...byAccount.values()].map(ts => maxConsecutiveLosses([...ts].sort(byEntryTime))))
 
   return {
-    afterLoss:            stats(afterLoss),
-    baseline:             stats(trades),
+    baseline: bucket(tilt.all),
+    byPreviousTrade: {
+      firstOfDay:     prev.get("first")!,
+      afterWin:       prev.get("win")!,
+      afterLoss:      prev.get("loss")!,
+      afterBreakEven: prev.get("be")!,
+    },
+    afterLoss: {
+      reentryWindowMinutes: tilt.windows,
+      fastReentry:          bucket(tilt.afterLoss.fast),
+      waitedLonger:         bucket(tilt.afterLoss.slow),
+      sizedUp:              bucket(tilt.afterLoss.sizeUp),
+      sameOrSmallerSize:    bucket(tilt.afterLoss.sameSize),
+    },
+    byLossStreakBefore:   rowsToRecord<"0" | "1" | "2" | "3+">(tilt.streak),
+    byTradeNumberOfDay:   rowsToRecord<"1" | "2" | "3" | "4+">(tilt.tradeNumber),
     maxConsecutiveLosses: maxStreak,
+  }
+}
+
+// ── Break-even ────────────────────────────────────────────────────────────────
+
+const BE_MIN_GROUP_TRADES = 5
+const BE_TOP_GROUPS = 5
+
+/** Same numbers as Reports → Break-even (computeBeReport). Null without BE trades. */
+export function buildBreakEvenSignal(be: BeReport): BreakEvenSignal | null {
+  if (be.stats.total === 0) return null
+  const reached = (level: number): number => be.stats.reached.find(r => r.level === level)?.count ?? 0
+
+  const groups = (Object.entries(be.groups) as [BeGroupKey, BeReport["groups"][BeGroupKey]][])
+    .flatMap(([dimension, rows]) => rows
+      .filter(r => r.trades >= BE_MIN_GROUP_TRADES && r.rate > be.rate)
+      .map(r => ({ dimension, label: r.label ?? "no playbook", trades: r.trades, breakEvenTrades: r.be, rate: r.rate })))
+    .sort((a, b) => b.rate - a.rate || b.trades - a.trades)
+    .slice(0, BE_TOP_GROUPS)
+
+  return {
+    trades:          be.stats.total,
+    rate:            be.rate,
+    netPnl:          be.netPnl,
+    commissions:     be.commission,
+    thresholdPoints: be.source.threshold,
+    markedByHand:    { asBreakEven: be.source.forcedBe, asNotBreakEven: be.source.forcedNotBe },
+    ifThreshold:     be.source.whatIf.map(w => ({ points: w.points, breakEvenTrades: w.be })),
+    mfe: {
+      measured:      be.stats.measured,
+      avgR:          be.stats.avgMfeR,
+      reachedHalfR:  reached(0.5),
+      reached1R:     reached(1),
+      reached2R:     reached(2),
+      givenBackAt1R: be.stats.missedAt1R,
+    },
+    mae: {
+      measured:      be.mae.measured,
+      avgR:          be.mae.avgMaeR,
+      nearStop:      be.mae.nearStop,
+      barelyAgainst: be.mae.neverAtRisk,
+    },
+    highestRateGroups: groups,
+  }
+}
+
+// ── Daily limits ──────────────────────────────────────────────────────────────
+
+/** Counts of trades opened after a personal daily limit. Null when no account has limits. */
+export function buildLimitsSignal(breaches: Map<string, LimitBreach[]> | null): LimitsSignal | null {
+  if (breaches == null) return null
+  const count = (b: LimitBreach): number => [...breaches.values()].filter(list => list.includes(b)).length
+  return {
+    tradesWithBreach: breaches.size,
+    byType: {
+      maxTrades:            count("trades"),
+      maxDailyLoss:         count("loss"),
+      lossStreak:           count("streak"),
+      fastReentryAfterLoss: count("revenge"),
+      sizedUpAfterLoss:     count("sizeUp"),
+    },
   }
 }
 
@@ -245,15 +317,25 @@ function buildAdherenceSignal(a: PlaybookAdherence): AdherenceSignal {
 // ── Top-level builder ─────────────────────────────────────────────────────────
 
 /**
- * Builds the full Claude payload from the filtered trades plus two optional
+ * Builds the full Claude payload from the filtered trades plus optional
  * pre-computed signals the trade list alone can't produce:
  *   - rStats:    from computeRStats (needs per-account risk fallbacks)
  *   - adherence: from computePortfolioAdherence (needs parsed playbook rules)
- * The caller (server action) wires those; both are omitted gracefully.
+ *   - tilt:      from computeTiltReport (needs risk and per-account re-entry windows)
+ *   - beReport:  from computeBeReport (needs risk, playbook names and the BE threshold)
+ *   - breaches:  from limitBreaches (needs account limits); null = no limits set
+ * The caller (insights query) wires those; missing ones are omitted gracefully.
  */
 export function buildInsightsInput(
   trades: Trade[],
-  opts: { rStats?: RStats; adherence?: PlaybookAdherence | null; timeZone?: string } = {},
+  opts: {
+    rStats?:    RStats
+    adherence?: PlaybookAdherence | null
+    tilt?:      TiltReport
+    beReport?:  BeReport
+    breaches?:  Map<string, LimitBreach[]> | null
+    timeZone?:  string
+  } = {},
 ): InsightsInput {
   const timeZone = opts.timeZone ?? "UTC"
   return {
@@ -264,7 +346,9 @@ export function buildInsightsInput(
     topMistakes: computeMistakeStats(trades).slice(0, TOP_MISTAKES),
     rMultiples:  opts.rStats ? buildRSignal(opts.rStats) : null,
     adherence:   opts.adherence ? buildAdherenceSignal(opts.adherence) : null,
-    streaks:     buildStreakSignal(trades),
+    tilt:        buildTiltSignal(opts.tilt ?? computeTiltReport({ trades, timeZone }), trades),
+    breakEven:   opts.beReport ? buildBreakEvenSignal(opts.beReport) : null,
+    limits:      buildLimitsSignal(opts.breaches ?? null),
     volume:      buildVolumeSignal(trades, timeZone),
   }
 }

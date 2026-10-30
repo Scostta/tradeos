@@ -49,15 +49,64 @@ export type SessionBucket = {
   netPnl:  number
 }
 
+/** Win rate / avg net / avg R of a group of trades (nulls when undefined). */
+export type TiltBucket = {
+  trades:    number
+  winRate:   number | null   // 0–1, wins / (wins + losses)
+  avgNetPnl: number | null
+  avgR:      number | null
+}
+
 /**
- * Tilt / revenge-trading signal. Compares trades that immediately follow a
- * losing trade (same account, chronological) against the baseline of all
- * trades. A large negative gap is the classic revenge-trade tell.
+ * Tilt / revenge-trading signal — the same numbers as Reports → Tilt
+ * (computeTiltReport): every trade is placed against what had happened that
+ * day in that account when it was opened (last closed trade, losing streak).
  */
-export type StreakSignal = {
-  afterLoss:            { trades: number; winRate: number; avgNetPnl: number }
-  baseline:             { trades: number; winRate: number; avgNetPnl: number }
+export type TiltSignal = {
+  baseline:        TiltBucket
+  byPreviousTrade: { firstOfDay: TiltBucket; afterWin: TiltBucket; afterLoss: TiltBucket; afterBreakEven: TiltBucket }
+  afterLoss: {
+    reentryWindowMinutes: number[]      // per-account window used for "fast"
+    fastReentry:          TiltBucket    // opened within the window after closing a loss
+    waitedLonger:         TiltBucket
+    sizedUp:              TiltBucket    // more contracts than the loss
+    sameOrSmallerSize:    TiltBucket
+  }
+  byLossStreakBefore:   Record<"0" | "1" | "2" | "3+", TiltBucket>
+  byTradeNumberOfDay:   Record<"1" | "2" | "3" | "4+", TiltBucket>
   maxConsecutiveLosses: number
+}
+
+/** Break-even analysis — the same numbers as Reports → Break-even (computeBeReport). */
+export type BreakEvenSignal = {
+  trades:          number
+  rate:            number          // BE / all trades, 0–1
+  netPnl:          number
+  commissions:     number          // paid on BE trades
+  thresholdPoints: number          // |exit − entry| ≤ this → BE, unless overridden by hand
+  markedByHand:    { asBreakEven: number; asNotBreakEven: number }
+  ifThreshold:     { points: number; breakEvenTrades: number }[]
+  mfe: {
+    measured:      number          // BE trades with MFE and a risk basis
+    avgR:          number | null
+    reachedHalfR:  number
+    reached1R:     number
+    reached2R:     number
+    givenBackAt1R: number          // $ the ones that reached +1R would have made closing at 1R, minus what they made
+  }
+  mae: {
+    measured:      number
+    avgR:          number | null
+    nearStop:      number          // MAE ≥ 0.75R
+    barelyAgainst: number          // MAE ≤ 0.25R
+  }
+  highestRateGroups: { dimension: string; label: string; trades: number; breakEvenTrades: number; rate: number }[]
+}
+
+/** Trades opened after hitting a personal daily limit (Accounts → Limits). */
+export type LimitsSignal = {
+  tradesWithBreach: number
+  byType: { maxTrades: number; maxDailyLoss: number; lossStreak: number; fastReentryAfterLoss: number; sizedUpAfterLoss: number }
 }
 
 /**
@@ -98,7 +147,9 @@ export type InsightsInput = {
   topMistakes: MistakeRow[]
   rMultiples:  RSignal | null
   adherence:   AdherenceSignal | null
-  streaks:     StreakSignal
+  tilt:        TiltSignal
+  breakEven:   BreakEvenSignal | null   // null when there are no BE trades
+  limits:      LimitsSignal | null      // null when no account has daily limits
   volume:      VolumeSignal
 }
 

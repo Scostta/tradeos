@@ -11,9 +11,13 @@ import { createClient } from "~/utils/supabase/server"
 import { mapTradeFromDb } from "~/services/mappers/trades"
 import { mapPlaybookFromDb } from "~/services/mappers/playbooks"
 import { buildInsightsInput } from "~/lib/calculations/insights-input"
-import { getUserTimezone } from "~/services/queries/profile"
+import { getProfile } from "~/services/queries/profile"
 import { computeRStats } from "~/lib/calculations/r-multiples"
 import { computePortfolioAdherence } from "~/lib/calculations/playbook-adherence"
+import { computeBeReport } from "~/lib/calculations/be-analysis"
+import { computeTiltReport } from "~/lib/calculations/tilt"
+import { limitBreaches, limitsByAccount } from "~/lib/calculations/daily-limits"
+import { makeByPlaybookName } from "~/lib/calculations/reports"
 import { parsePlaybookRules } from "~/helpers/playbook-rules"
 import { createDataResult, createErrorResult } from "~/helpers/result"
 import { insightSchema, MIN_TRADES_FOR_INSIGHTS } from "~/types/insights"
@@ -53,7 +57,9 @@ export async function loadInsightsInput(
   const [tradesRes, playbooksRes, accountsRes] = await Promise.all([
     tradesQuery,
     supabase.from("playbooks").select("*").eq("user_id", userId),
-    supabase.from("accounts").select("id, risk_per_trade").eq("user_id", userId),
+    supabase.from("accounts")
+      .select("id, risk_per_trade, max_trades_per_day, max_daily_loss, max_consecutive_losses, revenge_minutes")
+      .eq("user_id", userId),
   ])
 
   if (tradesRes.error)    { console.error(tradesRes.error);    return createErrorResult(tradesRes.error.message) }
@@ -66,11 +72,33 @@ export async function loadInsightsInput(
     (accountsRes.data ?? []).map(a => [a.id as string, (a.risk_per_trade as number | null) ?? null]),
   )
   const rulesById = new Map<string, ParsedRules>(playbooks.map(p => [p.id, parsePlaybookRules(p.rules)]))
+  const accountLimits = (accountsRes.data ?? []).map(a => ({
+    id:                   a.id as string,
+    maxTradesPerDay:      (a.max_trades_per_day as number | null) ?? null,
+    maxDailyLoss:         a.max_daily_loss != null ? Number(a.max_daily_loss) : null,
+    maxConsecutiveLosses: (a.max_consecutive_losses as number | null) ?? null,
+    revengeMinutes:       (a.revenge_minutes as number | null) ?? null,
+  }))
+  const limits = limitsByAccount(accountLimits)
 
+  const profile  = await getProfile()
+  const timeZone = profile.success ? profile.data.timezone : "UTC"
+  const thresholdPoints = profile.success ? profile.data.beThresholdPoints : 1.5
+
+  // Mismos cálculos que Reports → Tilt / Break-even y que /review: la IA ve las cifras de la app.
   const input = buildInsightsInput(trades, {
     rStats:    computeRStats(trades, riskByAccount),
     adherence: computePortfolioAdherence(rulesById, trades, riskByAccount),
-    timeZone:  await getUserTimezone(),
+    tilt:      computeTiltReport({
+      trades, riskByAccount, timeZone,
+      revengeMinutes: new Map(accountLimits.map(a => [a.id, a.revengeMinutes])),
+    }),
+    beReport:  computeBeReport({
+      trades, riskByAccount, timeZone, thresholdPoints,
+      playbookName: makeByPlaybookName(playbooks),
+    }),
+    breaches:  limits.size > 0 ? limitBreaches(trades, limits, timeZone) : null,
+    timeZone,
   })
 
   return createDataResult({ input, hash: hashInput(input), tradesCount: trades.length })

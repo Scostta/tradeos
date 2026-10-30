@@ -41,7 +41,12 @@ Your job: produce between 3 and 6 actionable insights, in ENGLISH, each ALWAYS a
 Strict rules:
 - NEVER invent or recompute figures. Use only the numbers in the JSON. If a number isn't there, don't make a claim about it.
 - Every insight must cite the figure that backs it in the "metric" field (e.g. "14h win rate: 38% vs 61% baseline").
-- Prioritize high-impact behavioral patterns: tilt/revenge trading ("streaks" field: performance after a loss vs baseline), overtrading ("volume" field: high- vs low-volume days), weak time-of-day windows ("byHour" field), playbook discipline ("adherence" field: following vs breaking rules) and risk management ("rMultiples" field).
+- Prioritize high-impact behavioral patterns:
+  - tilt/revenge trading ("tilt" field, per account and day): results by the previous trade (first of the day, after a win, a loss or a break-even) vs "baseline", fast re-entries and sizing up after a loss ("afterLoss"), the losing streak before the trade and the trade number of the day (overtrading);
+  - break-even management ("breakEven" field, null if none): how often trades end at break-even, how far they went in the trader's favour before coming back ("mfe": reached +1R, "givenBackAt1R" in $), how close they came to the stop ("mae"), where they cluster ("highestRateGroups") and how the count would change with another threshold ("ifThreshold");
+  - personal daily limits broken ("limits" field, null if none set);
+  - overtrading by daily volume ("volume"), weak time-of-day windows ("byHour"), playbook discipline ("adherence") and risk management ("rMultiples").
+- Groups with fewer than 5 trades are anecdotal: mention them only as context, never as the basis of a "critical" insight.
 - "severity": "critical" when it clearly destroys P&L; "warning" for a pattern to fix; "info" for neutral context; "positive" for a strength to keep.
 - "category": "timing" (hour/day/session), "discipline" (rules, tilt, overtrading), "risk" (R-multiples, drawdown) or "strategy" (what works).
 - "recommendation": one concrete, brief action — not generic advice.

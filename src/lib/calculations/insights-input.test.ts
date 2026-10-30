@@ -2,9 +2,13 @@ import { describe, it, expect } from "vitest"
 import {
   buildInsightsInput,
   buildHourBuckets,
-  buildStreakSignal,
+  buildTiltSignal,
+  buildBreakEvenSignal,
+  buildLimitsSignal,
   buildVolumeSignal,
 } from "./insights-input"
+import { computeTiltReport } from "./tilt"
+import { computeBeReport } from "./be-analysis"
 import type { Trade } from "~/types/trade"
 
 // Minimal trade factory; only the fields the aggregation reads matter.
@@ -61,37 +65,64 @@ describe("buildVolumeSignal timezone", () => {
   })
 })
 
-describe("buildStreakSignal", () => {
-  it("isolates trades that follow a loss within the same account", () => {
-    // a1: loss → the +100 follows a loss; a2 untouched.
-    const s = buildStreakSignal([
-      trade({ accountId: "a1", entryTime: "2026-06-10T15:00:00.000Z", netPnl: -50 }),
-      trade({ accountId: "a1", entryTime: "2026-06-10T15:30:00.000Z", netPnl: 100 }),
-      trade({ accountId: "a2", entryTime: "2026-06-10T15:15:00.000Z", netPnl: 80 }),
-    ])
-    expect(s.afterLoss).toMatchObject({ trades: 1, winRate: 1, avgNetPnl: 100 })
-    expect(s.baseline.trades).toBe(3)
+describe("buildTiltSignal", () => {
+  // Same day, account a1: loss (15:00–15:05) → re-entry 2 min later with 2 contracts (win) → BE.
+  const trades = [
+    trade({ id: "1", entryTime: "2026-06-10T15:00:00.000Z", exitTime: "2026-06-10T15:05:00.000Z", netPnl: -50 }),
+    trade({ id: "2", entryTime: "2026-06-10T15:07:00.000Z", exitTime: "2026-06-10T15:20:00.000Z", netPnl: 100, contracts: 2 }),
+    trade({ id: "3", entryTime: "2026-06-10T15:30:00.000Z", exitTime: "2026-06-10T15:40:00.000Z", netPnl: 1, breakEven: true }),
+  ]
+  const s = buildTiltSignal(computeTiltReport({ trades }), trades)
+
+  it("places each trade against the previous one that day", () => {
+    expect(s.byPreviousTrade.firstOfDay.trades).toBe(1)
+    expect(s.byPreviousTrade.afterLoss).toMatchObject({ trades: 1, winRate: 1, avgNetPnl: 100 })
+    expect(s.byPreviousTrade.afterWin.trades).toBe(1)
+    expect(s.byPreviousTrade.afterBreakEven.trades).toBe(0)
+  })
+
+  it("fast re-entry and sizing up after a loss", () => {
+    expect(s.afterLoss.reentryWindowMinutes).toEqual([5])
+    expect(s.afterLoss.fastReentry.trades).toBe(1)
+    expect(s.afterLoss.sizedUp.trades).toBe(1)
+    expect(s.afterLoss.waitedLonger.trades).toBe(0)
+  })
+
+  it("streak and trade-number buckets, and the longest losing run", () => {
+    expect(s.byLossStreakBefore["1"].trades).toBe(1)
+    expect(s.byTradeNumberOfDay["3"].trades).toBe(1)
     expect(s.maxConsecutiveLosses).toBe(1)
+    expect(s.baseline).toMatchObject({ trades: 3, winRate: 0.5 })
+  })
+})
+
+describe("buildBreakEvenSignal", () => {
+  it("null without BE trades", () => {
+    expect(buildBreakEvenSignal(computeBeReport({ trades: [trade({ netPnl: 10 })], thresholdPoints: 1.5 }))).toBeNull()
   })
 
-  it("counts the longest consecutive-loss run per account", () => {
-    const s = buildStreakSignal([
-      trade({ entryTime: "2026-06-10T15:00:00.000Z", netPnl: -10 }),
-      trade({ entryTime: "2026-06-10T15:01:00.000Z", netPnl: -10 }),
-      trade({ entryTime: "2026-06-10T15:02:00.000Z", netPnl: -10 }),
-      trade({ entryTime: "2026-06-10T15:03:00.000Z", netPnl: 50 }),
-    ])
-    expect(s.maxConsecutiveLosses).toBe(3)
-    // 3 trades follow a loss (the 2nd, 3rd, and 4th).
-    expect(s.afterLoss.trades).toBe(3)
+  it("summarizes the BE report and keeps only frequent groups above the overall rate", () => {
+    // 6 trades at 15h (4 BE) and 4 at 16h (0 BE): overall 40 %, 15h = 67 % with ≥ 5 trades.
+    const ts = [
+      ...[0, 1, 2, 3].map(i => trade({ id: `b${i}`, entryTime: `2026-06-10T15:0${i}:00.000Z`, breakEven: true, commission: 2 })),
+      ...[4, 5].map(i => trade({ id: `w${i}`, entryTime: `2026-06-10T15:0${i}:00.000Z`, exitPrice: 11, netPnl: 200 })),
+      ...[0, 1, 2, 3].map(i => trade({ id: `x${i}`, entryTime: `2026-06-10T16:0${i}:00.000Z`, exitPrice: 11, netPnl: 200 })),
+    ]
+    const s = buildBreakEvenSignal(computeBeReport({ trades: ts, thresholdPoints: 1.5 }))!
+    expect(s).toMatchObject({ trades: 4, rate: 0.4, commissions: 8, thresholdPoints: 1.5 })
+    expect(s.highestRateGroups).toContainEqual({ dimension: "hour", label: "15:00", trades: 6, breakEvenTrades: 4, rate: 0.6667 })
+    expect(s.highestRateGroups.find(g => g.label === "16:00")).toBeUndefined()
   })
+})
 
-  it("orders by entryTime, not array order", () => {
-    const s = buildStreakSignal([
-      trade({ entryTime: "2026-06-10T16:00:00.000Z", netPnl: 100 }), // chronologically 2nd
-      trade({ entryTime: "2026-06-10T15:00:00.000Z", netPnl: -50 }), // chronologically 1st
-    ])
-    expect(s.afterLoss).toMatchObject({ trades: 1, avgNetPnl: 100 })
+describe("buildLimitsSignal", () => {
+  it("null when no account has limits; counts per type otherwise", () => {
+    expect(buildLimitsSignal(null)).toBeNull()
+    const s = buildLimitsSignal(new Map([["1", ["revenge", "sizeUp"]], ["2", ["trades"]]]))
+    expect(s).toEqual({
+      tradesWithBreach: 2,
+      byType: { maxTrades: 1, maxDailyLoss: 0, lossStreak: 0, fastReentryAfterLoss: 1, sizedUpAfterLoss: 1 },
+    })
   })
 })
 
@@ -128,7 +159,9 @@ describe("buildInsightsInput", () => {
     expect(input.bySession.map(s => s.session)).toEqual(["RTH", "ETH"])
     expect(input.rMultiples).toBeNull()
     expect(input.adherence).toBeNull()
-    expect(input.streaks.baseline.trades).toBe(3)
+    expect(input.tilt.baseline.trades).toBe(3)
+    expect(input.breakEven).toBeNull()
+    expect(input.limits).toBeNull()
   })
 
   it("includes R-multiple and adherence signals when provided", () => {

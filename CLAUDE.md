@@ -428,7 +428,7 @@ Todas con RLS `auth.uid() = user_id`. Sin `finance_settings`, cada página de Mo
 
 ## IA (compartido)
 
-`src/lib/ai/claude-json.ts`: llamada a Claude con salida JSON validada (Claude Opus 5.5, thinking adaptativo, `output_config.format` + Zod, fallback de servidor a Opus 4.8 si rechaza) y `inputHash()` para no repetir llamadas si los datos no cambian. Lo usan Money, Invest e Insights de Trading (`src/lib/ai/insights-client.ts` solo pone el prompt y el esquema; su caché por hash vive en la tabla `ai_insights`). Reglas comunes: la IA solo usa cifras que le pasa la app, todo va etiquetado como no-consejo, solo se llama al pulsar un botón y nunca escribe sin aceptación del usuario. Sin `ANTHROPIC_API_KEY` los botones no aparecen (`aiConfigured()`).
+`src/lib/ai/claude-json.ts`: llamada a Claude con salida JSON validada (Claude Opus 5.5, thinking adaptativo, `output_config.format` + Zod, fallback de servidor a Opus 4.8 si rechaza) y `inputHash()` para no repetir llamadas si los datos no cambian. Lo usan Money, Invest e Insights de Trading (`src/lib/ai/insights-client.ts` solo pone el prompt y el esquema; su caché por hash vive en la tabla `ai_insights`). Insights recibe las mismas cifras que la app (`buildInsightsInput`): además de hora, día, sesión, errores, R, playbook y volumen, los bloques `tilt` (`computeTiltReport`), `breakEven` (`computeBeReport`) y `limits` (`limitBreaches`). Reglas comunes: la IA solo usa cifras que le pasa la app, todo va etiquetado como no-consejo, solo se llama al pulsar un botón y nunca escribe sin aceptación del usuario. Sin `ANTHROPIC_API_KEY` los botones no aparecen (`aiConfigured()`).
 
 ## Variables de entorno requeridas
 
